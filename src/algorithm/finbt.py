@@ -10,6 +10,7 @@ import pandas as pd
 
 from ..data.fints import finTs
 from .finstrat import FinStrat
+from .targets import apply_group_gross_cap
 
 
 class _FinBTStrategy(bt.Strategy):
@@ -19,6 +20,9 @@ class _FinBTStrategy(bt.Strategy):
         ("fin_strat", None),
         ("ticker_order", []),
         ("group_column", None),
+        ("sector_gross_cap_fraction", None),
+        ("sector_cap_mode", "rescale"),
+        ("sector_group_column", "Sector"),
     )
 
     def __init__(self) -> None:
@@ -53,6 +57,16 @@ class _FinBTStrategy(bt.Strategy):
         raw = fs.pass_(panel, capital, **pass_kw)
         targets = np.asarray(jnp.asarray(raw), dtype=float)
         name_to_target = {n: float(targets[i]) for i, n in enumerate(names)}
+        if self.p.sector_gross_cap_fraction is not None:
+            gcol = self.p.sector_group_column
+            group_ids = fs.group_labels_at(self._current_dt(), names, gcol)
+            group_map = {n: str(group_ids[i]) for i, n in enumerate(names)}
+            name_to_target, _breached = apply_group_gross_cap(
+                name_to_target,
+                group_map,
+                max_group_gross_fraction=float(self.p.sector_gross_cap_fraction),
+                on_breach=self.p.sector_cap_mode,
+            )
         for t in self.p.ticker_order:
             d = self._ticker_to_data.get(t)
             if d is None:
@@ -72,6 +86,10 @@ class FinBT:
     (temporal EMA) starts clean. If ``fin_strat.neutralization == 'group'``,
     pass ``group_column`` naming a column present on ``fin_ts.df`` for each
     ``(Ticker, Date)`` row.
+
+    ``commission`` is passed to backtrader's broker as the commission rate; set
+    ``slippage_pct`` to a positive fraction (e.g. ``0.0005`` for 5 bps) for adverse
+    percent slippage on executions.
     """
 
     def __init__(
@@ -81,7 +99,11 @@ class FinBT:
         *,
         cash: float = 100_000.0,
         commission: float = 0.0,
+        slippage_pct: float = 0.0,
         group_column: Optional[str] = None,
+        sector_gross_cap_fraction: Optional[float] = None,
+        sector_cap_mode: str = "rescale",
+        sector_group_column: str = "Sector",
     ) -> None:
         if fin_strat._ts is not fin_ts:
             raise ValueError("fin_strat must be built with the same fin_ts instance (identity).")
@@ -97,9 +119,31 @@ class FinBT:
         self._ts = fin_ts
         self._cash = float(cash)
         self._commission = float(commission)
+        self._slippage_pct = float(slippage_pct)
+        if self._slippage_pct < 0:
+            raise ValueError("slippage_pct must be non-negative")
         self._group_column = group_column
-        if fin_strat.neutralization == "group" and not group_column:
-            raise ValueError("neutralization='group' requires group_column= on FinBT")
+        if fin_strat.neutralization == "group":
+            if not self._group_column:
+                self._group_column = "Sector"
+            if self._group_column not in df.columns:
+                raise KeyError(
+                    f"group_column {self._group_column!r} not found in fin_ts.df. "
+                    "Expected one of {'Sector', 'Industry', 'SubIndustry'} "
+                    "or a custom column added per (Ticker, Date)."
+                )
+        self._sector_gross_cap_fraction = sector_gross_cap_fraction
+        self._sector_cap_mode = str(sector_cap_mode)
+        self._sector_group_column = str(sector_group_column)
+        if self._sector_gross_cap_fraction is not None:
+            if not (0.0 < float(self._sector_gross_cap_fraction) <= 1.0):
+                raise ValueError("sector_gross_cap_fraction must be in (0, 1]")
+            if self._sector_cap_mode not in ("rescale", "raise"):
+                raise ValueError("sector_cap_mode must be 'rescale' or 'raise'")
+            if self._sector_group_column not in df.columns:
+                raise KeyError(
+                    f"sector_group_column {self._sector_group_column!r} not found in fin_ts.df"
+                )
         self._cerebro: Optional[bt.Cerebro] = None
         self._run_result: Optional[List[Any]] = None
 
@@ -132,6 +176,14 @@ class FinBT:
         cerebro = bt.Cerebro(**cerebro_kw)
         cerebro.broker.setcash(self._cash)
         cerebro.broker.setcommission(commission=self._commission)
+        if self._slippage_pct > 0:
+            cerebro.broker.set_slippage_perc(
+                perc=self._slippage_pct,
+                slip_open=True,
+                slip_limit=True,
+                slip_match=True,
+                slip_out=False,
+            )
 
         for t in tickers:
             data = bt.feeds.PandasData(dataname=frames[t], name=t)
@@ -142,6 +194,9 @@ class FinBT:
             fin_strat=self._strat,
             ticker_order=tickers,
             group_column=self._group_column,
+            sector_gross_cap_fraction=self._sector_gross_cap_fraction,
+            sector_cap_mode=self._sector_cap_mode,
+            sector_group_column=self._sector_group_column,
         )
         cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")

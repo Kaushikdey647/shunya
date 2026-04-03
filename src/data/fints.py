@@ -1,21 +1,33 @@
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import requests
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import yfinance as yf
 from finta import TA
 
+from .providers import (
+    MarketDataProvider,
+    YFinanceMarketDataProvider,
+    fetch_yfinance_classifications,
+)
+
 _OHLCV_EXCLUDE_CORR = frozenset({"Open", "High", "Low", "Close", "Adj Close", "Volume"})
+_CLASSIFICATION_COLUMNS = ("Sector", "Industry", "SubIndustry")
+_CLASSIFICATION_FALLBACKS = {
+    "Sector": "UnknownSector",
+    "Industry": "UnknownIndustry",
+    "SubIndustry": "UnknownSubIndustry",
+}
 
 
 class finTs:
     """
-    Download OHLCV from yfinance and attach technical / stationary features.
+    Download OHLCV via a :class:`~src.data.providers.MarketDataProvider` (default: Yahoo)
+    and attach technical / stationary features.
 
     Raw ``Open``, ``High``, ``Low``, ``Close``, and ``Volume`` are kept on the frame and
     are the first columns in :obj:`src.utils.indicators.STRATEGY_FEATURES` / ``IX_LIVE``
@@ -28,6 +40,9 @@ class finTs:
         end_date: Union[str, pd.Timestamp],
         ticker_list: Union[str, List[str]],
         session: Optional[requests.Session] = None,
+        market_data: Optional[MarketDataProvider] = None,
+        classifications: Optional[Mapping[str, Mapping[str, str]]] = None,
+        attach_yfinance_classifications: bool = True,
     ) -> None:
         self.start_date = start_date
         self.end_date = end_date
@@ -37,16 +52,22 @@ class finTs:
         else:
             self.ticker_list = list(ticker_list)
 
-        raw = yf.download(
-            self.ticker_list,
-            start=self.start_date,
-            end=self.end_date,
-            auto_adjust=True,
-            group_by="ticker",
-            progress=False,
-            **({"session": session} if session is not None else {}),
-        )
+        provider = market_data or YFinanceMarketDataProvider(session=session)
+        raw = provider.download(self.ticker_list, self.start_date, self.end_date)
+        self._ingest_raw_ohlcv(raw)
 
+        class_map: Dict[str, Dict[str, str]] = {
+            str(t): dict(v) for t, v in (classifications or {}).items()
+        }
+        if attach_yfinance_classifications:
+            fetched = fetch_yfinance_classifications(self.ticker_list, session=session)
+            for t, fields in fetched.items():
+                merged = dict(class_map.get(t, {}))
+                merged.update(fields)
+                class_map[t] = merged
+        self._attach_classifications(class_map)
+
+    def _ingest_raw_ohlcv(self, raw: pd.DataFrame) -> None:
         if raw.empty:
             self.df = raw
             return
@@ -65,7 +86,7 @@ class finTs:
         else:
             if len(self.ticker_list) != 1:
                 raise ValueError(
-                    "Multiple tickers were requested but yfinance returned a "
+                    "Multiple tickers were requested but the provider returned a "
                     "single-level column index; check ticker symbols and dates."
                 )
             self.df = self._add_features(raw.copy())
@@ -113,6 +134,28 @@ class finTs:
         )
 
         return out
+
+    def _attach_classifications(
+        self,
+        class_map: Mapping[str, Mapping[str, str]],
+    ) -> None:
+        if not isinstance(self.df, pd.DataFrame) or self.df.empty:
+            return
+
+        if isinstance(self.df.index, pd.MultiIndex):
+            tickers = self.df.index.get_level_values(0)
+            for col in _CLASSIFICATION_COLUMNS:
+                fallback = _CLASSIFICATION_FALLBACKS[col]
+                self.df[col] = [
+                    str(class_map.get(str(t), {}).get(col) or fallback) for t in tickers
+                ]
+            return
+
+        ticker = self.ticker_list[0] if self.ticker_list else ""
+        for col in _CLASSIFICATION_COLUMNS:
+            fallback = _CLASSIFICATION_FALLBACKS[col]
+            val = str(class_map.get(str(ticker), {}).get(col) or fallback)
+            self.df[col] = val
 
     def _require_nonempty_df(self) -> None:
         if not isinstance(self.df, pd.DataFrame) or self.df.empty:

@@ -5,6 +5,7 @@ from typing import List, Literal, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pandas as pd
 
 from ..data.fints import finTs
@@ -12,6 +13,7 @@ from ..utils import indicators
 from . import cross_section
 
 Neutralization = Literal["none", "market", "group"]
+STANDARD_GROUP_COLUMNS: Tuple[str, ...] = ("Sector", "Industry", "SubIndustry")
 
 
 @jax.jit
@@ -214,8 +216,13 @@ class FinStrat:
         Labels may be strings or ints; used with ``neutralization='group'``.
         """
         df = self._ts.df
+        if not isinstance(column, str) or not column.strip():
+            raise ValueError("group column must be a non-empty string")
         if not isinstance(df, pd.DataFrame) or column not in df.columns:
-            raise KeyError(f"Column {column!r} not in fin_ts dataframe")
+            raise KeyError(
+                f"Column {column!r} not in fin_ts dataframe. "
+                f"Common classification columns: {STANDARD_GROUP_COLUMNS!r}"
+            )
         dt = pd.Timestamp(date)
         out: List[object] = []
         for t in tickers:
@@ -228,7 +235,7 @@ class FinStrat:
             if pd.isna(v):
                 raise ValueError(f"Missing group label for {t!r} at {dt}")
             out.append(v)
-        return jnp.asarray(out, dtype=object)
+        return np.asarray(out)
 
     def scores(self, indicators: jnp.ndarray) -> jnp.ndarray:
         """
@@ -311,7 +318,7 @@ class FinStrat:
         elif self._neutralization == "group":
             if group_ids is None:
                 raise ValueError("group_ids is required when neutralization='group'")
-            gid = jnp.asarray(group_ids)
+            gid = np.asarray(group_ids)
             if gid.shape[0] != s.shape[0]:
                 raise ValueError("group_ids must have same length as scores")
             s = cross_section.neutralize_groups(s, gid)
