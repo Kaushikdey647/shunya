@@ -13,10 +13,17 @@ from alpaca.trading.enums import PositionSide
 from alpaca.trading.models import Position
 
 from ..data.fints import finTs
-from .decision import DecisionContext, resolve_panel_timestamp
+from .decision import DecisionContext, resolve_panel_timestamp, validate_panel_timestamp
 from .execution import AlpacaExecutionAdapter, ExecutionReport
 from .finstrat import FinStrat
-from .targets import apply_group_gross_cap, broker_deltas, target_usd_universe
+from .targets import (
+    apply_group_gross_cap,
+    apply_group_net_cap,
+    broker_deltas,
+    cap_deltas_by_adv,
+    enforce_turnover_budget,
+    target_usd_universe,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +101,16 @@ class FinTrade:
         sector_gross_cap_fraction: Optional[float] = None,
         sector_cap_mode: Literal["rescale", "raise"] = "rescale",
         sector_group_column: str = "Sector",
+        decision_enforce_weekday: bool = True,
+        decision_strict_same_session: bool = False,
+        decision_max_staleness_days: Optional[int] = 7,
+        group_net_cap_fraction: Optional[float] = None,
+        turnover_budget_fraction: Optional[float] = None,
+        adv_participation_fraction: Optional[float] = None,
+        constraints_mode: Literal["rescale", "raise"] = "rescale",
+        reconcile_after_submit: bool = True,
+        reconciliation_policy: Literal["warn_only", "retry_once", "cancel_and_retarget"] = "warn_only",
+        reconciliation_tolerance_notional: float = 5.0,
     ) -> ExecutionReport:
         """
         Build panel, run :meth:`FinStrat.pass_`, diff vs Alpaca, submit orders.
@@ -113,6 +130,14 @@ class FinTrade:
             raise ValueError(f"Expected index names ('Ticker', 'Date'), got {tuple(df.index.names)!r}")
         if tradecapital <= 0:
             raise ValueError(f"tradecapital must be positive, got {tradecapital}")
+        if constraints_mode not in ("rescale", "raise"):
+            raise ValueError("constraints_mode must be 'rescale' or 'raise'")
+        if reconciliation_policy not in ("warn_only", "retry_once", "cancel_and_retarget"):
+            raise ValueError(
+                "reconciliation_policy must be 'warn_only', 'retry_once', or 'cancel_and_retarget'"
+            )
+        if reconciliation_tolerance_notional < 0:
+            raise ValueError("reconciliation_tolerance_notional must be non-negative")
         if self._strat.neutralization == "group":
             if not self._group_column:
                 raise ValueError("neutralization='group' requires group_column")
@@ -129,10 +154,19 @@ class FinTrade:
             explicit_as_of=as_of,
             index_max_date=idx_max,
         )
+        tz = decision.timezone if decision is not None else "America/New_York"
+        dt, decision_warnings = validate_panel_timestamp(
+            resolved_as_of=dt,
+            index_max_date=idx_max,
+            timezone=tz,
+            enforce_weekday=decision_enforce_weekday,
+            strict_same_session=decision_strict_same_session,
+            max_staleness_days=decision_max_staleness_days,
+        )
         correlation_id = uuid.uuid4().hex
         data_source = decision.data_source if decision is not None else None
 
-        warnings: list[str] = []
+        warnings: list[str] = list(decision_warnings)
         if data_source == "yfinance_research":
             warnings.append(
                 "data_source=yfinance_research: Yahoo history may not match Alpaca fills — use AlpacaHistoricalMarketDataProvider + DecisionContext(data_source='alpaca_bars') for tighter parity."
@@ -178,23 +212,26 @@ class FinTrade:
             dtype=float,
         )
         targets = target_usd_universe(names, targets_vec, fin_ts.ticker_list)
-        if sector_gross_cap_fraction is not None:
-            if not (0.0 < sector_gross_cap_fraction <= 1.0):
-                raise ValueError("sector_gross_cap_fraction must be in (0, 1]")
+        group_map = {t: "UnknownSector" for t in fin_ts.ticker_list}
+        need_group_map = (
+            sector_gross_cap_fraction is not None or group_net_cap_fraction is not None
+        )
+        if need_group_map:
             if sector_group_column not in df.columns:
                 raise KeyError(
                     f"sector_group_column {sector_group_column!r} not found in fin_ts.df"
                 )
-            group_map = {}
             for t in fin_ts.ticker_list:
                 key = (t, dt)
                 if key not in df.index:
-                    group_map[t] = "UnknownSector"
                     continue
                 g = df.loc[key, sector_group_column]
                 if isinstance(g, pd.Series):
                     g = g.iloc[-1]
                 group_map[t] = str(g) if pd.notna(g) else "UnknownSector"
+        if sector_gross_cap_fraction is not None:
+            if not (0.0 < sector_gross_cap_fraction <= 1.0):
+                raise ValueError("sector_gross_cap_fraction must be in (0, 1]")
             targets, breached_groups = apply_group_gross_cap(
                 targets,
                 group_map,
@@ -206,6 +243,18 @@ class FinTrade:
                     f"sector_gross_cap_applied groups={breached_groups}, "
                     f"fraction={sector_gross_cap_fraction}, mode={sector_cap_mode}"
                 )
+        if group_net_cap_fraction is not None:
+            targets, breached_net = apply_group_net_cap(
+                targets,
+                group_map,
+                max_group_net_fraction=float(group_net_cap_fraction),
+                on_breach=constraints_mode,
+            )
+            if breached_net:
+                warnings.append(
+                    f"group_net_cap_applied groups={breached_net}, "
+                    f"fraction={group_net_cap_fraction}, mode={constraints_mode}"
+                )
 
         positions = self._client.get_all_positions()
         current = {t: 0.0 for t in fin_ts.ticker_list}
@@ -214,7 +263,44 @@ class FinTrade:
             if sym in current:
                 current[sym] = _signed_position_usd(p)
 
+        if turnover_budget_fraction is not None:
+            targets, obs_turnover, turn_limit = enforce_turnover_budget(
+                targets,
+                current,
+                max_turnover_fraction=float(turnover_budget_fraction),
+                on_breach=constraints_mode,
+            )
+            if obs_turnover > turn_limit + 1e-9:
+                warnings.append(
+                    f"turnover_budget_applied observed={obs_turnover:.2f} "
+                    f"limit={turn_limit:.2f}, mode={constraints_mode}"
+                )
+
         deltas = broker_deltas(targets, current, fin_ts.ticker_list)
+        if adv_participation_fraction is not None:
+            adv_usd = {}
+            for t in fin_ts.ticker_list:
+                key = (t, dt)
+                if key not in df.index:
+                    continue
+                row = df.loc[key]
+                if isinstance(row, pd.DataFrame):
+                    row = row.iloc[-1]
+                close = float(row.get("Close", np.nan))
+                vol = float(row.get("Volume", np.nan))
+                if np.isfinite(close) and np.isfinite(vol) and close > 0 and vol >= 0:
+                    adv_usd[t] = close * vol
+            deltas, breached_adv = cap_deltas_by_adv(
+                deltas,
+                adv_usd,
+                max_adv_fraction=float(adv_participation_fraction),
+                on_breach=constraints_mode,
+            )
+            if breached_adv:
+                warnings.append(
+                    f"adv_cap_applied symbols={breached_adv}, "
+                    f"fraction={adv_participation_fraction}, mode={constraints_mode}"
+                )
 
         attempts = self._adapter.submit_delta_orders(
             deltas,
@@ -244,6 +330,50 @@ class FinTrade:
         if status_errors:
             warnings.append(f"order_status_poll_errors={status_errors}")
 
+        post_trade_current: dict[str, float] = {}
+        residual_deltas: dict[str, float] = {}
+        remediation_attempts = []
+        if reconcile_after_submit and not dry_run:
+            try:
+                post_positions = self._client.get_all_positions()
+                post_trade_current = {t: 0.0 for t in fin_ts.ticker_list}
+                for p in post_positions:
+                    sym = str(p.symbol)
+                    if sym in post_trade_current:
+                        post_trade_current[sym] = _signed_position_usd(p)
+                residual_deltas = broker_deltas(targets, post_trade_current, fin_ts.ticker_list)
+                residual_deltas = {
+                    k: v for k, v in residual_deltas.items() if abs(float(v)) >= reconciliation_tolerance_notional
+                }
+                if residual_deltas:
+                    warnings.append(
+                        f"reconciliation_residuals symbols={sorted(residual_deltas)}, "
+                        f"policy={reconciliation_policy}"
+                    )
+                    if reconciliation_policy == "retry_once":
+                        remediation_attempts = self._adapter.submit_delta_orders(
+                            residual_deltas,
+                            min_order_notional=max(min_order_notional, reconciliation_tolerance_notional),
+                            dry_run=False,
+                            correlation_id=f"{correlation_id}-recon",
+                        )
+                    elif reconciliation_policy == "cancel_and_retarget":
+                        self._adapter.cancel_open_orders()
+                        remediation_attempts = self._adapter.submit_delta_orders(
+                            residual_deltas,
+                            min_order_notional=max(min_order_notional, reconciliation_tolerance_notional),
+                            dry_run=False,
+                            correlation_id=f"{correlation_id}-recon",
+                        )
+                    if remediation_attempts and observe_order_status:
+                        remediation_attempts = self._adapter.observe_submitted_orders(
+                            remediation_attempts,
+                            max_polls=status_max_polls,
+                            poll_interval_seconds=status_poll_interval_seconds,
+                        )
+            except Exception as e:
+                warnings.append(f"reconciliation_failed error={e}")
+
         eff_gross = sum(abs(v) for v in targets.values())
 
         return ExecutionReport(
@@ -260,6 +390,11 @@ class FinTrade:
             clock_is_open=clock_open,
             dry_run=dry_run,
             order_attempts=attempts,
+            remediation_attempts=remediation_attempts,
             warnings=warnings,
             status_observation_enabled=bool(observe_order_status and not dry_run),
+            reconciliation_enabled=bool(reconcile_after_submit and not dry_run),
+            reconciliation_policy=reconciliation_policy if (reconcile_after_submit and not dry_run) else None,
+            post_trade_current_usd=post_trade_current,
+            residual_deltas_usd=residual_deltas,
         )

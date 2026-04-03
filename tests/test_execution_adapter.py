@@ -61,3 +61,10 @@ def test_observe_submitted_orders_updates_final_status_and_fill_fields():
     assert out[0].final_status == "filled"
     assert out[0].filled_qty == 5.0
     assert out[0].filled_avg_price == 123.45
+
+
+def test_cancel_open_orders_calls_client():
+    client = _mock_client()
+    adapter = AlpacaExecutionAdapter(client)
+    adapter.cancel_open_orders()
+    client.cancel_orders.assert_called_once()

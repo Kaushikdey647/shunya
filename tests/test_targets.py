@@ -7,8 +7,11 @@ import pytest
 
 from src.algorithm.targets import (
     apply_group_gross_cap,
+    apply_group_net_cap,
     apply_slippage_to_fill_price,
     broker_deltas,
+    cap_deltas_by_adv,
+    enforce_turnover_budget,
     target_usd_universe,
 )
 
@@ -64,3 +67,43 @@ def test_apply_group_gross_cap_raise_mode():
             max_group_gross_fraction=0.4,
             on_breach="raise",
         )
+
+
+def test_apply_group_net_cap_rescales():
+    targets = {"A": 100.0, "B": 50.0, "C": -30.0}
+    groups = {"A": "Tech", "B": "Tech", "C": "Energy"}
+    out, breached = apply_group_net_cap(
+        targets,
+        groups,
+        max_group_net_fraction=0.2,
+        on_breach="rescale",
+    )
+    assert "Tech" in breached
+    gross = sum(abs(v) for v in out.values())
+    tech_net = out["A"] + out["B"]
+    assert abs(tech_net) <= gross * 0.2 + 1e-6
+
+
+def test_enforce_turnover_budget_rescales_deltas():
+    targets = {"A": 100.0, "B": -100.0}
+    current = {"A": 0.0, "B": 0.0}
+    out, turnover, limit = enforce_turnover_budget(
+        targets,
+        current,
+        max_turnover_fraction=0.5,
+        on_breach="rescale",
+    )
+    new_turn = abs(out["A"] - current["A"]) + abs(out["B"] - current["B"])
+    assert turnover > limit
+    assert new_turn <= limit + 1e-6
+
+
+def test_cap_deltas_by_adv_rescales():
+    out, breached = cap_deltas_by_adv(
+        {"A": 200.0, "B": -50.0},
+        {"A": 100.0, "B": 1000.0},
+        max_adv_fraction=0.5,
+        on_breach="rescale",
+    )
+    assert "A" in breached
+    assert out["A"] == pytest.approx(50.0)

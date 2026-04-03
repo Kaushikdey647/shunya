@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import requests
@@ -22,6 +23,24 @@ _CLASSIFICATION_FALLBACKS = {
     "Industry": "UnknownIndustry",
     "SubIndustry": "UnknownSubIndustry",
 }
+
+
+@dataclass(frozen=True)
+class PanelQADiagnostics:
+    duplicate_rows: int
+    missing_ticker_dates: int
+    stale_days_from_last_date: int
+    invalid_ohlcv_rows: int
+    warnings: Tuple[str, ...]
+
+    def as_dict(self) -> Dict[str, Union[int, List[str]]]:
+        return {
+            "duplicate_rows": self.duplicate_rows,
+            "missing_ticker_dates": self.missing_ticker_dates,
+            "stale_days_from_last_date": self.stale_days_from_last_date,
+            "invalid_ohlcv_rows": self.invalid_ohlcv_rows,
+            "warnings": list(self.warnings),
+        }
 
 
 class finTs:
@@ -160,6 +179,74 @@ class finTs:
     def _require_nonempty_df(self) -> None:
         if not isinstance(self.df, pd.DataFrame) or self.df.empty:
             raise ValueError("No data loaded; dataframe is empty.")
+
+    def qa_diagnostics(
+        self,
+        *,
+        as_of: Optional[Union[str, pd.Timestamp]] = None,
+        max_stale_days: int = 7,
+    ) -> PanelQADiagnostics:
+        """
+        Basic panel QA checks for research and pre-trade validation.
+        """
+        self._require_nonempty_df()
+        df = self.df
+        warnings: List[str] = []
+
+        if isinstance(df.index, pd.MultiIndex):
+            duplicate_rows = int(df.index.duplicated().sum())
+            uniq_dates = pd.DatetimeIndex(
+                pd.to_datetime(df.index.get_level_values("Date")).normalize().unique()
+            )
+            uniq_tickers = list(df.index.get_level_values("Ticker").unique())
+            expected = len(uniq_tickers) * len(uniq_dates)
+            missing_ticker_dates = max(expected - int(len(df.index)), 0)
+            last_date = pd.Timestamp(uniq_dates.max()).normalize()
+        else:
+            duplicate_rows = int(df.index.duplicated().sum())
+            idx_dates = pd.DatetimeIndex(pd.to_datetime(df.index).normalize().unique())
+            missing_ticker_dates = 0
+            last_date = pd.Timestamp(idx_dates.max()).normalize()
+
+        ref = (
+            pd.Timestamp(as_of).normalize()
+            if as_of is not None
+            else pd.Timestamp.now(tz="America/New_York").normalize().tz_localize(None)
+        )
+        stale_days = int((ref - last_date).days)
+
+        required = [c for c in ("Open", "High", "Low", "Close", "Volume") if c in df.columns]
+        invalid_ohlcv_rows = 0
+        if required:
+            chk = df[required]
+            invalid_ohlcv_rows = int(
+                (
+                    (~np.isfinite(chk.to_numpy(dtype=float))).any(axis=1)
+                    | (chk["Volume"].to_numpy(dtype=float) < 0 if "Volume" in chk.columns else False)
+                    | (
+                        (chk["High"].to_numpy(dtype=float) < chk["Low"].to_numpy(dtype=float))
+                        if "High" in chk.columns and "Low" in chk.columns
+                        else False
+                    )
+                ).sum()
+            )
+
+        if duplicate_rows > 0:
+            warnings.append(f"duplicate_rows={duplicate_rows}")
+        if missing_ticker_dates > 0:
+            warnings.append(f"missing_ticker_dates={missing_ticker_dates}")
+        if stale_days > max_stale_days:
+            warnings.append(f"stale_days_exceeds_limit days={stale_days} limit={max_stale_days}")
+        if invalid_ohlcv_rows > 0:
+            warnings.append(f"invalid_ohlcv_rows={invalid_ohlcv_rows}")
+
+        return PanelQADiagnostics(
+            duplicate_rows=duplicate_rows,
+            missing_ticker_dates=missing_ticker_dates,
+            stale_days_from_last_date=stale_days,
+            invalid_ohlcv_rows=invalid_ohlcv_rows,
+            warnings=tuple(warnings),
+        )
 
     def plot_correlation_heatmap(
         self,

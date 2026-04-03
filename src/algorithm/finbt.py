@@ -10,7 +10,12 @@ import pandas as pd
 
 from ..data.fints import finTs
 from .finstrat import FinStrat
-from .targets import apply_group_gross_cap
+from .targets import (
+    apply_group_gross_cap,
+    apply_group_net_cap,
+    cap_deltas_by_adv,
+    enforce_turnover_budget,
+)
 
 
 class _FinBTStrategy(bt.Strategy):
@@ -23,6 +28,10 @@ class _FinBTStrategy(bt.Strategy):
         ("sector_gross_cap_fraction", None),
         ("sector_cap_mode", "rescale"),
         ("sector_group_column", "Sector"),
+        ("group_net_cap_fraction", None),
+        ("turnover_budget_fraction", None),
+        ("adv_participation_fraction", None),
+        ("constraints_mode", "rescale"),
     )
 
     def __init__(self) -> None:
@@ -32,6 +41,10 @@ class _FinBTStrategy(bt.Strategy):
             if name:
                 self._ticker_to_data[name] = d
         self.equity_curve: List[Tuple[pd.Timestamp, float]] = []
+        self.target_history: List[Tuple[pd.Timestamp, Dict[str, float]]] = []
+        self.turnover_history: List[Tuple[pd.Timestamp, float]] = []
+        self.group_exposure_history: List[Tuple[pd.Timestamp, Dict[str, Dict[str, float]]]] = []
+        self._prev_targets: Dict[str, float] = {}
 
     def _current_dt(self) -> pd.Timestamp:
         return pd.Timestamp(bt.num2date(self.datas[0].datetime[0]))
@@ -67,6 +80,80 @@ class _FinBTStrategy(bt.Strategy):
                 max_group_gross_fraction=float(self.p.sector_gross_cap_fraction),
                 on_breach=self.p.sector_cap_mode,
             )
+        if self.p.group_net_cap_fraction is not None:
+            gcol = self.p.sector_group_column
+            group_ids = fs.group_labels_at(self._current_dt(), names, gcol)
+            group_map = {n: str(group_ids[i]) for i, n in enumerate(names)}
+            name_to_target, _breached_net = apply_group_net_cap(
+                name_to_target,
+                group_map,
+                max_group_net_fraction=float(self.p.group_net_cap_fraction),
+                on_breach=self.p.constraints_mode,
+            )
+        if self.p.turnover_budget_fraction is not None and self._prev_targets:
+            name_to_target, _obs_turn, _limit_turn = enforce_turnover_budget(
+                name_to_target,
+                self._prev_targets,
+                max_turnover_fraction=float(self.p.turnover_budget_fraction),
+                on_breach=self.p.constraints_mode,
+            )
+        if self.p.adv_participation_fraction is not None and self._prev_targets:
+            raw_deltas = {
+                n: float(name_to_target.get(n, 0.0) - self._prev_targets.get(n, 0.0))
+                for n in names
+            }
+            adv_usd = {}
+            dt = self._current_dt()
+            df = fs._ts.df
+            for n in names:
+                key = (n, dt)
+                if key not in df.index:
+                    continue
+                row = df.loc[key]
+                if isinstance(row, pd.DataFrame):
+                    row = row.iloc[-1]
+                close = float(row.get("Close", np.nan))
+                vol = float(row.get("Volume", np.nan))
+                if np.isfinite(close) and np.isfinite(vol) and close > 0 and vol >= 0:
+                    adv_usd[n] = close * vol
+            capped_deltas, _breached_adv = cap_deltas_by_adv(
+                raw_deltas,
+                adv_usd,
+                max_adv_fraction=float(self.p.adv_participation_fraction),
+                on_breach=self.p.constraints_mode,
+            )
+            for n in names:
+                base = float(self._prev_targets.get(n, 0.0))
+                name_to_target[n] = base + float(capped_deltas.get(n, 0.0))
+
+        dt = self._current_dt()
+        full_targets = {t: float(name_to_target.get(t, 0.0)) for t in self.p.ticker_order}
+        self.target_history.append((dt, full_targets))
+        if self._prev_targets:
+            turnover = sum(
+                abs(full_targets.get(t, 0.0) - self._prev_targets.get(t, 0.0))
+                for t in self.p.ticker_order
+            )
+            self.turnover_history.append((dt, float(turnover)))
+        self._prev_targets = dict(full_targets)
+
+        if self.p.sector_group_column:
+            try:
+                gcol = self.p.sector_group_column
+                gids = fs.group_labels_at(dt, names, gcol)
+                gross_by_group: Dict[str, float] = {}
+                net_by_group: Dict[str, float] = {}
+                for i, n in enumerate(names):
+                    g = str(gids[i])
+                    v = float(name_to_target.get(n, 0.0))
+                    gross_by_group[g] = gross_by_group.get(g, 0.0) + abs(v)
+                    net_by_group[g] = net_by_group.get(g, 0.0) + v
+                self.group_exposure_history.append(
+                    (dt, {"gross_by_group": gross_by_group, "net_by_group": net_by_group})
+                )
+            except Exception:
+                pass
+
         for t in self.p.ticker_order:
             d = self._ticker_to_data.get(t)
             if d is None:
@@ -104,6 +191,10 @@ class FinBT:
         sector_gross_cap_fraction: Optional[float] = None,
         sector_cap_mode: str = "rescale",
         sector_group_column: str = "Sector",
+        group_net_cap_fraction: Optional[float] = None,
+        turnover_budget_fraction: Optional[float] = None,
+        adv_participation_fraction: Optional[float] = None,
+        constraints_mode: str = "rescale",
     ) -> None:
         if fin_strat._ts is not fin_ts:
             raise ValueError("fin_strat must be built with the same fin_ts instance (identity).")
@@ -135,6 +226,10 @@ class FinBT:
         self._sector_gross_cap_fraction = sector_gross_cap_fraction
         self._sector_cap_mode = str(sector_cap_mode)
         self._sector_group_column = str(sector_group_column)
+        self._group_net_cap_fraction = group_net_cap_fraction
+        self._turnover_budget_fraction = turnover_budget_fraction
+        self._adv_participation_fraction = adv_participation_fraction
+        self._constraints_mode = str(constraints_mode)
         if self._sector_gross_cap_fraction is not None:
             if not (0.0 < float(self._sector_gross_cap_fraction) <= 1.0):
                 raise ValueError("sector_gross_cap_fraction must be in (0, 1]")
@@ -144,6 +239,14 @@ class FinBT:
                 raise KeyError(
                     f"sector_group_column {self._sector_group_column!r} not found in fin_ts.df"
                 )
+        if self._group_net_cap_fraction is not None and not (0.0 < float(self._group_net_cap_fraction) <= 1.0):
+            raise ValueError("group_net_cap_fraction must be in (0, 1]")
+        if self._turnover_budget_fraction is not None and not (0.0 < float(self._turnover_budget_fraction) <= 2.0):
+            raise ValueError("turnover_budget_fraction must be in (0, 2]")
+        if self._adv_participation_fraction is not None and not (0.0 < float(self._adv_participation_fraction) <= 1.0):
+            raise ValueError("adv_participation_fraction must be in (0, 1]")
+        if self._constraints_mode not in ("rescale", "raise"):
+            raise ValueError("constraints_mode must be 'rescale' or 'raise'")
         self._cerebro: Optional[bt.Cerebro] = None
         self._run_result: Optional[List[Any]] = None
 
@@ -197,6 +300,10 @@ class FinBT:
             sector_gross_cap_fraction=self._sector_gross_cap_fraction,
             sector_cap_mode=self._sector_cap_mode,
             sector_group_column=self._sector_group_column,
+            group_net_cap_fraction=self._group_net_cap_fraction,
+            turnover_budget_fraction=self._turnover_budget_fraction,
+            adv_participation_fraction=self._adv_participation_fraction,
+            constraints_mode=self._constraints_mode,
         )
         cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
@@ -235,6 +342,46 @@ class FinBT:
             "sharpe_ratio": sh_a.get("sharperatio", None),
         }
 
+        turnover_df = pd.DataFrame(
+            strat.turnover_history,
+            columns=["Date", "TurnoverUSD"],
+        ).set_index("Date") if strat.turnover_history else pd.DataFrame(columns=["TurnoverUSD"])
+        if not turnover_df.empty and not equity.empty:
+            aligned = turnover_df.join(equity[["Equity"]], how="left").ffill()
+            turnover_pct = aligned["TurnoverUSD"] / aligned["Equity"].replace(0, np.nan)
+            metrics["avg_turnover_pct"] = float(turnover_pct.mean(skipna=True) * 100.0)
+            metrics["max_turnover_pct"] = float(turnover_pct.max(skipna=True) * 100.0)
+            metrics["rebalance_count"] = int(len(turnover_df))
+        else:
+            metrics["avg_turnover_pct"] = 0.0
+            metrics["max_turnover_pct"] = 0.0
+            metrics["rebalance_count"] = 0
+
+        if strat.target_history:
+            latest_targets = strat.target_history[-1][1]
+            gross = sum(abs(v) for v in latest_targets.values())
+            top = max((abs(v) for v in latest_targets.values()), default=0.0)
+            metrics["top_name_gross_share_pct"] = float((top / gross) * 100.0) if gross > 0 else 0.0
+        else:
+            metrics["top_name_gross_share_pct"] = 0.0
+
+        if strat.group_exposure_history:
+            _, ge = strat.group_exposure_history[-1]
+            gross_map = ge.get("gross_by_group", {})
+            net_map = ge.get("net_by_group", {})
+            total_g = sum(float(v) for v in gross_map.values())
+            max_group_gross = max((float(v) for v in gross_map.values()), default=0.0)
+            max_group_net_abs = max((abs(float(v)) for v in net_map.values()), default=0.0)
+            metrics["max_group_gross_share_pct"] = (
+                float((max_group_gross / total_g) * 100.0) if total_g > 0 else 0.0
+            )
+            metrics["max_group_net_share_pct"] = (
+                float((max_group_net_abs / total_g) * 100.0) if total_g > 0 else 0.0
+            )
+        else:
+            metrics["max_group_gross_share_pct"] = 0.0
+            metrics["max_group_net_share_pct"] = 0.0
+
         fig, axes = plt.subplots(3, 1, figsize=(12, 10), gridspec_kw={"height_ratios": [2, 1, 1]})
         ax_eq, ax_dd, ax_tbl = axes
 
@@ -255,6 +402,8 @@ class FinBT:
             f"Avg daily return: {metrics['avg_daily_return_pct']:.4f}%",
             f"Max drawdown: {metrics['max_drawdown_pct']:.2f}%",
             f"Sharpe (bt annualized): {metrics['sharpe_ratio']}",
+            f"Avg turnover: {metrics['avg_turnover_pct']:.2f}%",
+            f"Top-name gross share: {metrics['top_name_gross_share_pct']:.2f}%",
         ]
         ax_tbl.text(0.02, 0.95, "\n".join(lines), transform=ax_tbl.transAxes, va="top", family="monospace")
 
@@ -269,4 +418,7 @@ class FinBT:
             "returns_analysis": ret_a,
             "drawdown_analysis": dd_a,
             "sharpe_analysis": sh_a,
+            "turnover_history": turnover_df,
+            "target_history": list(strat.target_history),
+            "group_exposure_history": list(strat.group_exposure_history),
         }

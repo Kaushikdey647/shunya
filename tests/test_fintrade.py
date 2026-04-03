@@ -25,7 +25,7 @@ def _mock_trading_client():
     acct = MagicMock()
     acct.buying_power = "100000"
     client.get_account.return_value = acct
-    client.get_all_positions.return_value = []
+    client.get_all_positions.side_effect = [[], []]
     asset = MagicMock()
     asset.tradable = True
     asset.fractionable = True
@@ -107,6 +107,7 @@ def test_fintrade_submits_when_not_dry_run():
     assert all(a.success for a in rep.order_attempts if a.notional >= 1.0)
     assert rep.status_observation_enabled is True
     assert all(a.final_status in ("filled", "dry_run") for a in rep.order_attempts)
+    assert rep.reconciliation_enabled is True
 
 
 def test_require_market_open_raises_when_closed():
@@ -163,3 +164,58 @@ def test_fintrade_sector_gross_cap_adds_warning_and_rescales():
         sector_gross_cap_fraction=0.5,
     )
     assert any("sector_gross_cap_applied" in w for w in rep.warnings)
+
+
+def test_fintrade_reconciliation_retry_once_places_remediation_orders():
+    tickers = ["AAA", "BBB"]
+    dates = ["2020-01-02", "2020-01-03"]
+    fts = make_stub_fints(tickers, dates, base_price=100.0)
+    d3 = pd.Timestamp("2020-01-03").normalize()
+    fts.df.loc[("AAA", d3), "Close"] = 200.0
+    fts.df.loc[("BBB", d3), "Close"] = 50.0
+    client = _mock_trading_client()
+    # first position snapshot empty, second still empty -> residual remains.
+    client.get_all_positions.side_effect = [[], []]
+    fs = FinStrat(
+        fts,
+        lambda p: p[:, 3].astype(jnp.float32),
+        neutralization="market",
+        panel_columns=indicators.STRATEGY_PANEL_OHLCV_ONLY,
+    )
+    ft = FinTrade(fs, trading_client=client, paper=True)
+    rep = ft.run(
+        20_000.0,
+        fts,
+        as_of=d3,
+        dry_run=False,
+        min_order_notional=1.0,
+        cap_to_buying_power=False,
+        reconciliation_policy="retry_once",
+        reconciliation_tolerance_notional=1.0,
+    )
+    assert rep.reconciliation_enabled is True
+    assert rep.reconciliation_policy == "retry_once"
+    assert len(rep.residual_deltas_usd) >= 1
+    assert len(rep.remediation_attempts) >= 1
+
+
+def test_fintrade_decision_guard_rejects_weekend_as_of():
+    tickers = ["AAA"]
+    dates = ["2020-01-03"]  # Friday data only
+    fts = make_stub_fints(tickers, dates, base_price=100.0)
+    fs = FinStrat(
+        fts,
+        lambda p: p[:, 3].astype(jnp.float32),
+        neutralization="market",
+        panel_columns=indicators.STRATEGY_PANEL_OHLCV_ONLY,
+    )
+    client = _mock_trading_client()
+    ft = FinTrade(fs, trading_client=client, paper=True)
+    with pytest.raises(ValueError, match="weekend"):
+        ft.run(
+            10_000.0,
+            fts,
+            as_of=pd.Timestamp("2020-01-04"),  # Saturday
+            dry_run=True,
+            cap_to_buying_power=False,
+        )

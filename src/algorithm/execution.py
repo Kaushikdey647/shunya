@@ -50,8 +50,13 @@ class ExecutionReport:
     clock_is_open: Optional[bool]
     dry_run: bool
     order_attempts: List[OrderAttempt] = field(default_factory=list)
+    remediation_attempts: List[OrderAttempt] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     status_observation_enabled: bool = False
+    reconciliation_enabled: bool = False
+    reconciliation_policy: Optional[str] = None
+    post_trade_current_usd: Dict[str, float] = field(default_factory=dict)
+    residual_deltas_usd: Dict[str, float] = field(default_factory=dict)
 
     def as_dict(self) -> Dict[str, Any]:
         """JSON-friendly summary (no ORM objects)."""
@@ -85,8 +90,29 @@ class ExecutionReport:
                 }
                 for o in self.order_attempts
             ],
+            "remediation_attempts": [
+                {
+                    "symbol": o.symbol,
+                    "client_order_id": o.client_order_id,
+                    "side": o.side,
+                    "notional": o.notional,
+                    "success": o.success,
+                    "error": o.error,
+                    "order_id": str(o.order.id) if o.order and o.order.id else None,
+                    "initial_status": o.initial_status,
+                    "final_status": o.final_status,
+                    "filled_qty": o.filled_qty,
+                    "filled_avg_price": o.filled_avg_price,
+                    "status_error": o.status_error,
+                }
+                for o in self.remediation_attempts
+            ],
             "warnings": list(self.warnings),
             "status_observation_enabled": self.status_observation_enabled,
+            "reconciliation_enabled": self.reconciliation_enabled,
+            "reconciliation_policy": self.reconciliation_policy,
+            "post_trade_current_usd": dict(self.post_trade_current_usd),
+            "residual_deltas_usd": dict(self.residual_deltas_usd),
         }
 
 
@@ -281,3 +307,7 @@ class AlpacaExecutionAdapter:
                     time.sleep(poll_interval_seconds)
             attempt.status_error = last_err
         return attempts
+
+    def cancel_open_orders(self) -> None:
+        """Best-effort open-order cancellation."""
+        self._client.cancel_orders()

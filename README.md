@@ -45,7 +45,7 @@ from src import (
 
 3. **`FinBT(fin_strat, fin_ts, ...)`** runs the same `FinStrat` on the same `fin_ts` instance in backtrader, rebalancing to `pass_` dollar targets each bar. `run()` resets `FinStrat` decay state. Pass **`commission`** (broker rate) and optional **`slippage_pct`** (adverse percent via backtrader’s `set_slippage_perc`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). `broker_deltas` / `target_usd_universe` in `src.algorithm.targets` mirror how live orders diff targets vs positions.
 
-4. **`FinTrade(fin_strat, ...)`** uses the Alpaca Trading API (`alpaca-py`): `run(tradecapital, fin_ts)` builds the panel (latest date by default), runs `pass_`, diffs targets vs open positions, and submits **market DAY** orders by **notional**. Set `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`, or pass `api_key` / `secret_key`. `dry_run=True` still fetches positions but does not submit. Temporal `decay` state is **not** reset between `run` calls (unlike `FinBT.run`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). Optional `sector_gross_cap_fraction` can cap pre-trade group gross exposure (`sector_cap_mode="rescale"` or `"raise"`). The return value is an `ExecutionReport` dataclass; use `ExecutionReport.as_dict()` if you need a JSON-serializable summary.
+4. **`FinTrade(fin_strat, ...)`** uses the Alpaca Trading API (`alpaca-py`): `run(tradecapital, fin_ts)` builds the panel (latest date by default), runs `pass_`, diffs targets vs open positions, and submits **market DAY** orders by **notional**. Set `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`, or pass `api_key` / `secret_key`. `dry_run=True` still fetches positions but does not submit. Temporal `decay` state is **not** reset between `run` calls (unlike `FinBT.run`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). Optional controls include sector gross/net caps, turnover budget, ADV participation caps, and post-submit reconciliation policies. The return value is an `ExecutionReport` dataclass; use `ExecutionReport.as_dict()` if you need a JSON-serializable summary.
 
 5. **`DecisionContext`** (`src.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so live logic does not silently mix “Yahoo’s last bar” with “submit now.”  Pass `decision=DecisionContext(as_of=..., data_source=...)` into `FinTrade.run`, or set `as_of=` explicitly; otherwise the last date in the panel index is used.
 
@@ -109,6 +109,27 @@ uv sync
 - For pre-trade concentration controls:
   - `FinTrade.run(..., sector_gross_cap_fraction=0.30, sector_cap_mode="rescale")`
   - `FinBT(..., sector_gross_cap_fraction=0.30, sector_cap_mode="rescale")`
+- For net/turnover/participation controls:
+  - `group_net_cap_fraction=...` (fraction of portfolio gross)
+  - `turnover_budget_fraction=...` (fraction of target gross turnover)
+  - `adv_participation_fraction=...` (caps order deltas by ADV participation)
+
+## Decision-time guards and reconciliation
+
+- Decision-time validation (`FinTrade.run`) now supports:
+  - `decision_enforce_weekday=True`
+  - `decision_strict_same_session=False`
+  - `decision_max_staleness_days=7`
+- Execution reconciliation supports:
+  - `reconcile_after_submit=True`
+  - `reconciliation_policy in {"warn_only", "retry_once", "cancel_and_retarget"}`
+  - `reconciliation_tolerance_notional=...`
+
+`ExecutionReport` includes:
+
+- submit attempts + optional remediation attempts
+- status observation fields (initial/final status, fill info)
+- post-trade current exposures and residual deltas
 
 ## Note on live data
 
@@ -126,6 +147,12 @@ uv sync
 uv sync --extra dev
 uv run pytest
 ```
+
+## Roadmap status
+
+- P0 completed: yfinance classifications, group defaults, order-status observation, sector gross cap.
+- P1 completed: decision/session guards, panel QA diagnostics, richer backtest diagnostics.
+- P2 completed: reconciliation loop + remediation hooks, net/turnover/ADV constraints, integration tests.
 
 ## Documentation
 

@@ -1,8 +1,3 @@
-# contribution.md
-
-This file intentionally mirrors the contributor guide in `CONTRIBUTION.md`.
-
-Please read `CONTRIBUTION.md` for architecture, coding style, and feature extension guidance.
 # Contribution Guide
 
 This document explains how the framework is structured and how to add features safely.
@@ -37,9 +32,9 @@ flowchart LR
 - `src/algorithm/fintrade.py`
   - Live/paper order orchestration with broker deltas.
 - `src/algorithm/execution.py`
-  - Broker-side guardrails, order submission, bounded status observation.
+  - Broker-side guardrails, order submission, bounded status observation, and order cancellation hook.
 - `src/algorithm/targets.py`
-  - Shared target/delta/cap helpers used in both backtest and trade paths.
+  - Shared target/delta/cap helpers used in both backtest and trade paths (gross/net caps, turnover budgets, ADV caps).
 - `src/utils/indicators.py`
   - Feature names and index constants (`COL`, `IX`, `IX_LIVE`).
 
@@ -50,6 +45,7 @@ flowchart LR
 - Preserve deterministic behavior (explicit fallbacks for missing classifications).
 - Keep production-side operations observable (warnings and execution reports).
 - Prefer pure functions for transforms and stateful classes only for orchestration.
+- Preserve backtest/live parity by keeping risk controls in shared helper modules.
 
 ## Coding style and patterns
 
@@ -99,6 +95,18 @@ Use this sequence to avoid regressions:
 - Keep `FinTrade` orchestration thin and report-centric.
 - Ensure failures are reflected in `ExecutionReport.warnings` and attempt fields.
 
+### 4) Add risk constraints
+
+- Implement reusable math in `targets.py`.
+- Wire constraint knobs in both `FinBT` and `FinTrade`.
+- Prefer deterministic `rescale` defaults; support `raise` for strict workflows.
+
+### 5) Add decision/session rules
+
+- Keep timestamp resolution in `decision.py`.
+- Keep orchestration warnings in `FinTrade.run`.
+- Add tests for weekend/future/staleness/same-session behavior.
+
 ## Testing expectations
 
 Run:
@@ -111,16 +119,19 @@ uv run pytest -q
 When changing critical paths, add tests in relevant files:
 
 - Data layer: `tests/test_fints_classification.py`
+- Data QA: `tests/test_data_qa.py`
 - Signal/pipeline: `tests/test_finstrat.py`, `tests/test_cross_section.py`
 - Backtest behavior: `tests/test_finbt.py`
-- Target/risk helpers: `tests/test_targets.py`
+- Target/risk helpers: `tests/test_targets.py`, `tests/test_constraints.py`
 - Trading/execution: `tests/test_fintrade.py`, `tests/test_execution_adapter.py`
+- End-to-end rebalance flow: `tests/test_integration_rebalance.py`
 
 ## PR checklist
 
 - [ ] Inputs validated and errors are actionable.
 - [ ] Shared logic reused across `FinBT` and `FinTrade`.
 - [ ] Warnings/reporting updated for new risk/execution behavior.
+- [ ] Reconciliation behavior tested for residual and remediation paths.
 - [ ] Tests added/updated and passing.
 - [ ] `README.md` updated for user-facing changes.
 
