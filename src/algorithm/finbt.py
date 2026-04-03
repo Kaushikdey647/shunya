@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from ..data.fints import finTs
 from .finstrat import FinStrat
-from .fints import finTs
 
 
 class _FinBTStrategy(bt.Strategy):
@@ -18,6 +18,7 @@ class _FinBTStrategy(bt.Strategy):
     params = (
         ("fin_strat", None),
         ("ticker_order", []),
+        ("group_column", None),
     )
 
     def __init__(self) -> None:
@@ -41,7 +42,15 @@ class _FinBTStrategy(bt.Strategy):
         capital = float(self.broker.getvalue())
         if capital <= 0:
             return
-        raw = fs.pass_(panel, capital)
+        pass_kw: dict = {"tickers": names}
+        if fs.neutralization == "group":
+            col = self.p.group_column
+            if not col:
+                raise ValueError(
+                    "FinStrat uses neutralization='group'; pass group_column= to FinBT(…)"
+                )
+            pass_kw["group_ids"] = fs.group_labels_at(self._current_dt(), names, col)
+        raw = fs.pass_(panel, capital, **pass_kw)
         targets = np.asarray(jnp.asarray(raw), dtype=float)
         name_to_target = {n: float(targets[i]) for i, n in enumerate(names)}
         for t in self.p.ticker_order:
@@ -58,6 +67,11 @@ class FinBT:
 
     Requires multi-ticker ``fin_ts.df`` with ``(Ticker, Date)`` MultiIndex. Construct
     :class:`FinStrat` with the **same** ``fin_ts`` instance.
+
+    :meth:`run` resets :meth:`FinStrat.reset_pipeline_state` so BRAIN-style **decay**
+    (temporal EMA) starts clean. If ``fin_strat.neutralization == 'group'``,
+    pass ``group_column`` naming a column present on ``fin_ts.df`` for each
+    ``(Ticker, Date)`` row.
     """
 
     def __init__(
@@ -67,6 +81,7 @@ class FinBT:
         *,
         cash: float = 100_000.0,
         commission: float = 0.0,
+        group_column: Optional[str] = None,
     ) -> None:
         if fin_strat._ts is not fin_ts:
             raise ValueError("fin_strat must be built with the same fin_ts instance (identity).")
@@ -82,6 +97,9 @@ class FinBT:
         self._ts = fin_ts
         self._cash = float(cash)
         self._commission = float(commission)
+        self._group_column = group_column
+        if fin_strat.neutralization == "group" and not group_column:
+            raise ValueError("neutralization='group' requires group_column= on FinBT")
         self._cerebro: Optional[bt.Cerebro] = None
         self._run_result: Optional[List[Any]] = None
 
@@ -107,6 +125,7 @@ class FinBT:
 
     def run(self, **cerebro_kw: Any) -> FinBT:
         """Build cerebro, attach data feeds, run the backtest. Chainable."""
+        self._strat.reset_pipeline_state()
         frames = self._ohlcv_frames(self._ts)
         tickers = [t for t in self._ts.ticker_list if t in frames]
 
@@ -122,6 +141,7 @@ class FinBT:
             _FinBTStrategy,
             fin_strat=self._strat,
             ticker_order=tickers,
+            group_column=self._group_column,
         )
         cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")

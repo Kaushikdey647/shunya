@@ -1,5 +1,5 @@
 """
-Column names for :class:`finTs` and integer indices for JAX feature vectors.
+Column names for :class:`src.data.fints.finTs` and integer indices for JAX feature vectors.
 
 - **Dataframe columns:** ``df[COL.SMA_50]`` or legacy module aliases ``df[SMA_50]``.
 - **JAX rows:** ``x[IX.RSI_14]`` with ``x`` shaped ``(len(STRATEGY_FEATURES),)``.
