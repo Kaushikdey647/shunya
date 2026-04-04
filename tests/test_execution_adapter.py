@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from src.algorithm.execution import AlpacaExecutionAdapter
+from shunya.algorithm.execution import AlpacaExecutionAdapter
 
 
 def _mock_client():

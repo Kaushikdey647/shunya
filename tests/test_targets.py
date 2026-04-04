@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.algorithm.targets import (
+from shunya.algorithm.targets import (
     apply_group_gross_cap,
     apply_group_net_cap,
     apply_slippage_to_fill_price,

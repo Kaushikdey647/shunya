@@ -43,9 +43,10 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Breaking:** The installable Python package is published on PyPI as **`shunya-py`** (the name `shunya` was already registered by another project). Import the library as **`shunya`** (`from shunya import finTs`, etc.), not `src`.
 - `FinTrade.run(...)` interface extended with additional risk, decision-time, and reconciliation knobs.
 - `FinBT` interface extended with richer constraint controls and enhanced diagnostics output.
-- Public exports updated in `src/__init__.py` and `src/algorithm/__init__.py` for newly added helpers and diagnostics types.
+- Public exports updated in `shunya/__init__.py` and `shunya/algorithm/__init__.py` for newly added helpers and diagnostics types.
 
 ### Testing
 

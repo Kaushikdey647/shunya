@@ -6,8 +6,8 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from src.algorithm.finstrat import FinStrat
-from src.utils import indicators
+from shunya.algorithm.finstrat import FinStrat
+from shunya.utils import indicators
 
 from tests.conftest import make_stub_fints
 

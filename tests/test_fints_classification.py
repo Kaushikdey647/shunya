@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.data.fints import finTs
-from src.utils import indicators
+from shunya.data.fints import finTs
+from shunya.utils import indicators
 
 
 class _StubMarketData:
@@ -44,7 +44,7 @@ def test_fints_attaches_classification_columns(monkeypatch):
             },
         }
 
-    monkeypatch.setattr("src.data.fints.fetch_yfinance_classifications", _fake_fetch)
+    monkeypatch.setattr("shunya.data.fints.fetch_yfinance_classifications", _fake_fetch)
 
     fts = finTs(
         "2024-01-01",
@@ -65,7 +65,7 @@ def test_fints_attaches_classification_columns(monkeypatch):
 
 def test_fints_uses_unknown_fallbacks_when_missing(monkeypatch):
     monkeypatch.setattr(
-        "src.data.fints.fetch_yfinance_classifications",
+        "shunya.data.fints.fetch_yfinance_classifications",
         lambda tickers, session=None: {"AAPL": {"Sector": "Technology"}},
     )
     fts = finTs(

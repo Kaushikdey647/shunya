@@ -2,7 +2,7 @@
 Pluggable market data for :class:`finTs` (research parity and broker-aligned history).
 
 Implement :class:`MarketDataProvider` to swap Yahoo Finance for Alpaca daily bars
-(or custom feeds) without changing :class:`~src.algorithm.finstrat.FinStrat`.
+(or custom feeds) without changing :class:`~shunya.algorithm.finstrat.FinStrat`.
 """
 
 from __future__ import annotations

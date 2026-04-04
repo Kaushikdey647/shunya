@@ -6,7 +6,7 @@ from typing import Sequence, Union
 
 import pandas as pd
 
-from src.data.fints import finTs
+from shunya.data.fints import finTs
 
 
 def make_stub_fints(

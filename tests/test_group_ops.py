@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.algorithm import group_ops
+from shunya.algorithm import group_ops
 
 
 def test_group_mean():

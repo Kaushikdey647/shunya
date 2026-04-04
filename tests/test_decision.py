@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from src.algorithm.decision import (
+from shunya.algorithm.decision import (
     DecisionContext,
     resolve_panel_timestamp,
     validate_panel_timestamp,

@@ -45,12 +45,12 @@ class PanelQADiagnostics:
 
 class finTs:
     """
-    Download OHLCV via a :class:`~src.data.providers.MarketDataProvider` (default: Yahoo)
+    Download OHLCV via a :class:`~shunya.data.providers.MarketDataProvider` (default: Yahoo)
     and attach technical / stationary features.
 
     Raw ``Open``, ``High``, ``Low``, ``Close``, and ``Volume`` are kept on the frame and
-    are the first columns in :obj:`src.utils.indicators.STRATEGY_FEATURES` / ``IX_LIVE``
-    for :class:`src.algorithm.finstrat.FinStrat` panels.
+    are the first columns in :obj:`shunya.utils.indicators.STRATEGY_FEATURES` / ``IX_LIVE``
+    for :class:`shunya.algorithm.finstrat.FinStrat` panels.
     """
 
     def __init__(

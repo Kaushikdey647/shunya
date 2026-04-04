@@ -7,10 +7,10 @@ from unittest.mock import MagicMock
 import jax.numpy as jnp
 import pandas as pd
 
-from src.algorithm.finbt import FinBT
-from src.algorithm.finstrat import FinStrat
-from src.algorithm.fintrade import FinTrade
-from src.utils import indicators
+from shunya.algorithm.finbt import FinBT
+from shunya.algorithm.finstrat import FinStrat
+from shunya.algorithm.fintrade import FinTrade
+from shunya.utils import indicators
 from tests.conftest import make_stub_fints
 
 

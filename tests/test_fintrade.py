@@ -8,11 +8,11 @@ import jax.numpy as jnp
 import pandas as pd
 import pytest
 
-from src.algorithm.decision import DecisionContext
-from src.algorithm.execution import ExecutionReport
-from src.algorithm.finstrat import FinStrat
-from src.algorithm.fintrade import FinTrade
-from src.utils import indicators
+from shunya.algorithm.decision import DecisionContext
+from shunya.algorithm.execution import ExecutionReport
+from shunya.algorithm.finstrat import FinStrat
+from shunya.algorithm.fintrade import FinTrade
+from shunya.utils import indicators
 
 from tests.conftest import make_stub_fints
 

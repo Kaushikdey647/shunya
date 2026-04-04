@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 
-from src.data.providers import (
+from shunya.data.providers import (
     AlpacaHistoricalMarketDataProvider,
     YFinanceMarketDataProvider,
 )
@@ -67,7 +67,7 @@ def test_alpaca_provider_multi_ticker_shape_and_normalized_index(monkeypatch):
         def get_stock_bars(self, req):
             return self._client.get_stock_bars(req)
 
-    monkeypatch.setattr("src.data.providers.StockHistoricalDataClient", _FakeClientFactory)
+    monkeypatch.setattr("shunya.data.providers.StockHistoricalDataClient", _FakeClientFactory)
     p = AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s")
     out = p.download(["AAPL", "MSFT"], "2024-01-01", "2024-01-10")
 
@@ -101,7 +101,7 @@ def test_alpaca_provider_single_ticker_shape(monkeypatch):
         def get_stock_bars(self, req):
             return self._client.get_stock_bars(req)
 
-    monkeypatch.setattr("src.data.providers.StockHistoricalDataClient", _FakeClientFactory)
+    monkeypatch.setattr("shunya.data.providers.StockHistoricalDataClient", _FakeClientFactory)
     p = AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s")
     out = p.download(["AAPL"], "2024-01-01", "2024-01-10")
     assert not isinstance(out.columns, pd.MultiIndex)
@@ -131,7 +131,7 @@ def test_alpaca_provider_raises_when_symbols_missing(monkeypatch):
         def get_stock_bars(self, req):
             return self._client.get_stock_bars(req)
 
-    monkeypatch.setattr("src.data.providers.StockHistoricalDataClient", _FakeClientFactory)
+    monkeypatch.setattr("shunya.data.providers.StockHistoricalDataClient", _FakeClientFactory)
     p = AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s")
     with pytest.raises(ValueError, match="MSFT"):
         p.download(["AAPL", "MSFT"], "2024-01-01", "2024-01-10")
@@ -146,7 +146,7 @@ def test_alpaca_provider_raises_on_empty_response(monkeypatch):
         def get_stock_bars(self, req):
             return self._client.get_stock_bars(req)
 
-    monkeypatch.setattr("src.data.providers.StockHistoricalDataClient", _FakeClientFactory)
+    monkeypatch.setattr("shunya.data.providers.StockHistoricalDataClient", _FakeClientFactory)
     p = AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s")
     with pytest.raises(ValueError, match="AAPL"):
         p.download(["AAPL"], "2024-01-01", "2024-01-10")
@@ -169,7 +169,7 @@ def test_yfinance_provider_normalizes_index(monkeypatch):
             index=idx,
         )
 
-    monkeypatch.setattr("src.data.providers.yf.download", _fake_download)
+    monkeypatch.setattr("shunya.data.providers.yf.download", _fake_download)
     p = YFinanceMarketDataProvider()
     out = p.download(["AAPL"], "2024-01-01", "2024-01-10")
     assert out.index.name == "Date"

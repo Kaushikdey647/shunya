@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.algorithm import logical
+from shunya.algorithm import logical
 
 
 def test_if_else_and_logical_combinators():

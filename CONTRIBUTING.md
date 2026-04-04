@@ -8,34 +8,34 @@ The project has a clean data -> signal -> sizing -> execution split:
 
 ```mermaid
 flowchart LR
-    dataProviders[data.providers] --> finTsObj[data.fints.finTs]
-    finTsObj --> finStratObj[algorithm.finstrat.FinStrat]
-    finStratObj --> finBtObj[algorithm.finbt.FinBT]
-    finStratObj --> finTradeObj[algorithm.fintrade.FinTrade]
-    finTradeObj --> execAdapter[algorithm.execution.AlpacaExecutionAdapter]
-    finStratObj --> targetsMod[algorithm.targets]
+    dataProviders[shunya.data.providers] --> finTsObj[shunya.data.fints.finTs]
+    finTsObj --> finStratObj[shunya.algorithm.finstrat.FinStrat]
+    finStratObj --> finBtObj[shunya.algorithm.finbt.FinBT]
+    finStratObj --> finTradeObj[shunya.algorithm.fintrade.FinTrade]
+    finTradeObj --> execAdapter[shunya.algorithm.execution.AlpacaExecutionAdapter]
+    finStratObj --> targetsMod[shunya.algorithm.targets]
     finBtObj --> targetsMod
 ```
 
 ### Module responsibilities
 
-- `src/data/providers.py`
+- `shunya/data/providers.py`
   - External data access abstractions.
   - Includes OHLCV providers and yfinance classification lookup.
-- `src/data/fints.py`
+- `shunya/data/fints.py`
   - Builds the canonical panel (`Ticker`, `Date`) dataframe.
   - Adds engineered features and classification columns.
-- `src/algorithm/finstrat.py`
+- `shunya/algorithm/finstrat.py`
   - Alpha pipeline: raw scores, optional decay, truncation, neutralization, and scaling.
-- `src/algorithm/finbt.py`
+- `shunya/algorithm/finbt.py`
   - Backtrader wrapper for paper/research simulation.
-- `src/algorithm/fintrade.py`
+- `shunya/algorithm/fintrade.py`
   - Live/paper order orchestration with broker deltas.
-- `src/algorithm/execution.py`
+- `shunya/algorithm/execution.py`
   - Broker-side guardrails, order submission, bounded status observation, and order cancellation hook.
-- `src/algorithm/targets.py`
+- `shunya/algorithm/targets.py`
   - Shared target/delta/cap helpers used in both backtest and trade paths (gross/net caps, turnover budgets, ADV caps).
-- `src/utils/indicators.py`
+- `shunya/utils/indicators.py`
   - Feature names and index constants (`COL`, `IX`, `IX_LIVE`).
 
 ## Design principles
@@ -90,7 +90,7 @@ Use this sequence to avoid regressions:
 ### 1) Add a new feature column to panels
 
 - Add computation in `finTs._add_features`.
-- Update `src/utils/indicators.py` constants and ordering.
+- Update `shunya/utils/indicators.py` constants and ordering.
 - Add tests ensuring the column exists and is numeric/usable.
 - If lookahead-sensitive, ensure `IX_LIVE` exclusion rules are correct.
 
@@ -124,6 +124,7 @@ Run (same as [`README.md`](README.md); add `-q` for quieter output):
 
 ```bash
 uv sync --extra dev
+# optional: `--extra notebook` for `ipykernel`, or `uv sync --all-extras`
 uv run pytest
 # or: uv run pytest -q
 ```

@@ -44,7 +44,7 @@ class FinStrat:
     Typical BRAIN order: decay (smooth alpha through time) → truncate tails →
     neutralize → scale gross notional to ``capital``. Truncation, neutralization
     (except label encoding for groups), and gross scaling use JAX JIT via
-    :mod:`src.algorithm.cross_section` and module helpers here.
+    :mod:`shunya.algorithm.cross_section` and module helpers here.
     """
 
     def __init__(
@@ -76,7 +76,7 @@ class FinStrat:
             jit_algorithm: If True, wrap ``algorithm`` in :func:`jax.jit` so the raw
                 score step is XLA-compiled (best for pure JAX alphas with fixed shapes).
             panel_columns: If set, :meth:`panel_at` only loads these dataframe columns (in
-                this order). Use e.g. :data:`src.utils.indicators.STRATEGY_PANEL_OHLCV_ONLY`
+                this order). Use e.g. :data:`shunya.utils.indicators.STRATEGY_PANEL_OHLCV_ONLY`
                 for OHLC-only alphas so rows are available from the first bar instead of
                 waiting for long-window indicators (SMA_200, …). Your ``algorithm`` must
                 index the panel consistently with this width (leading OHLCV slots still

@@ -1,5 +1,5 @@
 """
-Column names for :class:`src.data.fints.finTs` and integer indices for JAX feature vectors.
+Column names for :class:`shunya.data.fints.finTs` and integer indices for JAX feature vectors.
 
 - **Dataframe columns:** ``df[COL.SMA_50]`` or legacy module aliases ``df[SMA_50]``.
 - **JAX rows:** ``x[IX.CLOSE]``, ``x[IX.RSI_14]``, etc., with ``x`` shaped
@@ -87,7 +87,7 @@ STRATEGY_FEATURES_LIVE: tuple[str, ...] = tuple(c for _, c in _STRATEGY_OHLCV_SP
     c for _, c in _LIVE_ENGINEERED_SPEC
 )
 
-# Use with :meth:`FinStrat <src.algorithm.finstrat.FinStrat>` ``panel_columns=…`` when the alpha
+# Use with :meth:`FinStrat <shunya.algorithm.finstrat.FinStrat>` ``panel_columns=…`` when the alpha
 # only needs raw OHLCV (avoids SMA_200 / etc. warm-up so backtests start on the first bar).
 STRATEGY_PANEL_OHLCV_ONLY: tuple[str, ...] = tuple(c for _, c in _STRATEGY_OHLCV_SPEC)
 

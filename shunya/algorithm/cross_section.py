@@ -137,7 +137,7 @@ def rank(x: jnp.ndarray) -> jnp.ndarray:
 
     Therefore ``rank(-x)`` **reverses** who gets high vs low scores. With **distinct**
     values and ``n \\ge 2``, ``rank(-x) = 1 - rank(x)`` elementwise. Dollar weights after
-    market-demeaning in :meth:`~src.algorithm.finstrat.FinStrat.pass_` flip sign when
+    market-demeaning in :meth:`~shunya.algorithm.finstrat.FinStrat.pass_` flip sign when
     you swap ``rank(raw)`` for ``rank(-raw)``; if results look identical, re-run the
     cell or confirm you are comparing ``scores`` / ``pass_`` after the change.
 

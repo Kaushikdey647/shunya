@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.algorithm import time_series as ts
+from shunya.algorithm import time_series as ts
 
 
 def test_tsdelay_and_tsdelta():

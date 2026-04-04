@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from src.algorithm import cross_section
+from shunya.algorithm import cross_section
 
 
 def test_zscore_finite_vector():

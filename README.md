@@ -1,5 +1,6 @@
 # shunya
 
+[![PyPI](https://img.shields.io/pypi/v/shunya-py.svg)](https://pypi.org/project/shunya-py/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![Package Manager](https://img.shields.io/badge/package_manager-uv-6f42c1.svg)](https://docs.astral.sh/uv/)
 [![Tests](https://img.shields.io/badge/tests-pytest-green.svg)](https://docs.pytest.org/)
@@ -14,14 +15,14 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension pat
 
 | Package | Role |
 |--------|------|
-| `src.data` | `finTs` — download OHLCV, build MultiIndex `(Ticker, Date)` frame, attach engineered columns |
-| `src.algorithm` | `FinStrat` (alpha pipeline), `FinBT` (backtrader), `FinTrade` (Alpaca live/paper orders), `cross_section` (rank, zscore, winsorize, neutralization) |
-| `src.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
+| `shunya.data` | `finTs` — download OHLCV, build MultiIndex `(Ticker, Date)` frame, attach engineered columns |
+| `shunya.algorithm` | `FinStrat` (alpha pipeline), `FinBT` (backtrader), `FinTrade` (Alpaca live/paper orders), `cross_section` (rank, zscore, winsorize, neutralization) |
+| `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
 
-Common imports from `src` (illustrative):
+Common imports from `shunya` (illustrative):
 
 ```python
-from src import (
+from shunya import (
     DecisionContext,
     FinBT,
     FinStrat,
@@ -32,7 +33,7 @@ from src import (
 )
 ```
 
-The canonical set of symbols re-exported at the package root is `__all__` in [`src/__init__.py`](src/__init__.py) (e.g. `PanelQADiagnostics`, `YFinanceMarketDataProvider`, target helpers, `logical`, `time_series`, `group_ops`, timestamp helpers). `OrderAttempt` is part of `src.algorithm` only: `from src.algorithm import OrderAttempt`.
+The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (e.g. `PanelQADiagnostics`, `YFinanceMarketDataProvider`, target helpers, `logical`, `time_series`, `group_ops`, timestamp helpers). `OrderAttempt` is part of `shunya.algorithm` only: `from shunya.algorithm import OrderAttempt`.
 
 ## Core ideas
 
@@ -45,13 +46,13 @@ The canonical set of symbols re-exported at the package root is `__all__` in [`s
    - `max_single_weight`, `jit_algorithm`
    - **`panel_columns`** — restrict which columns `panel_at` loads (e.g. `indicators.STRATEGY_PANEL_OHLCV_ONLY`) so OHLC-only alphas trade from the first bar instead of waiting on `SMA_200` warm-up
 
-3. **`FinBT(fin_strat, fin_ts, ...)`** runs the same `FinStrat` on the same `fin_ts` instance in backtrader, rebalancing to `pass_` dollar targets each bar. `run()` resets `FinStrat` decay state. Pass **`commission`** (broker rate) and optional **`slippage_pct`** (adverse percent via backtrader’s `set_slippage_perc`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). `broker_deltas` / `target_usd_universe` in `src.algorithm.targets` mirror how live orders diff targets vs positions.
+3. **`FinBT(fin_strat, fin_ts, ...)`** runs the same `FinStrat` on the same `fin_ts` instance in backtrader, rebalancing to `pass_` dollar targets each bar. `run()` resets `FinStrat` decay state. Pass **`commission`** (broker rate) and optional **`slippage_pct`** (adverse percent via backtrader’s `set_slippage_perc`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). `broker_deltas` / `target_usd_universe` in `shunya.algorithm.targets` mirror how live orders diff targets vs positions.
 
 4. **`FinTrade(fin_strat, ...)`** uses the Alpaca Trading API (`alpaca-py`): `run(tradecapital, fin_ts)` builds the panel (latest date by default), runs `pass_`, diffs targets vs open positions, and submits **market DAY** orders by **notional**. Set `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`, or pass `api_key` / `secret_key`. `dry_run=True` still fetches positions but does not submit. Temporal `decay` state is **not** reset between `run` calls (unlike `FinBT.run`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). Optional controls include sector gross/net caps, turnover budget, ADV participation caps, and post-submit reconciliation policies. The return value is an `ExecutionReport` dataclass; use `ExecutionReport.as_dict()` if you need a JSON-serializable summary.
 
-5. **`DecisionContext`** (`src.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so live logic does not silently mix “Yahoo’s last bar” with “submit now.”  Pass `decision=DecisionContext(as_of=..., data_source=...)` into `FinTrade.run`, or set `as_of=` explicitly; otherwise the last date in the panel index is used.
+5. **`DecisionContext`** (`shunya.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so live logic does not silently mix “Yahoo’s last bar” with “submit now.”  Pass `decision=DecisionContext(as_of=..., data_source=...)` into `FinTrade.run`, or set `as_of=` explicitly; otherwise the last date in the panel index is used.
 
-6. **`MarketDataProvider`** (`src.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo.
+6. **`MarketDataProvider`** (`shunya.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo.
    - Provider output contract is consistent: `DatetimeIndex` named `Date`, normalized to daily granularity.
    - `AlpacaHistoricalMarketDataProvider` is strict: if requested symbols are missing bars, it raises a `ValueError` listing those symbols.
 
@@ -59,19 +60,19 @@ The canonical set of symbols re-exported at the package root is `__all__` in [`s
 
 ## Operator helpers
 
-- `src.algorithm.logical`
+- `shunya.algorithm.logical`
   - `trade_when(condition, alpha, otherwise, exit_condition=...)`
   - `if_else`, `logical_and`, `logical_or`, `logical_not`
-- `src.algorithm.time_series`
+- `shunya.algorithm.time_series`
   - `tsdelta`, `tsdelay`, `tssum`, `tsmean`, `tsrank`, `tszscore`, `tsstddev`
   - `tsregression(y, x, window, lag, retval)` with `retval in {"error", "a", "b", "estimate"}`
   - `humpdecay`
-- `src.algorithm.group_ops`
+- `shunya.algorithm.group_ops`
   - `group_rank`, `group_zscore`, `group_mean`, `group_neutralize`
 
 ```python
 import jax.numpy as jnp
-from src.algorithm import cross_section, group_ops, logical, time_series
+from shunya.algorithm import cross_section, group_ops, logical, time_series
 
 signal = cross_section.zscore(jnp.array([1.0, 2.0, 3.0]))
 gated = logical.trade_when(signal > 0, signal, 0.0)
@@ -80,14 +81,17 @@ gated = logical.trade_when(signal > 0, signal, 0.0)
 ## Quick start
 
 ```bash
+pip install "shunya-py[dev]"   # library + pytest (for upstream / CI-style checks)
+
+# From a clone (installs the local project; add --extra notebook for Jupyter notebooks):
 uv sync --extra dev
 uv run pytest
 ```
 
 ```python
 import jax.numpy as jnp
-from src import FinBT, FinStrat, finTs
-from src.utils import indicators as ind
+from shunya import FinBT, FinStrat, finTs
+from shunya.utils import indicators as ind
 
 fts = finTs("2023-01-01", "2024-01-01", ["AAPL", "MSFT", "NVDA"])
 
@@ -111,7 +115,7 @@ print(results["metrics"])
 ### Using Alpaca historical bars in `finTs`
 
 ```python
-from src import (
+from shunya import (
     AlpacaHistoricalMarketDataProvider,
     DecisionContext,
     FinTrade,
@@ -146,7 +150,15 @@ decision = DecisionContext(data_source="alpaca_bars")
 - Python **≥ 3.12**
 - Main libraries: `jax`, `pandas`, `yfinance`, `backtrader`, `finta`, `matplotlib`, … (see `pyproject.toml`)
 
-Install (e.g. with [uv](https://docs.astral.sh/uv/)):
+Install from [PyPI](https://pypi.org/project/shunya-py/) (import the **`shunya`** package):
+
+```bash
+pip install shunya-py
+# optional: Jupyter kernel for the bundled notebooks
+pip install "shunya-py[notebook]"
+```
+
+Install from a clone (e.g. with [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 uv sync
@@ -197,9 +209,13 @@ uv sync
 ## Development tests
 
 ```bash
-uv sync --extra dev
+uv sync --all-extras
 uv run pytest
 ```
+
+## Publishing (maintainers)
+
+Build with `uv build` (wheel and sdist). Upload with [Twine](https://twine.readthedocs.io/) or [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) from CI. Do not commit API tokens or `.pypirc`.
 
 ## Roadmap status
 
