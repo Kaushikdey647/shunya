@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.data.fints import finTs
 from src.utils import indicators
@@ -81,3 +82,28 @@ def test_fints_uses_unknown_fallbacks_when_missing(monkeypatch):
         fts.df.loc[("AAPL", pd.Timestamp("2024-01-03")), "SubIndustry"]
         == "UnknownSubIndustry"
     )
+
+
+def test_fints_rejects_provider_missing_required_ohlcv_columns():
+    class _BadMarketData:
+        def download(self, ticker_list, start, end):
+            del ticker_list, start, end
+            return pd.DataFrame(
+                {
+                    "Open": [100.0],
+                    "High": [101.0],
+                    "Low": [99.0],
+                    "Close": [100.5],
+                    # Missing Volume on purpose.
+                },
+                index=pd.DatetimeIndex([pd.Timestamp("2024-01-02")], name="Date"),
+            )
+
+    with pytest.raises(ValueError, match="Volume"):
+        finTs(
+            "2024-01-01",
+            "2024-01-10",
+            ["AAPL"],
+            market_data=_BadMarketData(),
+            attach_yfinance_classifications=False,
+        )

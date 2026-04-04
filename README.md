@@ -6,7 +6,7 @@
 [![Data](https://img.shields.io/badge/data-yfinance-informational.svg)](https://pypi.org/project/yfinance/)
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
 
-Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN–style processing), and **backtrader** backtests. Data comes from `yfinance`; features include OHLCV plus technicals from `finta`.
+Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN-style processing), and **backtrader** backtests. Historical data is provider-driven (`yfinance` by default, optional Alpaca bars); features include OHLCV plus technicals from `finta`.
 
 See `CONTRIBUTION.md` for architecture details, extension patterns, and coding guidelines.
 
@@ -50,6 +50,8 @@ from src import (
 5. **`DecisionContext`** (`src.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so live logic does not silently mix “Yahoo’s last bar” with “submit now.”  Pass `decision=DecisionContext(as_of=..., data_source=...)` into `FinTrade.run`, or set `as_of=` explicitly; otherwise the last date in the panel index is used.
 
 6. **`MarketDataProvider`** (`src.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo.
+   - Provider output contract is consistent: `DatetimeIndex` named `Date`, normalized to daily granularity.
+   - `AlpacaHistoricalMarketDataProvider` is strict: if requested symbols are missing bars, it raises a `ValueError` listing those symbols.
 
 7. **`cross_section`** — JIT-friendly helpers: `rank`, `zscore`, `scale`, `sign`, `winsorize`, `neutralize_market`, `neutralize_groups`. `rank(x)` is increasing in `x` (smallest → ~0, largest → ~1); use `rank(-x)` to flip.
 
@@ -102,6 +104,34 @@ fs = FinStrat(
 bt = FinBT(fs, fts, cash=100_000.0, commission=0.0005, slippage_pct=0.0005).run()
 results = bt.results(show=False)
 print(results["metrics"])
+```
+
+### Using Alpaca historical bars in `finTs`
+
+```python
+from src import (
+    AlpacaHistoricalMarketDataProvider,
+    DecisionContext,
+    FinTrade,
+    FinStrat,
+    finTs,
+)
+
+provider = AlpacaHistoricalMarketDataProvider(
+    api_key="YOUR_KEY",
+    secret_key="YOUR_SECRET",
+    paper=True,
+)
+fts = finTs(
+    "2024-01-01",
+    "2024-03-01",
+    ["AAPL", "MSFT"],
+    market_data=provider,
+    attach_yfinance_classifications=False,
+)
+
+# Use alpaca_bars provenance for tighter data/execution parity checks.
+decision = DecisionContext(data_source="alpaca_bars")
 ```
 
 ## Notebook

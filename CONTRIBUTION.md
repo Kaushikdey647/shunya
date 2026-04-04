@@ -76,6 +76,17 @@ Use this sequence to avoid regressions:
 
 ## Common extension recipes
 
+### 0) Add or modify a market data provider
+
+- Implement `MarketDataProvider.download(ticker_list, start, end) -> DataFrame`.
+- Keep provider output contract stable:
+  - index is `DatetimeIndex`, daily-normalized, named `"Date"`
+  - single ticker returns flat OHLCV columns
+  - multiple tickers return MultiIndex columns as `(Ticker, Field)`
+- Required OHLCV fields per symbol are `Open`, `High`, `Low`, `Close`, `Volume`.
+- For strict workflows, prefer fail-fast semantics on missing symbols (current Alpaca provider behavior).
+- Keep classification coupling explicit in call sites (`attach_yfinance_classifications` and `classifications`).
+
 ### 1) Add a new feature column to panels
 
 - Add computation in `finTs._add_features`.
@@ -119,6 +130,7 @@ uv run pytest -q
 When changing critical paths, add tests in relevant files:
 
 - Data layer: `tests/test_fints_classification.py`
+- Data providers/contracts: `tests/test_providers.py`
 - Data QA: `tests/test_data_qa.py`
 - Signal/pipeline: `tests/test_finstrat.py`, `tests/test_cross_section.py`
 - Backtest behavior: `tests/test_finbt.py`

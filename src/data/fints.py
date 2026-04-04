@@ -73,6 +73,7 @@ class finTs:
 
         provider = market_data or YFinanceMarketDataProvider(session=session)
         raw = provider.download(self.ticker_list, self.start_date, self.end_date)
+        self._validate_provider_output(raw)
         self._ingest_raw_ohlcv(raw)
 
         class_map: Dict[str, Dict[str, str]] = {
@@ -85,6 +86,49 @@ class finTs:
                 merged.update(fields)
                 class_map[t] = merged
         self._attach_classifications(class_map)
+
+    def _validate_provider_output(self, raw: pd.DataFrame) -> None:
+        """
+        Lightweight schema checks for provider outputs before feature engineering.
+        """
+        if not isinstance(raw, pd.DataFrame):
+            raise TypeError(
+                f"market_data.download(...) must return pandas.DataFrame, got {type(raw)!r}"
+            )
+        if raw.empty:
+            return
+
+        # Provider contract: Date-like index (timezone handled by providers).
+        try:
+            pd.DatetimeIndex(pd.to_datetime(raw.index))
+        except Exception as exc:
+            raise ValueError(
+                "Provider output index must be DatetimeIndex-compatible."
+            ) from exc
+
+        required = {"Open", "High", "Low", "Close", "Volume"}
+        if isinstance(raw.columns, pd.MultiIndex):
+            if raw.columns.nlevels < 2:
+                raise ValueError(
+                    "Provider multi-ticker output must use MultiIndex columns "
+                    "with at least two levels: (Ticker, Field)."
+                )
+            tickers = raw.columns.get_level_values(0).unique().tolist()
+            if not tickers:
+                raise ValueError("Provider returned MultiIndex columns without tickers.")
+            for t in tickers:
+                cols = set(raw[t].columns.tolist())
+                missing = sorted(required - cols)
+                if missing:
+                    raise ValueError(
+                        f"Provider output for ticker {t!r} missing OHLCV columns: {missing}"
+                    )
+            return
+
+        cols = set(raw.columns.tolist())
+        missing = sorted(required - cols)
+        if missing:
+            raise ValueError(f"Provider output missing OHLCV columns: {missing}")
 
     def _ingest_raw_ohlcv(self, raw: pd.DataFrame) -> None:
         if raw.empty:

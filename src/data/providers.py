@@ -20,7 +20,14 @@ from alpaca.data.timeframe import TimeFrame
 
 @runtime_checkable
 class MarketDataProvider(Protocol):
-    """Download OHLCV in ``yfinance``-compatible shape (multi-ticker MultiIndex columns)."""
+    """
+    Download OHLCV in a ``yfinance``-compatible shape.
+
+    Contract:
+    - Index: ``DatetimeIndex`` normalized to date (00:00:00), tz-naive, named ``"Date"``.
+    - Single ticker: flat OHLCV columns (e.g. ``Open``, ``High``, ``Low``, ``Close``, ``Volume``).
+    - Multi ticker: column MultiIndex shaped as ``(Ticker, Field)``.
+    """
 
     def download(
         self,
@@ -43,7 +50,7 @@ class YFinanceMarketDataProvider:
         start: Union[str, pd.Timestamp],
         end: Union[str, pd.Timestamp],
     ) -> pd.DataFrame:
-        return yf.download(
+        df = yf.download(
             ticker_list,
             start=start,
             end=end,
@@ -52,6 +59,7 @@ class YFinanceMarketDataProvider:
             progress=False,
             **({"session": self._session} if self._session is not None else {}),
         )
+        return _normalize_history_index(df)
 
 
 class AlpacaHistoricalMarketDataProvider:
@@ -71,6 +79,11 @@ class AlpacaHistoricalMarketDataProvider:
     ) -> None:
         key = api_key or os.environ.get("APCA_API_KEY_ID")
         sec = secret_key or os.environ.get("APCA_API_SECRET_KEY")
+        if not key or not sec:
+            raise ValueError(
+                "Alpaca credentials are required for AlpacaHistoricalMarketDataProvider. "
+                "Set APCA_API_KEY_ID/APCA_API_SECRET_KEY or pass api_key/secret_key."
+            )
         self._client = StockHistoricalDataClient(
             api_key=key, secret_key=sec, sandbox=paper
         )
@@ -89,7 +102,13 @@ class AlpacaHistoricalMarketDataProvider:
             start=pd.Timestamp(start).date(),
             end=pd.Timestamp(end).date(),
         )
-        barset = self._client.get_stock_bars(req)
+        try:
+            barset = self._client.get_stock_bars(req)
+        except Exception as exc:
+            raise RuntimeError(
+                "Alpaca historical bars request failed. "
+                "Check credentials, symbol permissions, and network/API status."
+            ) from exc
         frames: List[pd.DataFrame] = []
         keys: List[str] = []
         for sym in ticker_list:
@@ -110,15 +129,40 @@ class AlpacaHistoricalMarketDataProvider:
                 )
                 idx.append(pd.Timestamp(b.timestamp))
             part = pd.DataFrame(records, index=idx).sort_index()
-            part.index.name = "Date"
+            part = _normalize_history_index(part)
             frames.append(part)
             keys.append(sym)
+        missing = [sym for sym in ticker_list if sym not in keys]
+        if missing:
+            raise ValueError(
+                "Alpaca historical bars missing for symbols: "
+                + ", ".join(sorted(missing))
+            )
         if not frames:
             return pd.DataFrame()
         # Match yfinance multi-ticker layout: column MultiIndex (Ticker, Field).
         if len(frames) == 1 and len(ticker_list) == 1:
-            return frames[0]
-        return pd.concat({k: f for k, f in zip(keys, frames, strict=True)}, axis=1)
+            return _normalize_history_index(frames[0])
+        out = pd.concat({k: f for k, f in zip(keys, frames, strict=True)}, axis=1)
+        return _normalize_history_index(out)
+
+
+def _normalize_history_index(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normalize history index to a stable contract across providers.
+    """
+    if df.empty:
+        out = df.copy()
+        out.index.name = "Date"
+        return out
+    idx = pd.DatetimeIndex(pd.to_datetime(df.index))
+    if idx.tz is not None:
+        idx = idx.tz_convert("UTC").tz_localize(None)
+    idx = idx.normalize()
+    out = df.copy()
+    out.index = idx
+    out.index.name = "Date"
+    return out.sort_index()
 
 
 def fetch_yfinance_classifications(
