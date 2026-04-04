@@ -48,3 +48,21 @@ def test_winsorize_tail_zero_identity():
 def test_winsorize_invalid_tail_raises():
     with pytest.raises(ValueError):
         cross_section.winsorize(jnp.array([1.0, 2.0]), 0.6)
+
+
+def test_scale_targets_requested_gross():
+    x = jnp.array([1.0, -2.0, 3.0], dtype=jnp.float32)
+    y = cross_section.scale(x, target=2.0)
+    assert float(jnp.sum(jnp.abs(y))) == pytest.approx(2.0, abs=1e-6)
+
+
+def test_scale_non_finite_inputs_zeroed():
+    x = jnp.array([jnp.nan, jnp.inf, -jnp.inf], dtype=jnp.float32)
+    y = cross_section.scale(x)
+    assert jnp.array_equal(y, jnp.zeros_like(x))
+
+
+def test_sign_maps_to_minus_one_zero_plus_one():
+    x = jnp.array([-2.0, 0.0, 3.0, jnp.nan], dtype=jnp.float32)
+    y = cross_section.sign(x)
+    assert np.allclose(np.asarray(y), np.array([-1.0, 0.0, 1.0, 0.0], dtype=float))

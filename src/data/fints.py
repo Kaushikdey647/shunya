@@ -125,6 +125,12 @@ class finTs:
     def _add_features(df: pd.DataFrame) -> pd.DataFrame:
         out = df
 
+        if "VWAP" in out.columns:
+            out["VWAP"] = pd.to_numeric(out["VWAP"], errors="coerce")
+        else:
+            # Daily fallback when provider VWAP is unavailable.
+            out["VWAP"] = (out["High"] + out["Low"] + out["Close"]) / 3.0
+
         out["SMA_50"] = TA.SMA(out, 50)
         out["SMA_200"] = TA.SMA(out, 200)
         out["RSI_14"] = TA.RSI(out, 14)

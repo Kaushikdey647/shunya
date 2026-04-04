@@ -37,6 +37,34 @@ def zscore(x: jnp.ndarray, *, eps: float = _EPS) -> jnp.ndarray:
     return out.astype(jnp.float32)
 
 
+@partial(jax.jit, static_argnames=("target", "eps"))
+def scale(x: jnp.ndarray, *, target: float = 1.0, eps: float = _EPS) -> jnp.ndarray:
+    """
+    Cross-sectional gross scaling to ``sum(abs(out)) == target`` when possible.
+
+    Non-finite inputs are treated as zero contribution. If gross exposure is below
+    ``eps``, returns an all-zero vector.
+    """
+    x = jnp.asarray(x, dtype=jnp.float32)
+    finite = jnp.isfinite(x)
+    clean = jnp.where(finite, x, 0.0)
+    gross = jnp.sum(jnp.abs(clean))
+    t = jnp.asarray(target, dtype=jnp.float32)
+    return jnp.where(gross > eps, clean / gross * t, jnp.zeros_like(clean)).astype(
+        jnp.float32
+    )
+
+
+@jax.jit
+def sign(x: jnp.ndarray) -> jnp.ndarray:
+    """
+    Elementwise sign in ``{-1, 0, 1}`` (non-finite inputs map to ``0``).
+    """
+    x = jnp.asarray(x, dtype=jnp.float32)
+    finite = jnp.isfinite(x)
+    return jnp.where(finite, jnp.sign(x), 0.0).astype(jnp.float32)
+
+
 @partial(jax.jit, static_argnames=("tail",))
 def _winsorize_jit(x: jnp.ndarray, tail: float) -> jnp.ndarray:
     lo = jnp.quantile(x, tail, method="linear")

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from src.data.fints import finTs
+from src.utils import indicators
 
 
 class _StubMarketData:
@@ -55,6 +57,9 @@ def test_fints_attaches_classification_columns(monkeypatch):
     xom_industry = fts.df.loc[("XOM", pd.Timestamp("2024-01-03")), "Industry"]
     assert aapl_sector == "Technology"
     assert xom_industry == "Oil & Gas"
+    assert "VWAP" in fts.df.columns
+    assert np.isfinite(fts.df["VWAP"].to_numpy(dtype=float)).all()
+    assert indicators.feature_index("VWAP", live=True) >= 0
 
 
 def test_fints_uses_unknown_fallbacks_when_missing(monkeypatch):

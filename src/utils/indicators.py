@@ -36,6 +36,7 @@ _STRATEGY_OHLCV_SPEC: tuple[tuple[str, str], ...] = (
 )
 
 _ENGINEERED_SPEC: tuple[tuple[str, str], ...] = (
+    ("VWAP", "VWAP"),
     ("SMA_50", "SMA_50"),
     ("SMA_200", "SMA_200"),
     ("RSI_14", "RSI_14"),
@@ -137,6 +138,7 @@ def assert_engineered_columns_match_fints() -> None:
         [
             "SMA_50",
             "SMA_200",
+            "VWAP",
             "RSI_14",
             "MACD",
             "MACD_Signal",

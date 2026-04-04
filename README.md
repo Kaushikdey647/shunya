@@ -34,7 +34,7 @@ from src import (
 
 ## Core ideas
 
-1. **`finTs`** loads one or many tickers and produces a dataframe whose live columns include raw **Open / High / Low / Close / Volume** first, then indicators (`SMA_50`, `RSI_14`, …). It also attaches best-effort yfinance classification columns: **`Sector`**, **`Industry`**, **`SubIndustry`** (with deterministic `Unknown*` fallbacks). See `indicators.STRATEGY_FEATURES_LIVE` for the full default ordering.
+1. **`finTs`** loads one or many tickers and produces a dataframe whose live columns include raw **Open / High / Low / Close / Volume** first, then indicators (`VWAP`, `SMA_50`, `RSI_14`, …). It also attaches best-effort yfinance classification columns: **`Sector`**, **`Industry`**, **`SubIndustry`** (with deterministic `Unknown*` fallbacks). See `indicators.STRATEGY_FEATURES_LIVE` for the full default ordering.
 
 2. **`FinStrat(fin_ts, algorithm, ...)`** binds the panel to a JAX callable `algorithm(panel) -> (n_stocks,)`. Optional BRAIN-like knobs:
    - `decay` (per-name EMA on raw scores — pass `tickers=` into `pass_`)
@@ -51,7 +51,27 @@ from src import (
 
 6. **`MarketDataProvider`** (`src.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo.
 
-7. **`cross_section`** — JIT-friendly helpers: `rank`, `zscore`, `winsorize`, `neutralize_market`, `neutralize_groups`. `rank(x)` is increasing in `x` (smallest → ~0, largest → ~1); use `rank(-x)` to flip.
+7. **`cross_section`** — JIT-friendly helpers: `rank`, `zscore`, `scale`, `sign`, `winsorize`, `neutralize_market`, `neutralize_groups`. `rank(x)` is increasing in `x` (smallest → ~0, largest → ~1); use `rank(-x)` to flip.
+
+## Operator helpers
+
+- `src.algorithm.logical`
+  - `trade_when(condition, alpha, otherwise, exit_condition=...)`
+  - `if_else`, `logical_and`, `logical_or`, `logical_not`
+- `src.algorithm.time_series`
+  - `tsdelta`, `tsdelay`, `tssum`, `tsmean`, `tsrank`, `tszscore`, `tsstddev`
+  - `tsregression(y, x, window, lag, retval)` with `retval in {"error", "a", "b", "estimate"}`
+  - `humpdecay`
+- `src.algorithm.group_ops`
+  - `group_rank`, `group_zscore`, `group_mean`, `group_neutralize`
+
+```python
+import jax.numpy as jnp
+from src.algorithm import cross_section, group_ops, logical, time_series
+
+signal = cross_section.zscore(jnp.array([1.0, 2.0, 3.0]))
+gated = logical.trade_when(signal > 0, signal, 0.0)
+```
 
 ## Quick start
 
