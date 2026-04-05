@@ -1493,6 +1493,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pytickersymbols"
+version = "1.17.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/51/c0/876cb3a3c228bd9131f8bb9787c94e332c36b3d8ac1f8d9fa39d53ca1378/pytickersymbols-1.17.10.tar.gz", hash = "sha256:128bb5f2b91d0a57046375a1a996586b47f6631dba921498c669993319e6779a", size = 401119, upload-time = "2026-03-09T18:38:46.205Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/03/8ccdde11b5b997e4e9dfa4815171e398205eda699c8edc8dfc55f53fc165/pytickersymbols-1.17.10-py3-none-any.whl", hash = "sha256:126ba59039f62fbde99d02b49eb180f0eb7987120aa8daaa25fe4b1c1651eb57", size = 406235, upload-time = "2026-03-09T18:38:44.838Z" },
+]
+
+[[package]]
 name = "pytz"
 version = "2026.1.post1"
 source = { registry = "https://pypi.org/simple" }
@@ -1717,6 +1730,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
+    { name = "pytickersymbols" },
     { name = "scipy" },
     { name = "seaborn" },
     { name = "tqdm" },
@@ -1732,6 +1746,11 @@ notebook = [
     { name = "ipykernel" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "alpaca-py", specifier = ">=0.43.2" },
@@ -1744,6 +1763,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.4" },
     { name = "pandas", specifier = ">=3.0.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytickersymbols", specifier = ">=1.17.10" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "tqdm", specifier = ">=4.67.3" },
@@ -1751,6 +1771,9 @@ requires-dist = [
     { name = "yfinance", specifier = ">=1.2.0" },
 ]
 provides-extras = ["notebook", "dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]
 
 [[package]]
 name = "six"
