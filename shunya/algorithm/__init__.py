@@ -8,6 +8,15 @@ from .execution import AlpacaExecutionAdapter, ExecutionReport, OrderAttempt
 from .finbt import FinBT
 from .finstrat import FinStrat
 from .fintrade import FinTrade
+from .orders import (
+    ExecutionAdapter,
+    OrderBuilder,
+    OrderSide,
+    OrderSpec,
+    OrderType,
+    OrderVariety,
+    RiskPolicy,
+)
 from .targets import (
     apply_group_gross_cap,
     apply_group_net_cap,
@@ -18,17 +27,30 @@ from .targets import (
     target_usd_universe,
 )
 
+try:
+    from .kite_execution import KiteExecutionAdapter
+except ImportError:
+    KiteExecutionAdapter = None  # type: ignore[assignment,misc]
+
 __all__ = [
     "AlpacaExecutionAdapter",
     "AlphaContext",
     "AlphaSeries",
     "DataSource",
     "DecisionContext",
+    "ExecutionAdapter",
     "ExecutionReport",
     "FinBT",
     "FinStrat",
     "FinTrade",
+    "KiteExecutionAdapter",
     "OrderAttempt",
+    "OrderBuilder",
+    "OrderSide",
+    "OrderSpec",
+    "OrderType",
+    "OrderVariety",
+    "RiskPolicy",
     "apply_group_gross_cap",
     "apply_group_net_cap",
     "apply_slippage_to_fill_price",

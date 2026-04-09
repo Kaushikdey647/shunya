@@ -6,13 +6,16 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.models import Order
-from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
+
+from .orders import OrderSpec, OrderType
+from .orders import OrderSide as SpecSide
 
 logger = logging.getLogger(__name__)
 
@@ -311,3 +314,111 @@ class AlpacaExecutionAdapter:
     def cancel_open_orders(self) -> None:
         """Best-effort open-order cancellation."""
         self._client.cancel_orders()
+
+    # --- ExecutionAdapter protocol methods ---
+
+    def submit_orders(
+        self,
+        orders: List[OrderSpec],
+        *,
+        dry_run: bool,
+        correlation_id: str,
+    ) -> List[OrderAttempt]:
+        """
+        Submit :class:`OrderSpec` instances to Alpaca.
+
+        Maps ``OrderSpec`` to Alpaca ``MarketOrderRequest`` / ``LimitOrderRequest``.
+        Satisfies the :class:`~shunya.algorithm.orders.ExecutionAdapter` protocol.
+        """
+        attempts: List[OrderAttempt] = []
+        for spec in orders:
+            oid = f"{correlation_id}-{spec.symbol}-{uuid.uuid4().hex[:12]}"
+            side = OrderSide.BUY if spec.side is SpecSide.BUY else OrderSide.SELL
+            notional = spec.notional or round(spec.quantity * (spec.price or 0.0), 2)
+
+            if dry_run:
+                attempts.append(OrderAttempt(
+                    symbol=spec.symbol,
+                    client_order_id=oid,
+                    side=side.value,
+                    notional=round(notional, 2),
+                    success=True,
+                    order=None,
+                    initial_status="dry_run",
+                    final_status="dry_run",
+                ))
+                continue
+
+            self.validate_asset(spec.symbol, delta_usd=notional if spec.side is SpecSide.BUY else -notional)
+
+            if spec.order_type is OrderType.LIMIT and spec.price is not None:
+                req: MarketOrderRequest | LimitOrderRequest = LimitOrderRequest(
+                    symbol=spec.symbol,
+                    qty=spec.quantity,
+                    side=side,
+                    time_in_force=TimeInForce.DAY,
+                    limit_price=spec.price,
+                    client_order_id=oid[:48],
+                )
+            else:
+                req = MarketOrderRequest(
+                    symbol=spec.symbol,
+                    notional=round(notional, 2),
+                    side=side,
+                    time_in_force=TimeInForce.DAY,
+                    client_order_id=oid[:48],
+                )
+
+            attempt = OrderAttempt(
+                symbol=spec.symbol,
+                client_order_id=oid,
+                side=side.value,
+                notional=round(notional, 2),
+                success=False,
+                order=None,
+            )
+            order: Optional[Order] = None
+            last_err: Optional[str] = None
+            for attempt_n in range(self._max_submit_retries):
+                try:
+                    order = self._client.submit_order(req)
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = str(e)
+                    if attempt_n < self._max_submit_retries - 1:
+                        time.sleep(self._retry_base_seconds * (2 ** attempt_n))
+            if last_err is None and order is not None:
+                attempt.success = True
+                attempt.order = order
+                st = getattr(order, "status", None)
+                if st is not None:
+                    attempt.initial_status = str(st)
+                    attempt.final_status = str(st)
+            else:
+                attempt.error = last_err
+                logger.error("Order failed for %s after retries: %s", spec.symbol, last_err)
+            attempts.append(attempt)
+        return attempts
+
+    def get_positions(self) -> Dict[str, float]:
+        """Current positions as ``{symbol: signed_usd_value}``."""
+        from alpaca.trading.enums import PositionSide
+
+        positions = self._client.get_all_positions()
+        result: Dict[str, float] = {}
+        for p in positions:
+            sym = str(p.symbol)
+            mv = p.market_value
+            if mv is None:
+                result[sym] = 0.0
+                continue
+            v = float(mv)
+            if getattr(p, "side", None) == PositionSide.SHORT:
+                v = -abs(v)
+            result[sym] = v
+        return result
+
+    def is_market_open(self) -> bool:
+        """True when the Alpaca market clock reports open."""
+        return _clock_open(self._client)

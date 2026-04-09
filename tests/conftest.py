@@ -38,6 +38,7 @@ def make_stub_fints(
     stub.ticker_list = list(ticker_list)
     stub.df = df
     stub._aligned_calendar = None
+    stub._fundamental_feature_columns = tuple()
     stub.bar_spec = default_bar_spec()
     stub._bar_index_policy = default_bar_index_policy()
     stub._trading_axis_mode = "observed"

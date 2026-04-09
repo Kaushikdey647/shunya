@@ -16,6 +16,7 @@ from ..data.fints import finTs
 from .decision import DecisionContext, resolve_panel_timestamp, validate_panel_timestamp
 from .execution import AlpacaExecutionAdapter, ExecutionReport
 from .finstrat import FinStrat
+from .orders import OrderBuilder, OrderType, OrderVariety, RiskPolicy
 from .targets import (
     apply_group_gross_cap,
     apply_group_net_cap,
@@ -111,6 +112,11 @@ class FinTrade:
         reconcile_after_submit: bool = True,
         reconciliation_policy: Literal["warn_only", "retry_once", "cancel_and_retarget"] = "warn_only",
         reconciliation_tolerance_notional: float = 5.0,
+        risk_policy: Optional[RiskPolicy] = None,
+        order_type: OrderType = OrderType.MARKET,
+        order_variety: OrderVariety = OrderVariety.REGULAR,
+        order_exchange: Optional[str] = None,
+        order_product: Optional[str] = None,
     ) -> ExecutionReport:
         """
         Build panel, run :meth:`FinStrat.pass_`, diff vs Alpaca, submit orders.
@@ -304,12 +310,41 @@ class FinTrade:
                     f"fraction={adv_participation_fraction}, mode={constraints_mode}"
                 )
 
-        attempts = self._adapter.submit_delta_orders(
-            deltas,
-            min_order_notional=min_order_notional,
-            dry_run=dry_run,
-            correlation_id=correlation_id,
-        )
+        if risk_policy is not None and hasattr(self._adapter, "submit_orders"):
+            prices: dict[str, float] = {}
+            for t in fin_ts.ticker_list:
+                key = (t, dt)
+                if key not in df.index:
+                    continue
+                row = df.loc[key]
+                if isinstance(row, pd.DataFrame):
+                    row = row.iloc[-1]
+                c = float(row.get("Close", np.nan))
+                if np.isfinite(c) and c > 0:
+                    prices[t] = c
+            order_specs = OrderBuilder.build_many(
+                deltas,
+                prices,
+                risk_policy,
+                order_type=order_type,
+                variety=order_variety,
+                exchange=order_exchange,
+                product=order_product,
+                tag_prefix=correlation_id,
+                min_order_notional=min_order_notional,
+            )
+            attempts = self._adapter.submit_orders(
+                order_specs,
+                dry_run=dry_run,
+                correlation_id=correlation_id,
+            )
+        else:
+            attempts = self._adapter.submit_delta_orders(
+                deltas,
+                min_order_notional=min_order_notional,
+                dry_run=dry_run,
+                correlation_id=correlation_id,
+            )
         if observe_order_status and not dry_run:
             attempts = self._adapter.observe_submitted_orders(
                 attempts,

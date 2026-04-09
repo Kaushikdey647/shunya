@@ -381,11 +381,16 @@ class FinStrat:
             "close": "Close",
             "adj_volume": "Volume",
         }
+        extra_cols = list(getattr(self._ts, "fundamental_feature_columns", tuple()))
         for col in spec.values():
             if col not in df.columns:
                 raise KeyError(f"Dataframe missing required column {col!r}")
+        for col in extra_cols:
+            if col not in df.columns:
+                raise KeyError(f"Dataframe missing context feature column {col!r}")
 
         tensors: dict[str, List[np.ndarray]] = {k: [] for k in spec}
+        extra_tensors: dict[str, List[np.ndarray]] = {col: [] for col in extra_cols}
         for t in tickers:
             if t not in df.index.get_level_values("Ticker"):
                 raise KeyError(f"ticker {t!r} missing from panel index")
@@ -395,17 +400,26 @@ class FinStrat:
                 tensors[key].append(
                     pd.to_numeric(block[col], errors="coerce").to_numpy(dtype=float)
                 )
+            for col in extra_cols:
+                extra_tensors[col].append(
+                    pd.to_numeric(block[col], errors="coerce").to_numpy(dtype=float)
+                )
 
         out: dict[str, jnp.ndarray] = {}
         for key, cols in tensors.items():
             mat = np.column_stack(cols) if cols else np.empty((len(hist), 0), dtype=float)
             out[key] = jnp.asarray(mat, dtype=jnp.float32)
+        extra_out: dict[str, jnp.ndarray] = {}
+        for key, cols in extra_tensors.items():
+            mat = np.column_stack(cols) if cols else np.empty((len(hist), 0), dtype=float)
+            extra_out[key] = jnp.asarray(mat, dtype=jnp.float32)
         return AlphaContext(
             open=out["open"],
             high=out["high"],
             low=out["low"],
             close=out["close"],
             adj_volume=out["adj_volume"],
+            features=extra_out,
         )
 
     def scores_at(

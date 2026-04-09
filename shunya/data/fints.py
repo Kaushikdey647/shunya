@@ -15,6 +15,12 @@ from .providers import (
     YFinanceMarketDataProvider,
     fetch_yfinance_classifications,
 )
+from .fundamentals import (
+    FinanceToolkitFundamentalDataProvider,
+    FundamentalDataProvider,
+    align_fundamental_panel_to_panel_index,
+    validate_fundamental_fields,
+)
 from .timeframes import (
     BarIndexPolicy,
     BarSpec,
@@ -156,6 +162,10 @@ class finTs:
         market_data: Optional[MarketDataProvider] = None,
         classifications: Optional[Mapping[str, Mapping[str, str]]] = None,
         attach_yfinance_classifications: bool = True,
+        fundamental_data: Optional[FundamentalDataProvider] = None,
+        attach_fundamentals: bool = False,
+        fundamental_fields: Optional[Sequence[str]] = None,
+        fundamental_quarterly: bool = True,
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
         *,
@@ -182,6 +192,7 @@ class finTs:
             else default_bar_index_policy()
         )
         self._aligned_calendar: Optional[pd.DatetimeIndex] = None
+        self._fundamental_feature_columns: Tuple[str, ...] = tuple()
         self._strict_provider_universe = bool(strict_provider_universe)
         self._strict_ohlcv = bool(strict_ohlcv)
         self._strict_empty = bool(strict_empty)
@@ -234,6 +245,13 @@ class finTs:
                 merged.update(fields)
                 class_map[t] = merged
         self._attach_classifications(class_map)
+        if attach_fundamentals:
+            provider = fundamental_data or FinanceToolkitFundamentalDataProvider()
+            self._attach_fundamentals(
+                provider,
+                fields=fundamental_fields,
+                quarterly=fundamental_quarterly,
+            )
 
     @property
     def bar_index_policy(self) -> BarIndexPolicy:
@@ -244,6 +262,11 @@ class finTs:
     def trading_axis_mode(self) -> TradingAxisMode:
         """Default time axis mode used by calendar/lag helpers."""
         return getattr(self, "_trading_axis_mode", "observed")
+
+    @property
+    def fundamental_feature_columns(self) -> Tuple[str, ...]:
+        """Attached time-varying fundamental columns that are safe to expose in ``AlphaContext``."""
+        return getattr(self, "_fundamental_feature_columns", tuple())
 
     def _validate_provider_output(self, raw: pd.DataFrame) -> None:
         """
@@ -428,6 +451,41 @@ class finTs:
             fallback = _CLASSIFICATION_FALLBACKS[col]
             val = str(class_map.get(str(ticker), {}).get(col) or fallback)
             self.df[col] = val
+
+    def _attach_fundamentals(
+        self,
+        provider: FundamentalDataProvider,
+        *,
+        fields: Optional[Sequence[str]] = None,
+        quarterly: bool = True,
+    ) -> None:
+        if not isinstance(self.df, pd.DataFrame) or self.df.empty:
+            return
+        specs = validate_fundamental_fields(fields)
+        requested = [spec.column for spec in specs]
+        periodic = provider.fetch(
+            self.ticker_list,
+            self.start_date,
+            self.end_date,
+            fields=requested,
+            quarterly=quarterly,
+            bar_spec=self.bar_spec,
+        )
+        if not isinstance(periodic, pd.DataFrame):
+            raise TypeError(
+                f"fundamental_data.fetch(...) must return pandas.DataFrame, got {type(periodic)!r}"
+            )
+        if periodic.empty:
+            aligned = pd.DataFrame(index=self.df.index, columns=requested, dtype=float)
+        else:
+            aligned = align_fundamental_panel_to_panel_index(periodic, self.df.index)
+        aligned = aligned.reindex(self.df.index)
+        missing = [col for col in requested if col not in aligned.columns]
+        for col in missing:
+            aligned[col] = np.nan
+        for col in requested:
+            self.df[col] = pd.to_numeric(aligned[col], errors="coerce").to_numpy(dtype=float)
+        self._fundamental_feature_columns = tuple(requested)
 
     def _require_nonempty_df(self) -> None:
         if not isinstance(self.df, pd.DataFrame) or self.df.empty:

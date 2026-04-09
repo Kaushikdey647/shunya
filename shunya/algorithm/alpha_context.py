@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 import jax.numpy as jnp
 
@@ -198,16 +198,31 @@ class AlphaContext:
         low: jnp.ndarray,
         close: jnp.ndarray,
         adj_volume: jnp.ndarray,
+        features: Mapping[str, Any] | None = None,
     ) -> None:
         self.open = AlphaSeries(open)
         self.high = AlphaSeries(high)
         self.low = AlphaSeries(low)
         self.close = AlphaSeries(close)
         self.adj_volume = AlphaSeries(adj_volume)
+        raw_features = dict(features or {})
+        overlap = sorted(set(raw_features).intersection({"open", "high", "low", "close", "adj_volume"}))
+        if overlap:
+            raise ValueError(f"feature names collide with built-in AlphaContext fields: {overlap}")
+        self.features = {str(name): AlphaSeries(value) for name, value in raw_features.items()}
         self.ts = TimeSeriesOps()
         self.cs = CrossSectionOps()
 
     @property
     def n_tickers(self) -> int:
         return int(self.close.shape[1])
+
+    @property
+    def feature_names(self) -> tuple[str, ...]:
+        return tuple(self.features.keys())
+
+    def feature(self, name: str) -> AlphaSeries:
+        if name not in self.features:
+            raise KeyError(f"AlphaContext feature {name!r} is not available")
+        return self.features[name]
 

@@ -9,4 +9,3 @@ def alpha(ctx) -> jnp.ndarray:
     """
     signal = ctx.close / ctx.ts.delay(ctx.close, 20)
     return ctx.cs.rank(signal)
-
