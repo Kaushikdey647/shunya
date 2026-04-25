@@ -9,7 +9,7 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 
-from ..data.fints import finTs
+from ..data.fints import ContextOhlcvTensorBundle, finTs
 from ..data.timeframes import bar_spec_is_intraday, normalize_bar_timestamp
 from ..utils import indicators
 from .alpha_context import AlphaContext, AlphaSeries
@@ -335,6 +335,22 @@ class FinStrat:
         miss = [c for c in needed if c not in df.columns]
         if miss:
             raise KeyError(f"Dataframe missing required OHLCV columns: {miss}")
+        bundle = self._ts.get_or_build_context_ohlcv_tensor_bundle()
+        if bundle is not None:
+            try:
+                pos = bundle.position_of(dt)
+            except ValueError:
+                return []
+            row_ok = np.logical_and.reduce(
+                [
+                    np.isfinite(bundle.open[pos, :]),
+                    np.isfinite(bundle.high[pos, :]),
+                    np.isfinite(bundle.low[pos, :]),
+                    np.isfinite(bundle.close[pos, :]),
+                    np.isfinite(bundle.volume[pos, :]),
+                ]
+            )
+            return [bundle.ticker_order[j] for j in range(len(bundle.ticker_order)) if bool(row_ok[j])]
         out: List[str] = []
         for t in self._ts.ticker_list:
             key = (t, dt)
@@ -348,6 +364,39 @@ class FinStrat:
                 out.append(t)
         return out
 
+    def _context_at_from_tensor_bundle(
+        self,
+        bundle: ContextOhlcvTensorBundle,
+        execution_date: Union[str, pd.Timestamp],
+        *,
+        tickers: Sequence[str],
+    ) -> AlphaContext:
+        dt = self.panel_date_for_execution(execution_date)
+        pos = bundle.position_of(dt)
+        sl = slice(0, pos + 1)
+        ticker_to_j = {t: j for j, t in enumerate(bundle.ticker_order)}
+        try:
+            cols = [ticker_to_j[str(t)] for t in tickers]
+        except KeyError as exc:
+            raise KeyError(f"ticker missing from panel tensor columns: {exc!s}") from exc
+
+        o = bundle.open[sl][:, cols]
+        hi = bundle.high[sl][:, cols]
+        lo = bundle.low[sl][:, cols]
+        cl = bundle.close[sl][:, cols]
+        vo = bundle.volume[sl][:, cols]
+        extra_out: dict[str, jnp.ndarray] = {}
+        for name, arr in bundle.extras.items():
+            extra_out[name] = jnp.asarray(arr[sl][:, cols], dtype=jnp.float32)
+        return AlphaContext(
+            open=jnp.asarray(o, dtype=jnp.float32),
+            high=jnp.asarray(hi, dtype=jnp.float32),
+            low=jnp.asarray(lo, dtype=jnp.float32),
+            close=jnp.asarray(cl, dtype=jnp.float32),
+            adj_volume=jnp.asarray(vo, dtype=jnp.float32),
+            features=extra_out,
+        )
+
     def context_at(
         self,
         execution_date: Union[str, pd.Timestamp],
@@ -359,6 +408,10 @@ class FinStrat:
         """
         if not tickers:
             raise ValueError("tickers must be non-empty")
+        bundle = self._ts.get_or_build_context_ohlcv_tensor_bundle()
+        if bundle is not None:
+            return self._context_at_from_tensor_bundle(bundle, execution_date, tickers=tickers)
+
         dt = self.panel_date_for_execution(execution_date)
         cal = self._ts.get_trading_calendar(mode="observed").sort_values()
         pos = int(cal.searchsorted(dt, side="left"))

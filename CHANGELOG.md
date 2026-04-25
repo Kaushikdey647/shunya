@@ -30,7 +30,6 @@ All notable changes to this project are documented in this file.
   - `sma_ratio_50`
   - `mean_reversion_5`
   - `breakout_20`
-  - `volume_price_trend_20`
 - New research notebook `examples/alpha_benchmark_oex.ipynb` to compare example alpha returns/correlations/metrics against `^OEX` and against each other.
 - `BarIndexPolicy` and `default_bar_index_policy()`: market data indices default to **America/New_York** (session-stable intraday labels across US DST), with optional `timezone`, `naive`, and `daily_anchor` (`"timezone"` vs legacy `"utc"` for daily-like bars).
 - `finTs(..., bar_index_policy=...)`, `finTs.bar_index_policy`, and `MarketDataProvider.download(..., bar_index_policy=...)`.

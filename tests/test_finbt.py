@@ -25,6 +25,7 @@ def test_finbt_runs_and_returns_metrics():
     )
     bt = FinBT(fs, fts, cash=50_000.0).run()
     out = bt.results(show=False)
+    assert out["figure"] is None
     assert "metrics" in out
     assert "equity_curve" in out
     assert "turnover_history" in out

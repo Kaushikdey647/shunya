@@ -368,7 +368,9 @@ class FinBT:
         """
         Drill-down dashboard: equity curve, drawdown, and key analyzer metrics.
 
-        Call :meth:`run` first. If ``show`` is True, displays matplotlib figures (Jupyter-friendly).
+        Call :meth:`run` first. If ``show`` is True, builds matplotlib figures and displays them
+        (Jupyter-friendly). If ``show`` is False, skips figure construction for faster batch use;
+        ``figure`` in the return dict is then ``None``.
         Returns a dict with ``figure``, ``metrics``, ``equity_curve`` (DataFrame), and raw analyzer dicts.
         """
         if not self._run_result:
@@ -490,36 +492,37 @@ class FinBT:
             metrics["max_group_gross_share_pct"] = 0.0
             metrics["max_group_net_share_pct"] = 0.0
 
-        fig, axes = plt.subplots(3, 1, figsize=(12, 10), gridspec_kw={"height_ratios": [2, 1, 1]})
-        ax_eq, ax_dd, ax_tbl = axes
-
-        equity["Equity"].plot(ax=ax_eq, color="C0", linewidth=1.2)
-        ax_eq.set_title("Portfolio equity")
-        ax_eq.set_ylabel("Value")
-        ax_eq.grid(True, alpha=0.3)
-
-        equity["DrawdownPct"].plot(ax=ax_dd, color="C3", linewidth=1.0)
-        ax_dd.set_title("Drawdown (%)")
-        ax_dd.set_ylabel("%")
-        ax_dd.grid(True, alpha=0.3)
-
-        ax_tbl.axis("off")
-        lines = [
-            f"End equity: {metrics['end_value']:,.2f}",
-            f"Total return: {metrics['total_return_pct']:.2f}%",
-            f"Avg return per bar: {metrics['avg_daily_return_pct']:.4f}%",
-            f"Max drawdown: {metrics['max_drawdown_pct']:.2f}%",
-            f"Sharpe (annualized): {metrics['sharpe_ratio']}",
-            f"Bar spec: {metrics['bar_unit']} x{metrics['bar_step']}",
-            f"Avg turnover: {metrics['avg_turnover_pct']:.2f}%",
-            f"Top-name gross share: {metrics['top_name_gross_share_pct']:.2f}%",
-        ]
-        if metrics["execution_start"] is not None:
-            lines.append(f"Execution start: {metrics['execution_start']}")
-        ax_tbl.text(0.02, 0.95, "\n".join(lines), transform=ax_tbl.transAxes, va="top", family="monospace")
-
-        plt.tight_layout()
+        fig: Optional[Any] = None
         if show:
+            fig, axes = plt.subplots(3, 1, figsize=(12, 10), gridspec_kw={"height_ratios": [2, 1, 1]})
+            ax_eq, ax_dd, ax_tbl = axes
+
+            equity["Equity"].plot(ax=ax_eq, color="C0", linewidth=1.2)
+            ax_eq.set_title("Portfolio equity")
+            ax_eq.set_ylabel("Value")
+            ax_eq.grid(True, alpha=0.3)
+
+            equity["DrawdownPct"].plot(ax=ax_dd, color="C3", linewidth=1.0)
+            ax_dd.set_title("Drawdown (%)")
+            ax_dd.set_ylabel("%")
+            ax_dd.grid(True, alpha=0.3)
+
+            ax_tbl.axis("off")
+            lines = [
+                f"End equity: {metrics['end_value']:,.2f}",
+                f"Total return: {metrics['total_return_pct']:.2f}%",
+                f"Avg return per bar: {metrics['avg_daily_return_pct']:.4f}%",
+                f"Max drawdown: {metrics['max_drawdown_pct']:.2f}%",
+                f"Sharpe (annualized): {metrics['sharpe_ratio']}",
+                f"Bar spec: {metrics['bar_unit']} x{metrics['bar_step']}",
+                f"Avg turnover: {metrics['avg_turnover_pct']:.2f}%",
+                f"Top-name gross share: {metrics['top_name_gross_share_pct']:.2f}%",
+            ]
+            if metrics["execution_start"] is not None:
+                lines.append(f"Execution start: {metrics['execution_start']}")
+            ax_tbl.text(0.02, 0.95, "\n".join(lines), transform=ax_tbl.transAxes, va="top", family="monospace")
+
+            plt.tight_layout()
             plt.show()
 
         target_history = list(strat.target_history)

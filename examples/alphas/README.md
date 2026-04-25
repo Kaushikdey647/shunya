@@ -23,8 +23,8 @@ Where `ctx` provides:
 - `sma_ratio_50`: trend via `close / SMA(50)`
 - `mean_reversion_5`: short-term reversion via negative 5-bar deviation
 - `breakout_20`: 20-bar momentum via delayed-close ratio
-- `fundamental_value_quality`: combine price trend with ROE and P/E
-- `volume_price_trend_20`: trend weighted by relative volume
+- `sma20_deviation_rank`: inverted cross-sectional rank of `close - SMA(20)`, scaled to ~[-1, 1]
+- `sma20_deviation_zscore`: inverted cross-sectional zscore of `close - SMA(20)`
 
 ## Usage
 

@@ -7,7 +7,7 @@ def alpha(ctx) -> jnp.ndarray:
     """
     Trend alpha: rank(close / SMA50).
     """
-    sma_50 = ctx.ts.mean(ctx.close, 50)
-    signal = ctx.close / sma_50
+    sma_20 = ctx.ts.mean(ctx.close, 20)
+    signal = ctx.close / sma_20
     return ctx.cs.rank(signal)
 

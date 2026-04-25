@@ -123,6 +123,33 @@ class PanelQADiagnostics:
         }
 
 
+@dataclass
+class ContextOhlcvTensorBundle:
+    """
+    Dense OHLCV (and optional fundamental columns) shaped ``(n_bars, n_tickers)``,
+    aligned to :meth:`finTs.get_trading_calendar` with ``mode='observed'``.
+
+    Built once and reused by :meth:`~shunya.algorithm.finstrat.FinStrat.context_at`
+    to avoid per-bar ``DataFrame.xs`` / ``reindex`` work.
+    """
+
+    calendar: pd.DatetimeIndex
+    ticker_order: Tuple[str, ...]
+    open: np.ndarray
+    high: np.ndarray
+    low: np.ndarray
+    close: np.ndarray
+    volume: np.ndarray
+    extras: Dict[str, np.ndarray]
+
+    def position_of(self, panel_dt: pd.Timestamp) -> int:
+        cal = self.calendar
+        pos = int(cal.searchsorted(panel_dt, side="left"))
+        if pos >= len(cal) or cal[pos] != panel_dt:
+            raise ValueError(f"panel date {panel_dt!s} is not on trading calendar")
+        return int(pos)
+
+
 class finTs:
     """
     Download OHLCV via a :class:`~shunya.data.providers.MarketDataProvider` (default: Yahoo)
@@ -192,6 +219,7 @@ class finTs:
             else default_bar_index_policy()
         )
         self._aligned_calendar: Optional[pd.DatetimeIndex] = None
+        self._context_ohlcv_tensor_cache: Optional[ContextOhlcvTensorBundle] = None
         self._fundamental_feature_columns: Tuple[str, ...] = tuple()
         self._strict_provider_universe = bool(strict_provider_universe)
         self._strict_ohlcv = bool(strict_ohlcv)
@@ -486,6 +514,7 @@ class finTs:
         for col in requested:
             self.df[col] = pd.to_numeric(aligned[col], errors="coerce").to_numpy(dtype=float)
         self._fundamental_feature_columns = tuple(requested)
+        self._invalidate_context_ohlcv_tensor_cache()
 
     def _require_nonempty_df(self) -> None:
         if not isinstance(self.df, pd.DataFrame) or self.df.empty:
@@ -530,6 +559,77 @@ class finTs:
         else:
             dates = raw.normalize().unique()
         return pd.DatetimeIndex(dates).sort_values()
+
+    def _invalidate_context_ohlcv_tensor_cache(self) -> None:
+        setattr(self, "_context_ohlcv_tensor_cache", None)
+
+    def get_or_build_context_ohlcv_tensor_bundle(self) -> Optional[ContextOhlcvTensorBundle]:
+        """
+        Lazily materialize a dense (time × ticker) tensor view of OHLCV (+ fundamental columns).
+
+        Returns ``None`` when the panel is not a ``(Ticker, Date)`` MultiIndex. Callers
+        fall back to row-wise pandas indexing. The cache is cleared when :meth:`align_universe`
+        mutates the frame or when fundamentals are (re)attached.
+        """
+        cached = getattr(self, "_context_ohlcv_tensor_cache", None)
+        if cached is not None:
+            return cached
+        df = self.df
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            return None
+        if not isinstance(df.index, pd.MultiIndex) or tuple(df.index.names) != ("Ticker", "Date"):
+            return None
+        self._require_nonempty_df()
+        cal = self.get_trading_calendar(mode="observed").sort_values()
+        if len(cal) == 0:
+            return None
+        ticker_order = tuple(self.ticker_list)
+        n_t = len(ticker_order)
+        if n_t == 0:
+            return None
+        t_len = len(cal)
+        o = np.full((t_len, n_t), np.nan, dtype=np.float32)
+        h = np.full((t_len, n_t), np.nan, dtype=np.float32)
+        l = np.full((t_len, n_t), np.nan, dtype=np.float32)
+        c = np.full((t_len, n_t), np.nan, dtype=np.float32)
+        v = np.full((t_len, n_t), np.nan, dtype=np.float32)
+        extras_names = tuple(self.fundamental_feature_columns)
+        extras: Dict[str, np.ndarray] = {name: np.full((t_len, n_t), np.nan, dtype=np.float32) for name in extras_names}
+        if extras_names:
+            miss = [name for name in extras_names if name not in df.columns]
+            if miss:
+                raise KeyError(f"Dataframe missing fundamental feature columns: {miss}")
+        need = ("Open", "High", "Low", "Close", "Volume")
+        miss_ohlcv = [x for x in need if x not in df.columns]
+        if miss_ohlcv:
+            raise KeyError(f"Dataframe missing required OHLCV columns: {miss_ohlcv}")
+        level_tickers = set(df.index.get_level_values(0).unique())
+        for j, t in enumerate(ticker_order):
+            if t not in level_tickers:
+                continue
+            sub = df.xs(t, level="Ticker").sort_index()
+            aligned = sub.reindex(cal)
+            o[:, j] = pd.to_numeric(aligned["Open"], errors="coerce").to_numpy(dtype=np.float32, copy=False)
+            h[:, j] = pd.to_numeric(aligned["High"], errors="coerce").to_numpy(dtype=np.float32, copy=False)
+            l[:, j] = pd.to_numeric(aligned["Low"], errors="coerce").to_numpy(dtype=np.float32, copy=False)
+            c[:, j] = pd.to_numeric(aligned["Close"], errors="coerce").to_numpy(dtype=np.float32, copy=False)
+            v[:, j] = pd.to_numeric(aligned["Volume"], errors="coerce").to_numpy(dtype=np.float32, copy=False)
+            for name in extras_names:
+                extras[name][:, j] = pd.to_numeric(aligned[name], errors="coerce").to_numpy(
+                    dtype=np.float32, copy=False
+                )
+        bundle = ContextOhlcvTensorBundle(
+            calendar=cal,
+            ticker_order=ticker_order,
+            open=o,
+            high=h,
+            low=l,
+            close=c,
+            volume=v,
+            extras=extras,
+        )
+        self._context_ohlcv_tensor_cache = bundle
+        return bundle
 
     def trading_session_key(self, ts: Union[str, pd.Timestamp]) -> pd.Timestamp:
         """
@@ -666,6 +766,7 @@ class finTs:
             self._aligned_calendar = pd.DatetimeIndex([])
             self.df = df.iloc[0:0]
             self.ticker_list = []
+            self._invalidate_context_ohlcv_tensor_cache()
             return PanelAlignReport(
                 calendar=self._aligned_calendar,
                 kept_tickers=tuple(),
@@ -730,6 +831,7 @@ class finTs:
         self.df = aligned_df.sort_index()
         self.ticker_list = kept
         self._aligned_calendar = calendar
+        self._invalidate_context_ohlcv_tensor_cache()
 
         return PanelAlignReport(
             calendar=calendar,
