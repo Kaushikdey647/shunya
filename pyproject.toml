@@ -58,7 +58,13 @@ dependencies = [
 notebook = ["curl-cffi>=0.6.0", "ipykernel>=7.2.0"]
 kite = ["kiteconnect>=5.0"]
 timescale = ["psycopg[binary]>=3.2"]
-dev = ["pytest>=8.0", "testcontainers[postgres]>=4.7.0", "twine>=6.0"]
+api = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+]
+dev = ["pytest>=8.0", "testcontainers[postgres]>=4.7.0", "twine>=6.0", "httpx>=0.28.0"]
 
 [project.scripts]
 shunya-timescale = "shunya.data.timescale.cli:main"

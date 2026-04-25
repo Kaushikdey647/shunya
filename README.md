@@ -7,17 +7,15 @@
 [![Data](https://img.shields.io/badge/data-yfinance-informational.svg)](https://pypi.org/project/yfinance/)
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
 
-Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN-style processing), **backtrader** backtests, and an early **tick-to-trade streaming foundation**. Historical data is provider-driven (`yfinance` by default, optional Alpaca bars); features include OHLCV plus technicals from `finta`.
+Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN-style processing), **backtrader** backtests, and an early **tick-to-trade streaming foundation**. Historical data is provider-driven (`yfinance` by default, optional Alpaca bars, optional **local TimescaleDB** via `TimescaleMarketDataProvider`); features include OHLCV plus technicals from `finta`.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension patterns, and coding guidelines.
-
-Optional **local TimescaleDB** for canonical OHLCV and fundamentals is documented in [`docs/data_timescale.md`](docs/data_timescale.md) (`pip install 'shunya-py[timescale]'`, `docker compose`, migration and ingest CLIs).
 
 ## Layout
 
 | Package | Role |
 |--------|------|
-| `shunya.data` | `finTs` — download OHLCV, build MultiIndex `(Ticker, Date)` frame, attach engineered columns |
+| `shunya.data` | `finTs` — download OHLCV, build MultiIndex `(Ticker, Date)` frame, attach engineered columns; optional **TimescaleDB** persistence and read providers (see [Local TimescaleDB](#local-timescaledb-optional)) |
 | `shunya.algorithm` | `FinStrat` (context-based alpha pipeline), `FinBT` (backtrader), `FinTrade` (Alpaca live/paper orders), `cross_section` (rank, zscore, winsorize, neutralization) |
 | `shunya.streaming` | Event/tick plumbing for Alpaca-style streaming: normalized market events, per-symbol FIFO buffers, micro-bar aggregation, universe/subscription helpers, and rectangular snapshots for alpha evaluation |
 | `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
@@ -36,7 +34,7 @@ from shunya import (
 )
 ```
 
-The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (for example `PanelQADiagnostics`, `YFinanceMarketDataProvider`, `StreamingRunner`, `OrderManager`, target helpers, `logical`, `time_series`, and timestamp helpers).
+The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (for example `PanelQADiagnostics`, `YFinanceMarketDataProvider`, `TimescaleMarketDataProvider`, `TimescaleFundamentalDataProvider`, `apply_migrations`, `get_database_url`, `StreamingRunner`, `OrderManager`, target helpers, `logical`, `time_series`, and timestamp helpers).
 
 ## Core ideas
 
@@ -64,7 +62,7 @@ The canonical set of symbols re-exported at the package root is `__all__` in [`s
 
 6. **`DecisionContext`** (`shunya.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so live logic does not silently mix “Yahoo’s last bar” with “submit now.”  Pass `decision=DecisionContext(as_of=..., data_source=...)` into `FinTrade.run`, or set `as_of=` explicitly; otherwise the last date in the panel index is used.
 
-7. **`MarketDataProvider`** (`shunya.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo.
+7. **`MarketDataProvider`** (`shunya.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo, and optional **`TimescaleMarketDataProvider`** for panels read from a local Postgres/Timescale store after ingest (same OHLCV contract as Yahoo).
    - Provider output contract is consistent: `DatetimeIndex` named `Date`, normalized to daily granularity.
    - `AlpacaHistoricalMarketDataProvider` is strict: if requested symbols are missing bars, it raises a `ValueError` listing those symbols.
 
@@ -102,9 +100,10 @@ gated = logical.trade_when(signal > 0, signal, 0.0)
 
 ```bash
 pip install "shunya-py[dev]"   # library + pytest (for upstream / CI-style checks)
+pip install "shunya-py[timescale]"   # optional: Postgres client for local Timescale ingest + read providers
 
 # From a clone (installs the local project; add --extra notebook for Jupyter notebooks):
-uv sync --extra dev
+uv sync --extra dev --extra timescale
 uv run pytest
 ```
 
@@ -158,6 +157,46 @@ fts = finTs(
 # Use alpaca_bars provenance for tighter data/execution parity checks.
 decision = DecisionContext(data_source="alpaca_bars")
 ```
+
+### Local TimescaleDB (optional)
+
+Use a local **TimescaleDB** (Postgres + Timescale extension) as the durable store for OHLCV bars, fundamentals (EAV), and yfinance-style classifications. External APIs remain **loaders**; after ingest, research can point `finTs` at **`TimescaleMarketDataProvider`** / **`TimescaleFundamentalDataProvider`** so panels match the same contracts as Yahoo-backed paths (technicals are still computed in memory from OHLCV).
+
+**Install:** `pip install "shunya-py[timescale]"` (adds `psycopg` with binary wheels; the core PyPI wheel does not depend on it).
+
+**Connection:** set **`DATABASE_URL`** or **`SHUNYA_DATABASE_URL`** (example: `postgresql://postgres:postgres@localhost:5432/shunya`). Do not commit real passwords.
+
+**Bootstrap (repo root):**
+
+```bash
+docker compose up -d
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
+shunya-timescale migrate
+shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 2024-01-01
+# optional: shunya-timescale ingest-fundamentals … , ingest-classifications …
+```
+
+Equivalent: `python -m shunya.data.timescale.cli …`. Override the DSN per run with `--database-url`.
+
+**Backtest HTTP API (repo clone):** optional extras `api` + `timescale`, migrations (includes `api_alphas` / `api_backtest_jobs` tables), then `uv run uvicorn backtest_api.main:app`. Same compose stack adds an `api` service (see `docker-compose.yml`). Details: [`backtest_api/README.md`](backtest_api/README.md).
+
+**Read in code:**
+
+```python
+import os
+from shunya import TimescaleMarketDataProvider, finTs
+
+os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/shunya"
+
+fts = finTs(
+    "2020-01-01",
+    "2024-01-01",
+    ["AAPL", "MSFT"],
+    market_data=TimescaleMarketDataProvider(),
+)
+```
+
+Full workflow (test markers, testcontainers, fundamentals CLI quirks) is in [`docs/data_timescale.md`](docs/data_timescale.md).
 
 ### Streaming tick-to-trade foundation
 
@@ -215,6 +254,8 @@ Install from [PyPI](https://pypi.org/project/shunya-py/) (import the **`shunya`*
 pip install shunya-py
 # optional: Jupyter kernel for the bundled notebooks
 pip install "shunya-py[notebook]"
+# optional: local TimescaleDB ingest + DB-backed market/fundamental providers
+pip install "shunya-py[timescale]"
 ```
 
 Install from a clone (e.g. with [uv](https://docs.astral.sh/uv/)):
@@ -276,8 +317,12 @@ uv sync
 
 ```bash
 uv sync --all-extras
-uv run pytest
+uv run pytest                      # default: unit tests only (@pytest.mark.timescale skipped unless env set)
+export DATABASE_URL=postgresql://... && uv run pytest -m timescale   # against your DB
+# or: SHUNYA_RUN_TIMESCALE_CONTAINER=1 uv run pytest -m timescale     # ephemeral Timescale via Docker
 ```
+
+Details: [`docs/data_timescale.md`](docs/data_timescale.md).
 
 ## Publishing (maintainers)
 
@@ -294,3 +339,4 @@ Build with `uv build` (wheel and sdist). Upload with [Twine](https://twine.readt
 
 - Main usage and behavior: [`README.md`](README.md)
 - Contributor and architecture guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Local Timescale market store (compose, migrate, ingest, `finTs`): [`docs/data_timescale.md`](docs/data_timescale.md)

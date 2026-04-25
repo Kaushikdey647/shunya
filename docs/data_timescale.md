@@ -55,9 +55,9 @@ from shunya.data.timescale import TimescaleMarketDataProvider, TimescaleFundamen
 os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/shunya"
 
 fts = finTs(
-    ["AAPL", "MSFT"],
     "2020-01-01",
     "2024-01-01",
+    ["AAPL", "MSFT"],
     market_data=TimescaleMarketDataProvider(),
     fundamental_data=TimescaleFundamentalDataProvider(),  # optional
 )
@@ -71,6 +71,7 @@ Technicals (`SMA_*`, `RSI_*`, …) are still computed in memory from stored OHLC
 - Integration tests are marked **`timescale`**:
   - With a running DB: set `DATABASE_URL` and run `pytest -m timescale`.
   - With Docker and no local DB: `SHUNYA_RUN_TIMESCALE_CONTAINER=1 pytest -m timescale` (pulls the Timescale image on first run).
+- FastAPI backtest API integration (`tests/test_backtest_api/test_api_integration.py`) uses the same marker and skips if Docker is unavailable when using the testcontainer path.
 
 ## Migrations directory override
 
