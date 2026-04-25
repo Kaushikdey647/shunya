@@ -1,0 +1,20 @@
+# Local TimescaleDB for shunya market data + fundamentals (see docs/data_timescale.md).
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shunya
+    volumes:
+      - shunya_ts_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shunya"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  shunya_ts_data:

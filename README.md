@@ -11,6 +11,8 @@ Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension patterns, and coding guidelines.
 
+Optional **local TimescaleDB** for canonical OHLCV and fundamentals is documented in [`docs/data_timescale.md`](docs/data_timescale.md) (`pip install 'shunya-py[timescale]'`, `docker compose`, migration and ingest CLIs).
+
 ## Layout
 
 | Package | Role |

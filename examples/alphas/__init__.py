@@ -6,6 +6,7 @@ to ``FinStrat``.
 """
 
 from .breakout_20 import alpha as breakout_20
+from .fundamental_quality_yf import alpha as fundamental_quality_yf
 from .mean_reversion_20 import alpha as mean_reversion_20
 from .sma20_deviation_rank import alpha as sma20_deviation_rank
 from .sma20_deviation_zscore import alpha as sma20_deviation_zscore
@@ -17,6 +18,7 @@ ALL_ALPHAS = {
     "breakout_20": breakout_20,
     "sma20_deviation_rank": sma20_deviation_rank,
     "sma20_deviation_zscore": sma20_deviation_zscore,
+    "fundamental_quality_yf": fundamental_quality_yf,
 }
 
 __all__ = [
@@ -25,5 +27,6 @@ __all__ = [
     "mean_reversion_20",
     "breakout_20",
     "sma20_deviation_rank",
+    "fundamental_quality_yf",
 ]
 

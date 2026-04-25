@@ -26,6 +26,10 @@ try:
 except ImportError:
     KiteHistoricalMarketDataProvider = None  # type: ignore[assignment,misc]
 
+from .timescale.dbutil import apply_migrations, get_database_url
+from .timescale.fundamental_provider import TimescaleFundamentalDataProvider
+from .timescale.market_provider import TimescaleMarketDataProvider
+
 __all__ = [
     "AlpacaHistoricalMarketDataProvider",
     "BarIndexPolicy",
@@ -41,7 +45,11 @@ __all__ = [
     "MarketDataProvider",
     "PanelAlignReport",
     "PanelQADiagnostics",
+    "TimescaleFundamentalDataProvider",
+    "TimescaleMarketDataProvider",
     "YFinanceMarketDataProvider",
+    "apply_migrations",
+    "get_database_url",
     "build_trading_calendar",
     "bar_spec_is_intraday",
     "default_bar_index_policy",

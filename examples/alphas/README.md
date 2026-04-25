@@ -49,3 +49,9 @@ def alpha(ctx):
     return ctx.cs.rank(signal)
 ```
 
+For a **yfinance-only** path (no FMP / FinanceToolkit API key), use
+`examples.yfinance_fundamental_provider.YFinanceFundamentalDataProvider` as
+`fundamental_data=` — see `examples/alpha_benchmark_oex.ipynb`. That provider fills
+statement-backed columns from `FUNDAMENTAL_FIELDS` but leaves `Price_To_Earnings` and
+`Free_Cash_Flow_Yield` as NaN unless you add a separate price-based merge.
+

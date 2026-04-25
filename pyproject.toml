@@ -57,7 +57,11 @@ dependencies = [
 [project.optional-dependencies]
 notebook = ["curl-cffi>=0.6.0", "ipykernel>=7.2.0"]
 kite = ["kiteconnect>=5.0"]
-dev = ["pytest>=8.0", "twine>=6.0"]
+timescale = ["psycopg[binary]>=3.2"]
+dev = ["pytest>=8.0", "testcontainers[postgres]>=4.7.0", "twine>=6.0"]
+
+[project.scripts]
+shunya-timescale = "shunya.data.timescale.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Kaushikdey647/shunya"
@@ -71,6 +75,9 @@ packages = ["shunya"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "timescale: integration tests that need a live Postgres/Timescale (or testcontainers)",
+]
 
 [dependency-groups]
 dev = [
