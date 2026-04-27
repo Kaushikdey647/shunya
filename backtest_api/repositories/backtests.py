@@ -12,9 +12,22 @@ from backtest_api.schemas.models import BacktestCreate, BacktestJobOut
 
 
 def _job_row_to_out(row: dict[str, Any]) -> BacktestJobOut:
+    ic = row.get("index_code")
+    if ic is not None and isinstance(ic, str) and not ic.strip():
+        ic = None
+    inc = row.get("include_test_period_in_results")
+    if isinstance(inc, bool):
+        include_test = inc
+    elif inc is None:
+        include_test = False
+    else:
+        include_test = str(inc).lower() in ("true", "1", "t", "yes")
     return BacktestJobOut(
         id=str(row["id"]),
         alpha_id=str(row["alpha_id"]),
+        alpha_name=row.get("alpha_name"),
+        index_code=str(ic) if ic is not None else None,
+        include_test_period_in_results=include_test,
         status=row["status"],
         error_message=row.get("error_message"),
         result_summary=row.get("result_summary") if row.get("result_summary") is not None else None,
@@ -34,14 +47,19 @@ def insert_job(payload: BacktestCreate) -> BacktestJobOut:
                 """
                 INSERT INTO api_backtest_jobs (alpha_id, status, request_payload)
                 VALUES (%s, 'queued', %s::jsonb)
-                RETURNING id, alpha_id, status, error_message, result_summary, created_at, started_at, finished_at
+                RETURNING id
                 """,
                 (payload.alpha_id, json.dumps(raw)),
             )
-            row = cur.fetchone()
+            ins = cur.fetchone()
         conn.commit()
-    assert row is not None
-    return _job_row_to_out(row)
+    if ins is None:
+        raise RuntimeError("insert_job: INSERT did not return id")
+    job_id = str(ins["id"])
+    enriched = get_job(job_id)
+    if enriched is None:
+        raise RuntimeError("insert_job: row missing after insert")
+    return enriched
 
 
 def list_jobs(
@@ -56,10 +74,10 @@ def list_jobs(
     where: list[str] = []
     params: list[Any] = []
     if alpha_id:
-        where.append("alpha_id = %s")
+        where.append("j.alpha_id = %s")
         params.append(alpha_id)
     if status:
-        where.append("status = %s")
+        where.append("j.status = %s")
         params.append(status)
     wh = ("WHERE " + " AND ".join(where)) if where else ""
     params.extend([limit, offset])
@@ -67,10 +85,16 @@ def list_jobs(
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 f"""
-                SELECT id, alpha_id, status, error_message, result_summary, created_at, started_at, finished_at
-                FROM api_backtest_jobs
+                SELECT j.id, j.alpha_id, j.status, j.error_message, j.result_summary,
+                       j.created_at, j.started_at, j.finished_at,
+                       a.name AS alpha_name,
+                       NULLIF(j.request_payload->>'index_code', '') AS index_code,
+                       COALESCE((j.request_payload->>'include_test_period_in_results')::boolean, false)
+                         AS include_test_period_in_results
+                FROM api_backtest_jobs j
+                LEFT JOIN api_alphas a ON a.id = j.alpha_id
                 {wh}
-                ORDER BY created_at DESC
+                ORDER BY j.created_at DESC
                 LIMIT %s OFFSET %s
                 """,
                 tuple(params),
@@ -90,8 +114,15 @@ def get_job(job_id: str) -> Optional[BacktestJobOut]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT id, alpha_id, status, error_message, result_summary, created_at, started_at, finished_at
-                FROM api_backtest_jobs WHERE id = %s
+                SELECT j.id, j.alpha_id, j.status, j.error_message, j.result_summary,
+                       j.created_at, j.started_at, j.finished_at,
+                       a.name AS alpha_name,
+                       NULLIF(j.request_payload->>'index_code', '') AS index_code,
+                       COALESCE((j.request_payload->>'include_test_period_in_results')::boolean, false)
+                         AS include_test_period_in_results
+                FROM api_backtest_jobs j
+                LEFT JOIN api_alphas a ON a.id = j.alpha_id
+                WHERE j.id = %s
                 """,
                 (job_id,),
             )

@@ -191,7 +191,8 @@ class FinBT:
     :meth:`run` resets :meth:`FinStrat.reset_pipeline_state` so BRAIN-style **decay**
     (temporal EMA) starts clean. If ``fin_strat.neutralization == 'group'``,
     pass ``group_column`` naming a column present on ``fin_ts.df`` for each
-    ``(Ticker, Date)`` row.
+    ``(Ticker, Date)`` row. For ``'sector'`` / ``'industry'``, the panel must
+    include ``Sector`` / ``Industry`` respectively (no ``group_column`` needed).
 
     ``commission`` is passed to backtrader's broker as the commission rate; set
     ``slippage_pct`` to a positive fraction for adverse percent slippage on
@@ -236,7 +237,8 @@ class FinBT:
         if self._slippage_pct < 0:
             raise ValueError("slippage_pct must be non-negative")
         self._group_column = group_column
-        if fin_strat.neutralization == "group":
+        n = fin_strat.neutralization
+        if n == "group":
             if not self._group_column:
                 self._group_column = "Sector"
             if self._group_column not in df.columns:
@@ -244,6 +246,18 @@ class FinBT:
                     f"group_column {self._group_column!r} not found in fin_ts.df. "
                     "Expected one of {'Sector', 'Industry', 'SubIndustry'} "
                     "or a custom column added per (Ticker, Date)."
+                )
+        elif n == "sector":
+            if "Sector" not in df.columns:
+                raise KeyError(
+                    "neutralization='sector' requires a 'Sector' column on fin_ts.df "
+                    "(e.g. attach_yfinance_classifications or equivalent)."
+                )
+        elif n == "industry":
+            if "Industry" not in df.columns:
+                raise KeyError(
+                    "neutralization='industry' requires an 'Industry' column on fin_ts.df "
+                    "(e.g. attach_yfinance_classifications or equivalent)."
                 )
         self._sector_gross_cap_fraction = sector_gross_cap_fraction
         self._sector_cap_mode = str(sector_cap_mode)

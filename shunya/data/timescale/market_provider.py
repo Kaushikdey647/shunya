@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional, Union
 
+import numpy as np
 import pandas as pd
+
+_LOG = logging.getLogger(__name__)
 
 from ..timeframes import (
     BarIndexPolicy,
@@ -15,6 +19,33 @@ from ..timeframes import (
 )
 from .dbutil import get_database_url
 from .intervals import bar_spec_to_interval_key
+
+
+def _drop_rows_nonfinite_ohlcv(p: pd.DataFrame, *, ticker: str | None = None) -> pd.DataFrame:
+    """
+    Remove rows with non-finite OHLC, non-finite Volume, or negative Volume.
+
+    Timescale may contain legacy NULLs from bad provider rows; :class:`finTs` ``strict_ohlcv``
+    rejects them.
+    """
+    if p.empty:
+        return p
+    work = p.copy()
+    for c in ("Open", "High", "Low", "Close", "Volume"):
+        work[c] = pd.to_numeric(work[c], errors="coerce")
+    o = work[["Open", "High", "Low", "Close"]].to_numpy(dtype=float)
+    v = work["Volume"].to_numpy(dtype=float)
+    ok = np.isfinite(o).all(axis=1) & np.isfinite(v) & (v >= 0.0)
+    n_drop = int((~ok).sum())
+    if n_drop:
+        label = ticker if ticker is not None else "?"
+        _LOG.warning(
+            "Dropped %d/%d Timescale OHLCV row(s) with non-finite or invalid OHLCV for %s",
+            n_drop,
+            len(work),
+            label,
+        )
+    return work.loc[ok].copy()
 
 
 class TimescaleMarketDataProvider:
@@ -92,6 +123,7 @@ class TimescaleMarketDataProvider:
         for t, sub in base.groupby("ticker", sort=True):
             p = sub.set_index("ts")[["open", "high", "low", "close", "volume"]].sort_index()
             p.columns = ["Open", "High", "Low", "Close", "Volume"]
+            p = _drop_rows_nonfinite_ohlcv(p, ticker=str(t))
             keys.append(str(t))
             parts.append(p)
 

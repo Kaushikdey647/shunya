@@ -4,6 +4,7 @@ import asyncio
 import logging
 import traceback
 
+from backtest_api.errors import FinTsConfigurationError
 from backtest_api.repositories import alphas as alphas_repo
 from backtest_api.repositories import backtests as jobs_repo
 from backtest_api.runner import run_backtest_from_payload
@@ -40,6 +41,9 @@ async def backtest_worker_loop(stop: asyncio.Event) -> None:
                 dict(ar["finstrat_config"]),
             )
             await asyncio.to_thread(jobs_repo.mark_job_succeeded, job_id, serialized, summary)
+        except FinTsConfigurationError as exc:
+            _log.warning("backtest job %s: fin_ts configuration: %s", job_id, exc.message)
+            await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, exc.message[:8000])
         except Exception as exc:  # noqa: BLE001
             tb = traceback.format_exc()
             _log.exception("backtest job %s failed", job_id)

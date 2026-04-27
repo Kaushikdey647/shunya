@@ -3,13 +3,13 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from fastapi import HTTPException
-
 from shunya.data.fints import finTs
 from shunya.data.providers import MarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_spec
 
+from backtest_api.errors import FinTsConfigurationError
 from backtest_api.schemas.models import FinTsRequest
+from backtest_api.timescale_classifications import load_classifications_for_tickers
 
 
 def _bar_spec_from_model(req: FinTsRequest) -> BarSpec:
@@ -27,16 +27,16 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
         try:
             from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
         except ImportError as exc:
-            raise HTTPException(
+            raise FinTsConfigurationError(
+                "Timescale provider requires: pip install 'shunya-py[timescale]'",
                 status_code=503,
-                detail="Timescale provider requires: pip install 'shunya-py[timescale]'",
             ) from exc
         try:
             return TimescaleMarketDataProvider()
         except ValueError as exc:
-            raise HTTPException(
+            raise FinTsConfigurationError(
+                "Timescale provider requires DATABASE_URL or SHUNYA_DATABASE_URL.",
                 status_code=503,
-                detail="Timescale provider requires DATABASE_URL or SHUNYA_DATABASE_URL.",
             ) from exc
     if os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL"):
         try:
@@ -52,15 +52,20 @@ def build_fin_ts(req: FinTsRequest) -> finTs:
     bar_spec = _bar_spec_from_model(req)
     md = resolve_market_data_provider(req)
     if req.market_data_provider == "timescale" and md is None:
-        raise HTTPException(
+        raise FinTsConfigurationError(
+            "market_data_provider=timescale but Timescale is not available (DSN or psycopg).",
             status_code=503,
-            detail="market_data_provider=timescale but Timescale is not available (DSN or psycopg).",
         )
+    classifications = None
+    if md is not None and not req.attach_yfinance_classifications and req.ticker_list:
+        classifications = load_classifications_for_tickers(list(req.ticker_list))
+
     kwargs: dict = {
         "start_date": req.start_date,
         "end_date": req.end_date,
         "ticker_list": req.ticker_list,
         "market_data": md,
+        "classifications": classifications,
         "attach_yfinance_classifications": req.attach_yfinance_classifications,
         "attach_fundamentals": req.attach_fundamentals,
         "bar_spec": bar_spec,

@@ -82,7 +82,7 @@ def test_finbt_accepts_full_constraint_parameters():
     fs = FinStrat(
         fts,
         lambda ctx: ctx.close.latest.astype(jnp.float32),
-        neutralization="group",
+        neutralization="sector",
     )
     bt = FinBT(
         fs,

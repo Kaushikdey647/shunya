@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+from collections import Counter
 from typing import Literal
 
 import numpy as np
@@ -11,6 +12,7 @@ import pandas as pd
 
 from backtest_api.risk_metrics import periods_per_year_from_bar_spec, per_bar_return_stats_with_ppy
 from backtest_api.schemas.models import (
+    ClassificationLabelCount,
     DashboardBucketMeta,
     DataDashboardResponse,
     TickerDashboardRow,
@@ -371,6 +373,50 @@ def compute_data_dashboard(
 
     n_buck = len(bucket_meta_final)
 
+    sector_counts: list[ClassificationLabelCount] = []
+    industry_counts: list[ClassificationLabelCount] = []
+    sub_industry_counts: list[ClassificationLabelCount] = []
+    with psycopg.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH latest AS (
+                    SELECT DISTINCT ON (sc.symbol_id)
+                        sc.symbol_id,
+                        sc.sector,
+                        sc.industry,
+                        sc.sub_industry
+                    FROM symbol_classifications sc
+                    WHERE sc.source = 'yfinance'
+                    ORDER BY sc.symbol_id, sc.as_of DESC
+                )
+                SELECT
+                    COALESCE(l.sector, 'Unknown'),
+                    COALESCE(l.industry, 'Unknown'),
+                    COALESCE(l.sub_industry, 'Unknown')
+                FROM symbols s
+                LEFT JOIN latest l ON l.symbol_id = s.id
+                WHERE s.ticker = ANY(%s)
+                """,
+                (tickers_ordered,),
+            )
+            cls_rows = cur.fetchall()
+    sec_c: Counter[str] = Counter()
+    ind_c: Counter[str] = Counter()
+    sub_c: Counter[str] = Counter()
+    for sec, ind, sub in cls_rows:
+        sec_c[str(sec)] += 1
+        ind_c[str(ind)] += 1
+        sub_c[str(sub)] += 1
+
+    def _sorted_counts(c: Counter[str]) -> list[ClassificationLabelCount]:
+        items = sorted(c.items(), key=lambda x: (-x[1], x[0]))
+        return [ClassificationLabelCount(label=k, count=v) for k, v in items]
+
+    sector_counts = _sorted_counts(sec_c)
+    industry_counts = _sorted_counts(ind_c)
+    sub_industry_counts = _sorted_counts(sub_c)
+
     return DataDashboardResponse(
         interval=interval,
         source=source,
@@ -391,4 +437,7 @@ def compute_data_dashboard(
         bar_step=int(bar_spec.step),
         periods_per_year=float(ppy),
         max_buckets=max_buckets,
+        sector_counts=sector_counts,
+        industry_counts=industry_counts,
+        sub_industry_counts=sub_industry_counts,
     )

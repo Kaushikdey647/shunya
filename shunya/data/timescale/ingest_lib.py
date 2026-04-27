@@ -6,24 +6,54 @@ from typing import Any, Mapping, Sequence
 
 import pandas as pd
 
+_NAME_MAX = 2048
 
-def ensure_symbols(cur: Any, tickers: Sequence[str]) -> dict[str, int]:
-    """Upsert tickers into ``symbols``; return mapping ``ticker -> symbol_id``."""
+
+def ensure_symbols(
+    cur: Any,
+    tickers: Sequence[str],
+    *,
+    display_names: Mapping[str, str | None] | None = None,
+) -> dict[str, int]:
+    """Upsert tickers into ``symbols``; return mapping ``ticker -> symbol_id``.
+
+    When ``display_names`` is set, non-empty values update ``symbols.name`` on insert/conflict.
+    """
     out: dict[str, int] = {}
+    dn = display_names or {}
     for t in tickers:
-        cur.execute(
-            """
-            INSERT INTO symbols (ticker) VALUES (%s)
-            ON CONFLICT (ticker) DO UPDATE SET ticker = EXCLUDED.ticker
-            RETURNING id
-            """,
-            (str(t),),
-        )
+        tick = str(t)
+        raw_nm = dn.get(tick)
+        nm: str | None = None
+        if raw_nm is not None:
+            s = str(raw_nm).strip()
+            if s:
+                nm = s[:_NAME_MAX]
+        if nm:
+            cur.execute(
+                """
+                INSERT INTO symbols (ticker, name) VALUES (%s, %s)
+                ON CONFLICT (ticker) DO UPDATE SET
+                    ticker = EXCLUDED.ticker,
+                    name = COALESCE(NULLIF(EXCLUDED.name, ''), symbols.name)
+                RETURNING id
+                """,
+                (tick, nm),
+            )
+        else:
+            cur.execute(
+                """
+                INSERT INTO symbols (ticker) VALUES (%s)
+                ON CONFLICT (ticker) DO UPDATE SET ticker = EXCLUDED.ticker
+                RETURNING id
+                """,
+                (tick,),
+            )
         row = cur.fetchone()
         if row is None:
-            cur.execute("SELECT id FROM symbols WHERE ticker = %s", (str(t),))
+            cur.execute("SELECT id FROM symbols WHERE ticker = %s", (tick,))
             row = cur.fetchone()
-        out[str(t)] = int(row[0])
+        out[tick] = int(row[0])
     return out
 
 
@@ -121,3 +151,86 @@ ON CONFLICT (symbol_id, period_end, freq, field, source) DO UPDATE SET
     value = EXCLUDED.value,
     ingested_at = now()
 """
+
+UPSERT_SYMBOL_CLASSIFICATIONS_SQL = """
+INSERT INTO symbol_classifications (
+    symbol_id, as_of, sector, industry, sub_industry, source,
+    sector_disp, sector_key, industry_disp, industry_key,
+    quote_type, type_disp, exchange, full_exchange_name,
+    currency, region, market, country, state, city, zip,
+    website, phone, ir_website, long_name, short_name,
+    full_time_employees
+)
+VALUES (
+    %s, %s, %s, %s, %s, %s,
+    %s, %s, %s, %s,
+    %s, %s, %s, %s,
+    %s, %s, %s, %s, %s, %s, %s,
+    %s, %s, %s, %s, %s,
+    %s
+)
+ON CONFLICT (symbol_id, source, as_of) DO UPDATE SET
+    sector = EXCLUDED.sector,
+    industry = EXCLUDED.industry,
+    sub_industry = EXCLUDED.sub_industry,
+    sector_disp = EXCLUDED.sector_disp,
+    sector_key = EXCLUDED.sector_key,
+    industry_disp = EXCLUDED.industry_disp,
+    industry_key = EXCLUDED.industry_key,
+    quote_type = EXCLUDED.quote_type,
+    type_disp = EXCLUDED.type_disp,
+    exchange = EXCLUDED.exchange,
+    full_exchange_name = EXCLUDED.full_exchange_name,
+    currency = EXCLUDED.currency,
+    region = EXCLUDED.region,
+    market = EXCLUDED.market,
+    country = EXCLUDED.country,
+    state = EXCLUDED.state,
+    city = EXCLUDED.city,
+    zip = EXCLUDED.zip,
+    website = EXCLUDED.website,
+    phone = EXCLUDED.phone,
+    ir_website = EXCLUDED.ir_website,
+    long_name = EXCLUDED.long_name,
+    short_name = EXCLUDED.short_name,
+    full_time_employees = EXCLUDED.full_time_employees,
+    ingested_at = now()
+"""
+
+
+def symbol_classification_upsert_tuple(
+    meta: Mapping[str, Any],
+    symbol_id: int,
+    as_of: object,
+    source: str,
+) -> tuple[Any, ...]:
+    """Build bind tuple for :data:`UPSERT_SYMBOL_CLASSIFICATIONS_SQL` from :func:`~shunya.data.providers.extract_yfinance_classification_fields` output."""
+    return (
+        symbol_id,
+        as_of,
+        meta.get("sector"),
+        meta.get("industry"),
+        meta.get("sub_industry"),
+        source,
+        meta.get("sector_disp"),
+        meta.get("sector_key"),
+        meta.get("industry_disp"),
+        meta.get("industry_key"),
+        meta.get("quote_type"),
+        meta.get("type_disp"),
+        meta.get("exchange"),
+        meta.get("full_exchange_name"),
+        meta.get("currency"),
+        meta.get("region"),
+        meta.get("market"),
+        meta.get("country"),
+        meta.get("state"),
+        meta.get("city"),
+        meta.get("zip"),
+        meta.get("website"),
+        meta.get("phone"),
+        meta.get("ir_website"),
+        meta.get("long_name"),
+        meta.get("short_name"),
+        meta.get("full_time_employees"),
+    )

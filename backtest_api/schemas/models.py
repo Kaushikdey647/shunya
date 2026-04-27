@@ -15,7 +15,7 @@ MarketDataProviderLiteral = Literal["auto", "timescale", "yfinance"]
 DecayModeLiteral = Literal["ema", "linear"]
 NanPolicyLiteral = Literal["strict", "zero_fill"]
 TemporalModeLiteral = Literal["bar_step", "elapsed_trading_time"]
-NeutralizationLiteral = Literal["none", "market", "group"]
+NeutralizationLiteral = Literal["none", "market", "sector", "industry"]
 SectorCapModeLiteral = Literal["rescale", "raise"]
 ConstraintsModeLiteral = Literal["rescale", "raise"]
 
@@ -28,7 +28,7 @@ class BarSpecModel(BaseModel):
 class FinTsRequest(BaseModel):
     start_date: str
     end_date: str
-    ticker_list: list[str] = Field(min_length=1)
+    ticker_list: list[str] = Field(default_factory=list)
     bar_spec: Optional[BarSpecModel] = None
     market_data_provider: MarketDataProviderLiteral = "auto"
     attach_yfinance_classifications: bool = True
@@ -51,6 +51,14 @@ class FinStratConfig(BaseModel):
     nan_policy: NanPolicyLiteral = "strict"
     temporal_mode: TemporalModeLiteral = "bar_step"
     neutralization: NeutralizationLiteral = "market"
+
+    @field_validator("neutralization", mode="before")
+    @classmethod
+    def _neutralization_legacy_group(cls, v: object) -> object:
+        """Stored alphas may still have neutralization='group' (old FinStrat default path)."""
+        if v == "group":
+            return "sector"
+        return v
     truncation: float = Field(default=0.0, ge=0.0, lt=0.5)
     max_single_weight: Optional[float] = Field(default=None, gt=0.0, le=1.0)
     panel_columns: Optional[list[str]] = None
@@ -128,15 +136,48 @@ class AlphaOut(BaseModel):
 
 class BacktestCreate(BaseModel):
     alpha_id: str
+    index_code: Optional[str] = Field(default=None, max_length=64)
     fin_ts: FinTsRequest
     finstrat_override: Optional[FinStratConfig] = None
     finbt: FinBtConfig = Field(default_factory=FinBtConfig)
     benchmark_ticker: Optional[str] = Field(default=None, max_length=32)
+    include_test_period_in_results: bool = Field(
+        default=False,
+        description="If false, stored metrics and series exclude the test window (2025-01-01 onward).",
+    )
+    omit_index_members_missing_ohlcv: bool = Field(
+        default=False,
+        description=(
+            "When index_code is set: drop constituents with no OHLCV in the backtest window instead "
+            "of failing; benchmark ticker must still have bars. Default false (strict full universe)."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _tickers_or_index(self) -> Self:
+        if (self.index_code or "").strip():
+            return self
+        if not self.fin_ts.ticker_list:
+            raise ValueError("fin_ts.ticker_list must be non-empty when index_code is not set")
+        return self
+
+
+class EquityIndexOut(BaseModel):
+    code: str
+    display_name: str
+    member_count: int
+    benchmark_ticker: str = Field(
+        ...,
+        description="Raw index symbol for benchmarks (e.g. ^GSPC, ^BFX), not an ETF.",
+    )
 
 
 class BacktestJobOut(BaseModel):
     id: str
     alpha_id: str
+    alpha_name: Optional[str] = None
+    index_code: Optional[str] = None
+    include_test_period_in_results: bool = False
     status: Literal["queued", "running", "succeeded", "failed"]
     error_message: Optional[str] = None
     result_summary: Optional[dict[str, Any]] = None
@@ -158,6 +199,12 @@ class DataSummaryRequest(FinTsRequest):
         default=None,
         description="Subset of numeric columns for NaN counts; default all numeric columns.",
     )
+
+    @model_validator(mode="after")
+    def _data_summary_requires_tickers(self) -> Self:
+        if not self.ticker_list:
+            raise ValueError("ticker_list must be non-empty for data summary requests")
+        return self
 
 
 class TickerNanRow(BaseModel):
@@ -207,6 +254,11 @@ class TickerDashboardRow(BaseModel):
     sortino: Optional[float] = None
 
 
+class ClassificationLabelCount(BaseModel):
+    label: str
+    count: int
+
+
 class DataDashboardResponse(BaseModel):
     interval: str
     source: str
@@ -227,6 +279,9 @@ class DataDashboardResponse(BaseModel):
     bar_step: int
     periods_per_year: float
     max_buckets: int = 200
+    sector_counts: list[ClassificationLabelCount] = Field(default_factory=list)
+    industry_counts: list[ClassificationLabelCount] = Field(default_factory=list)
+    sub_industry_counts: list[ClassificationLabelCount] = Field(default_factory=list)
 
 
 class InstrumentSearchQuote(BaseModel):

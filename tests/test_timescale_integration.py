@@ -15,7 +15,8 @@ def timescale_dsn() -> str:
     """Fresh Timescale image via testcontainers, or your local DATABASE_URL."""
     dsn = os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL")
     if dsn:
-        return str(dsn)
+        yield str(dsn)
+        return
     if os.environ.get("SHUNYA_RUN_TIMESCALE_CONTAINER") != "1":
         pytest.skip(
             "Set DATABASE_URL / SHUNYA_DATABASE_URL for a live DB, or "

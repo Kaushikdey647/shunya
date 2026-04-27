@@ -106,10 +106,17 @@ class StreamingRunner:
         alpha_start = perf_counter()
         raw = self._fin_strat.scores_from_context(ctx)
         group_ids = None
-        if self._fin_strat.neutralization == "group":
+        n = self._fin_strat.neutralization
+        if n == "group":
             if group_labels is None:
                 raise ValueError("group_labels are required for neutralization='group'")
             group_ids = [group_labels[symbol] for symbol in symbols]
+        elif n in ("sector", "industry"):
+            if group_labels is not None:
+                raise ValueError(
+                    "group_labels must be omitted for neutralization='sector' or 'industry' "
+                    "(labels are read from fin_ts.df)."
+                )
         notionals = self._fin_strat.process_raw_scores(
             raw,
             capital,

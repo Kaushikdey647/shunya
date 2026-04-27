@@ -4,6 +4,8 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from backtest_api.backtest_resolve import resolve_index_backtest_if_needed
+from backtest_api.backtest_windows import normalize_backtest_create
 from backtest_api.repositories import alphas as alphas_repo
 from backtest_api.repositories import backtests as jobs_repo
 from backtest_api.schemas.models import BacktestCreate, BacktestJobOut
@@ -15,7 +17,9 @@ router = APIRouter(prefix="/backtests", tags=["backtests"])
 def enqueue_backtest(body: BacktestCreate) -> BacktestJobOut:
     if alphas_repo.get_alpha_raw(body.alpha_id) is None:
         raise HTTPException(status_code=404, detail="Alpha not found.")
-    return jobs_repo.insert_job(body)
+    body = normalize_backtest_create(body)
+    resolved = resolve_index_backtest_if_needed(body)
+    return jobs_repo.insert_job(resolved)
 
 
 @router.get("", response_model=list[BacktestJobOut])

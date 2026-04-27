@@ -152,7 +152,7 @@ def validate_core_ohlcv_coverage(
                 n_bad = int(bad.sum())
                 raise ValueError(
                     f"strict_ohlcv: non-finite or invalid {col!r} for ticker {sym!r} "
-                    f"(rows={n_bad}, first_index={first_idx!r})"
+                    f"(bad_rows={n_bad}, first_bad_index={first_idx!r})"
                 )
 
     if isinstance(raw.columns, pd.MultiIndex):

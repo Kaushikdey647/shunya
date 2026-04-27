@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 
 from backtest_api.data_service import compute_data_summary
+from backtest_api.errors import FinTsConfigurationError
 from backtest_api.db_dashboard import compute_data_dashboard
 from backtest_api.schemas.models import (
     DashboardBucketParamLiteral,
@@ -92,6 +93,8 @@ async def get_data_dashboard(
 async def post_data_summary(body: DataSummaryRequest) -> DataSummaryResponse:
     try:
         return await asyncio.to_thread(compute_data_summary, body)
+    except FinTsConfigurationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001

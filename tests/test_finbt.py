@@ -32,7 +32,7 @@ def test_finbt_runs_and_returns_metrics():
     assert "avg_turnover_pct" in out["metrics"]
 
 
-def test_finbt_group_neutralization_defaults_to_sector_column():
+def test_finbt_sector_neutralization_uses_sector_column():
     tickers = ["AAA", "BBB"]
     dates = ["2020-01-02", "2020-01-03", "2020-01-06"]
     fts = make_stub_fints(tickers, dates, base_price=100.0)
@@ -43,7 +43,7 @@ def test_finbt_group_neutralization_defaults_to_sector_column():
     fs = FinStrat(
         fts,
         _close_algo,
-        neutralization="group",
+        neutralization="sector",
     )
     bt = FinBT(fs, fts, cash=50_000.0).run()
     out = bt.results(show=False)

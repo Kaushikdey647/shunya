@@ -15,7 +15,7 @@ from ..utils import indicators
 from .alpha_context import AlphaContext, AlphaSeries
 from . import cross_section
 
-Neutralization = Literal["none", "market", "group"]
+Neutralization = Literal["none", "market", "group", "sector", "industry"]
 DecayMode = Literal["ema", "linear"]
 NanPolicy = Literal["strict", "zero_fill"]
 TemporalMode = Literal["bar_step", "elapsed_trading_time"]
@@ -87,7 +87,9 @@ class FinStrat:
                 decay state at each new session. ``signal_delay=0`` still trades the open bar
                 using same-bar features.
             nan_policy: ``strict`` or ``zero_fill`` for non-finite raw scores.
-            neutralization: ``\"market\"``, ``\"none\"``, or ``\"group\"``.
+            neutralization: ``\"market\"`` (cross-sectional demean), ``\"none\"``,
+                ``\"sector\"`` / ``\"industry\"`` (demean within ``Sector`` / ``Industry``),
+                or ``\"group\"`` (demean within caller-supplied ``group_ids``).
             truncation: Symmetric winsor fraction in ``[0, 0.5)``.
             max_single_weight: Optional per-name gross cap as fraction of ``capital``.
             jit_algorithm: Deprecated for context-based API; must be ``False``.
@@ -109,8 +111,11 @@ class FinStrat:
             raise ValueError(
                 f"temporal_mode must be 'bar_step' or 'elapsed_trading_time', got {temporal_mode!r}"
             )
-        if neutralization not in ("none", "market", "group"):
-            raise ValueError(f"neutralization must be 'none', 'market', or 'group', got {neutralization!r}")
+        if neutralization not in ("none", "market", "group", "sector", "industry"):
+            raise ValueError(
+                "neutralization must be 'none', 'market', 'group', 'sector', or 'industry', "
+                f"got {neutralization!r}"
+            )
         if truncation < 0 or truncation >= 0.5:
             raise ValueError(f"truncation must be in [0, 0.5), got {truncation}")
         if max_single_weight is not None and not (0.0 < max_single_weight <= 1.0):
@@ -295,7 +300,8 @@ class FinStrat:
         Read ``column`` from ``fin_ts.df`` at ``(ticker, panel_date)`` for each ticker,
         using :meth:`panel_date_for_execution` when ``signal_delay > 0``.
 
-        Labels may be strings or ints; used with ``neutralization='group'``.
+        Labels may be strings or ints; used with ``neutralization='group'``, or
+        internally for ``'sector'`` / ``'industry'`` (``Sector`` / ``Industry`` columns).
         """
         dt = self.panel_date_for_execution(date)
         df = self._ts.df
@@ -648,10 +654,14 @@ class FinStrat:
 
         if self._neutralization == "market":
             s = cross_section.neutralize_market(s)
-        elif self._neutralization == "group":
-            if group_ids is None:
-                raise ValueError("group_ids is required when neutralization='group'")
-            gid = np.asarray(group_ids)
+        elif self._neutralization in ("group", "sector", "industry"):
+            if self._neutralization == "group":
+                if group_ids is None:
+                    raise ValueError("group_ids is required when neutralization='group'")
+                gid = np.asarray(group_ids)
+            else:
+                col = "Sector" if self._neutralization == "sector" else "Industry"
+                gid = np.asarray(self.group_labels_at(execution_date, tickers, col))
             if gid.shape[0] != s.shape[0]:
                 raise ValueError("group_ids must have same length as scores")
             s = cross_section.neutralize_groups(s, gid)
@@ -680,7 +690,8 @@ class FinStrat:
             capital: Target gross booksize.
             tickers: Ticker strings, same order as panel rows. **Required** if
                 temporal decay is enabled, and for context-based alpha execution.
-            group_ids: Same length as rows; required if ``neutralization == 'group'``.
+            group_ids: Same length as rows; required only if
+                ``neutralization == 'group'`` (ignored for ``'sector'`` / ``'industry'``).
         """
         if daily_indicators is not None:
             raise ValueError(

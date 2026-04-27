@@ -134,6 +134,38 @@ def test_order_manager_skips_symbols_with_open_orders():
     assert adapter.submissions[-1] == {"BBB": -1000.0}
 
 
+def test_streaming_runner_sector_neutralization_without_group_labels():
+    fts = make_stub_fints(["AAA", "BBB"], ["2024-01-01"], base_price=100.0)
+    fts.df.loc[("AAA", "2024-01-01"), "Sector"] = "Tech"
+    fts.df.loc[("BBB", "2024-01-01"), "Sector"] = "Energy"
+
+    def alpha(ctx) -> jnp.ndarray:
+        return ctx.close.latest.astype(jnp.float32)
+
+    fs = FinStrat(fts, alpha, neutralization="sector")
+    adapter = _FakeAdapter()
+    manager = OrderManager(adapter, min_order_notional=1.0)
+    runner = StreamingRunner(fs, manager, lookback=4, bar_interval="1s", max_concurrent_symbols=2)
+    runner.set_target_universe(["AAA", "BBB"])
+    runner.on_event(
+        trade_event("AAA", "2024-01-01 09:30:00.100", 110.0, size=1),
+        capital=10_000.0,
+        dry_run=True,
+    )
+    runner.on_event(
+        trade_event("BBB", "2024-01-01 09:30:00.100", 90.0, size=1),
+        capital=10_000.0,
+        dry_run=True,
+    )
+    decision = runner.on_event(
+        trade_event("AAA", "2024-01-01 09:30:01.100", 111.0, size=1),
+        capital=10_000.0,
+        dry_run=True,
+    )
+    assert decision is not None
+    assert set(decision.targets_usd) == {"AAA", "BBB"}
+
+
 def test_streaming_runner_reuses_finstrat_and_submits_dry_run_orders():
     fts = make_stub_fints(["AAA", "BBB"], ["2024-01-01"], base_price=100.0)
 

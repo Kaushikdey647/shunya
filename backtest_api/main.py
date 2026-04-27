@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -9,9 +10,8 @@ from fastapi import FastAPI
 
 from backtest_api.health_checks import collect_health
 from backtest_api.repositories import backtests as jobs_repo
-from backtest_api.routers import alphas, backtests, data, instruments
+from backtest_api.routers import alphas, backtests, data, indices, instruments
 from backtest_api.schemas.models import HealthResponseModel
-from backtest_api.worker import backtest_worker_loop
 
 _log = logging.getLogger(__name__)
 
@@ -23,7 +23,9 @@ async def lifespan(app: FastAPI):
         jobs_repo.reconcile_stale_running_jobs()
     except Exception as exc:  # noqa: BLE001
         _log.warning("reconcile stale jobs skipped: %s", exc)
-    task = asyncio.create_task(backtest_worker_loop(stop))
+    # Resolve at startup so tests can monkeypatch ``backtest_api.main.backtest_worker_loop``.
+    _main = importlib.import_module("backtest_api.main")
+    task = asyncio.create_task(_main.backtest_worker_loop(stop))
     yield
     stop.set()
     task.cancel()
@@ -36,6 +38,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Shunya backtest API", version="0.1.0", lifespan=lifespan)
     app.include_router(alphas.router)
+    app.include_router(indices.router)
     app.include_router(backtests.router)
     app.include_router(data.router)
     app.include_router(instruments.router)
@@ -45,6 +48,13 @@ def create_app() -> FastAPI:
         return collect_health()
 
     return app
+
+
+def backtest_worker_loop(stop: asyncio.Event):
+    """Default async worker; tests may replace this name on ``backtest_api.main``."""
+    from backtest_api.worker import backtest_worker_loop as _default_loop
+
+    return _default_loop(stop)
 
 
 app = create_app()

@@ -47,7 +47,8 @@ def insert_alpha(body: AlphaCreate) -> AlphaOut:
             conn.commit()
     except pg_errors.UniqueViolation as exc:
         raise RuntimeError("duplicate_alpha_name") from exc
-    assert row is not None
+    if row is None:
+        raise RuntimeError("insert_alpha: INSERT did not return row")
     return _row_to_out(row)
 
 

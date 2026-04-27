@@ -48,12 +48,12 @@ The canonical set of symbols re-exported at the package root is `__all__` in [`s
    Optional BRAIN-like knobs:
    - `decay` (per-name EMA on raw scores — pass `tickers=` into `pass_`)
    - `truncation` (cross-sectional winsorize)
-   - `neutralization`: `"market"`, `"none"`, or `"group"` (with `group_ids`, often from `Sector`/`Industry`/`SubIndustry`)
+   - `neutralization`: `"market"`, `"none"`, `"sector"` (demean within `Sector`), `"industry"` (demean within `Industry`), or `"group"` (demean within caller-supplied `group_ids` / custom `group_column` on `FinBT`/`FinTrade`)
    - `max_single_weight`
 
-3. **`FinBT(fin_strat, fin_ts, ...)`** runs the same `FinStrat` on the same `fin_ts` instance in backtrader, rebalancing to `pass_` dollar targets each bar. `run()` resets `FinStrat` decay state. Pass **`commission`** (broker rate) and optional **`slippage_pct`** (adverse percent via backtrader’s `set_slippage_perc`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). `broker_deltas` / `target_usd_universe` in `shunya.algorithm.targets` mirror how live orders diff targets vs positions.
+3. **`FinBT(fin_strat, fin_ts, ...)`** runs the same `FinStrat` on the same `fin_ts` instance in backtrader, rebalancing to `pass_` dollar targets each bar. `run()` resets `FinStrat` decay state. Pass **`commission`** (broker rate) and optional **`slippage_pct`** (adverse percent via backtrader’s `set_slippage_perc`). For `neutralization="group"`, pass **`group_column`** (defaults to `"Sector"` when omitted). `neutralization="sector"` / `"industry"` require the corresponding column on `fin_ts.df`. `broker_deltas` / `target_usd_universe` in `shunya.algorithm.targets` mirror how live orders diff targets vs positions.
 
-4. **`FinTrade(fin_strat, ...)`** uses the Alpaca Trading API (`alpaca-py`): `run(tradecapital, fin_ts)` builds the panel (latest date by default), runs `pass_`, diffs targets vs open positions, and submits **market DAY** orders by **notional**. Set `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`, or pass `api_key` / `secret_key`. `dry_run=True` still fetches positions but does not submit. Temporal `decay` state is **not** reset between `run` calls (unlike `FinBT.run`). For `neutralization="group"`, `group_column` defaults to `"Sector"` (or set `"Industry"` / `"SubIndustry"`). Optional controls include sector gross/net caps, turnover budget, ADV participation caps, and post-submit reconciliation policies. The return value is an `ExecutionReport` dataclass; use `ExecutionReport.as_dict()` if you need a JSON-serializable summary.
+4. **`FinTrade(fin_strat, ...)`** uses the Alpaca Trading API (`alpaca-py`): `run(tradecapital, fin_ts)` builds the panel (latest date by default), runs `pass_`, diffs targets vs open positions, and submits **market DAY** orders by **notional**. Set `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`, or pass `api_key` / `secret_key`. `dry_run=True` still fetches positions but does not submit. Temporal `decay` state is **not** reset between `run` calls (unlike `FinBT.run`). For `neutralization="group"`, pass **`group_column`** (defaults to `"Sector"` when omitted). `neutralization="sector"` / `"industry"` require `Sector` / `Industry` on the panel. Optional controls include sector gross/net caps, turnover budget, ADV participation caps, and post-submit reconciliation policies. The return value is an `ExecutionReport` dataclass; use `ExecutionReport.as_dict()` if you need a JSON-serializable summary.
 
 5. **Streaming tick-to-trade foundation** lives beside the batch panel flow:
    - `shunya.streaming` provides `MarketEvent`, `SymbolRingBuffer`, `StreamingState`, `MicroBarAggregator`, `SnapshotBuilder`, `SubscriptionManager`, `UniverseSelector`, and `AlpacaStreamClient`.
@@ -121,7 +121,7 @@ def alpha(ctx) -> jnp.ndarray:
 fs = FinStrat(
     fts,
     alpha,
-    neutralization="group",   # defaults to Sector in FinBT/FinTrade when applicable
+    neutralization="sector",  # or "industry", "market", "none", or "group" + group_column
     truncation=0.02,
 )
 
@@ -178,7 +178,7 @@ shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 202
 
 Equivalent: `python -m shunya.data.timescale.cli …`. Override the DSN per run with `--database-url`.
 
-**Backtest HTTP API (repo clone):** optional extras `api` + `timescale`, migrations (includes `api_alphas` / `api_backtest_jobs` tables), then `uv run uvicorn backtest_api.main:app`. Same compose stack adds an `api` service (see `docker-compose.yml`). Details: [`backtest_api/README.md`](backtest_api/README.md).
+**Backtest HTTP API (repo clone):** optional extras `api` + `timescale`, migrations (includes `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`), then `uv run uvicorn backtest_api.main:app`. Supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`backtest_api/README.md`](backtest_api/README.md)).
 
 **Read in code:**
 
@@ -268,9 +268,10 @@ uv sync
 
 - `finTs` attaches `Sector`, `Industry`, `SubIndustry` with deterministic fallbacks:
   - `UnknownSector`, `UnknownIndustry`, `UnknownSubIndustry`
-- For group-neutral alphas:
-  - set `FinStrat(..., neutralization="group")`
-  - `FinBT(..., group_column=...)` and `FinTrade(..., group_column=...)` default to `Sector`
+- For sector- or industry-neutral alphas:
+  - set `FinStrat(..., neutralization="sector")` or `neutralization="industry"` (requires `Sector` / `Industry` on the panel).
+- For custom group columns (e.g. `SubIndustry`):
+  - set `FinStrat(..., neutralization="group")` and pass `group_column=` on `FinBT` / `FinTrade` (defaults to `Sector` when omitted).
 - For pre-trade concentration controls:
   - `FinTrade.run(..., sector_gross_cap_fraction=0.30, sector_cap_mode="rescale")`
   - `FinBT(..., sector_gross_cap_fraction=0.30, sector_cap_mode="rescale")`

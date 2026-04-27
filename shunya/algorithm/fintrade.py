@@ -144,7 +144,8 @@ class FinTrade:
             )
         if reconciliation_tolerance_notional < 0:
             raise ValueError("reconciliation_tolerance_notional must be non-negative")
-        if self._strat.neutralization == "group":
+        n = self._strat.neutralization
+        if n == "group":
             if not self._group_column:
                 raise ValueError("neutralization='group' requires group_column")
             if self._group_column not in df.columns:
@@ -152,6 +153,16 @@ class FinTrade:
                     f"group_column {self._group_column!r} not found in fin_ts.df. "
                     "Expected one of {'Sector', 'Industry', 'SubIndustry'} "
                     "or a custom column added per (Ticker, Date)."
+                )
+        elif n == "sector":
+            if "Sector" not in df.columns:
+                raise KeyError(
+                    "neutralization='sector' requires a 'Sector' column on fin_ts.df."
+                )
+        elif n == "industry":
+            if "Industry" not in df.columns:
+                raise KeyError(
+                    "neutralization='industry' requires an 'Industry' column on fin_ts.df."
                 )
 
         idx_max = pd.Timestamp(df.index.get_level_values("Date").max())

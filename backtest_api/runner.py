@@ -11,6 +11,7 @@ from shunya.algorithm.finstrat import FinStrat
 
 from backtest_api.fin_ts_factory import build_fin_ts
 from backtest_api.resolver import resolve_alpha_for_backtest
+from backtest_api.result_tune_filter import apply_tune_only_to_finbt_results
 from backtest_api.schemas.models import BacktestCreate, FinStratConfig
 from backtest_api.serializer import result_summary_from_metrics, serialize_backtest_result
 from backtest_api.settings import get_settings
@@ -72,6 +73,9 @@ def run_backtest_job(
     bt_kw = body.finbt.model_dump(mode="json", exclude_none=True)
     bt = FinBT(fs, fts, **bt_kw).run()
     out = bt.results(show=False)
+    out = apply_tune_only_to_finbt_results(
+        out, include_test=body.include_test_period_in_results
+    )
     serialized = serialize_backtest_result(
         out,
         max_target_history=settings.max_target_history_points,

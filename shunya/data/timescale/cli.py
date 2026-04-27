@@ -12,12 +12,15 @@ from typing import List, Sequence
 from ..providers import YFinanceMarketDataProvider, fetch_yfinance_classifications
 from ..timeframes import BarSpec, default_bar_index_policy, default_bar_spec
 from .dbutil import apply_migrations, get_database_url
+from .index_membership_sync import load_py_ticker_index_union, sync_symbol_index_memberships
 from .ingest_lib import (
     UPSERT_FUND_SQL,
     UPSERT_OHLCV_SQL,
+    UPSERT_SYMBOL_CLASSIFICATIONS_SQL,
     ensure_symbols,
     fundamentals_eav_rows,
     rows_from_provider_ohlcv,
+    symbol_classification_upsert_tuple,
 )
 from .intervals import bar_spec_to_interval_key
 
@@ -28,6 +31,20 @@ def _parse_symbols(s: str) -> List[str]:
 
 def cmd_migrate(_: argparse.Namespace) -> int:
     apply_migrations()
+    return 0
+
+
+def cmd_sync_index_memberships(_: argparse.Namespace) -> int:
+    """Fill ``symbol_index_membership`` from PyTickerSymbols (no OHLCV download)."""
+    import psycopg
+
+    symbols, membership_sets, display_names = load_py_ticker_index_union()
+    if not symbols:
+        print("PyTickerSymbols returned no tickers", file=sys.stderr)
+        return 1
+    dsn = get_database_url()
+    sync_symbol_index_memberships(psycopg, dsn, symbols, membership_sets, display_names)
+    print(f"sync-index-memberships: upserted memberships for {len(symbols)} tickers")
     return 0
 
 
@@ -203,15 +220,7 @@ def cmd_ingest_classifications(args: argparse.Namespace) -> int:
     source = str(args.source)
     dsn = get_database_url()
     n = 0
-    sql = """
-    INSERT INTO symbol_classifications (symbol_id, as_of, sector, industry, sub_industry, source)
-    VALUES (%s, %s, %s, %s, %s, %s)
-    ON CONFLICT (symbol_id, source, as_of) DO UPDATE SET
-        sector = EXCLUDED.sector,
-        industry = EXCLUDED.industry,
-        sub_industry = EXCLUDED.sub_industry,
-        ingested_at = now()
-    """
+    sql = UPSERT_SYMBOL_CLASSIFICATIONS_SQL
     with psycopg.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -229,17 +238,7 @@ def cmd_ingest_classifications(args: argparse.Namespace) -> int:
                 if sid is None:
                     continue
                 meta = cmap.get(str(t), {})
-                cur.execute(
-                    sql,
-                    (
-                        sid,
-                        as_of,
-                        meta.get("Sector"),
-                        meta.get("Industry"),
-                        meta.get("SubIndustry"),
-                        source,
-                    ),
-                )
+                cur.execute(sql, symbol_classification_upsert_tuple(meta, sid, as_of, source))
                 n += 1
             cur.execute(
                 """
@@ -265,6 +264,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("migrate", help="Apply packaged SQL migrations (shunya/data/timescale/migrations/*.sql)")
+
+    sub.add_parser(
+        "sync-index-memberships",
+        help="Populate symbol_index_membership (+ symbols names) from PyTickerSymbols (SP100, SP500, …)",
+    )
 
     p_ohlcv = sub.add_parser("ingest-ohlcv", help="Download OHLCV via yfinance and upsert ohlcv_bars")
     p_ohlcv.add_argument("--symbols", required=True, help="Space or comma separated tickers")
@@ -305,6 +309,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.cmd == "migrate":
         return cmd_migrate(args)
+    if args.cmd == "sync-index-memberships":
+        return cmd_sync_index_memberships(args)
     if args.cmd == "ingest-ohlcv":
         return cmd_ingest_ohlcv(args)
     if args.cmd == "ingest-fundamentals":

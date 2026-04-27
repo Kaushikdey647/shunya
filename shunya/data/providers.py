@@ -8,7 +8,8 @@ Implement :class:`MarketDataProvider` to swap Yahoo Finance for Alpaca bars
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional, Protocol, Union, runtime_checkable
+import math
+from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
 
 import pandas as pd
 import requests
@@ -254,18 +255,93 @@ class AlpacaHistoricalMarketDataProvider:
         return out
 
 
+def _info_str(info: dict, key: str) -> Optional[str]:
+    v = info.get(key)
+    if isinstance(v, str) and v.strip():
+        return v.strip()
+    return None
+
+
+def _info_int(info: dict, key: str) -> Optional[int]:
+    v = info.get(key)
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and math.isfinite(v):
+        iv = int(v)
+        return iv if iv == v else None
+    return None
+
+
+def extract_yfinance_classification_fields(info: dict) -> Dict[str, Any]:
+    """
+    Map yfinance ``ticker.info`` to DB columns on ``symbol_classifications`` plus
+    finTs keys ``Sector`` / ``Industry`` / ``SubIndustry``.
+
+    ``sub_industry`` / ``SubIndustry`` come **only** from ``info["subIndustry"]``.
+    """
+    sector = _info_str(info, "sector")
+    industry = _info_str(info, "industryDisp") or _info_str(info, "industry")
+    sub_industry = _info_str(info, "subIndustry")
+
+    out: Dict[str, Any] = {}
+    if sector:
+        out["sector"] = sector
+        out["Sector"] = sector
+    if industry:
+        out["industry"] = industry
+        out["Industry"] = industry
+    if sub_industry:
+        out["sub_industry"] = sub_industry
+        out["SubIndustry"] = sub_industry
+
+    text_pairs = (
+        ("sector_disp", "sectorDisp"),
+        ("sector_key", "sectorKey"),
+        ("industry_disp", "industryDisp"),
+        ("industry_key", "industryKey"),
+        ("quote_type", "quoteType"),
+        ("type_disp", "typeDisp"),
+        ("exchange", "exchange"),
+        ("full_exchange_name", "fullExchangeName"),
+        ("currency", "currency"),
+        ("region", "region"),
+        ("market", "market"),
+        ("country", "country"),
+        ("state", "state"),
+        ("city", "city"),
+        ("zip", "zip"),
+        ("website", "website"),
+        ("phone", "phone"),
+        ("ir_website", "irWebsite"),
+        ("long_name", "longName"),
+        ("short_name", "shortName"),
+    )
+    for db_k, info_k in text_pairs:
+        s = _info_str(info, info_k)
+        if s:
+            out[db_k] = s
+
+    ft = _info_int(info, "fullTimeEmployees")
+    if ft is not None:
+        out["full_time_employees"] = ft
+    return out
+
+
 def fetch_yfinance_classifications(
     ticker_list: List[str],
     *,
     session: Optional[requests.Session] = None,
-) -> Dict[str, Dict[str, str]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Best-effort classification lookup from yfinance.
 
-    Returns ``{ticker: {"Sector": ..., "Industry": ..., "SubIndustry": ...}}``.
-    Missing fields are omitted here; callers should apply deterministic fallbacks.
+    Returns per ticker a dict with lowercase DB keys (``sector``, ``industry``,
+    ``sub_industry``, …), ``full_time_employees`` when present, and finTs keys
+    ``Sector`` / ``Industry`` / ``SubIndustry`` (``SubIndustry`` from ``subIndustry`` only).
     """
-    out: Dict[str, Dict[str, str]] = {}
+    out: Dict[str, Dict[str, Any]] = {}
     for sym in ticker_list:
         info: dict = {}
         try:
@@ -278,18 +354,5 @@ def fetch_yfinance_classifications(
         except Exception:
             info = {}
 
-        sector = info.get("sector")
-        industry = info.get("industryDisp") or info.get("industry")
-        # yfinance typically does not expose strict GICS sub-industry;
-        # use industryKey as the closest available stable detail.
-        subindustry = info.get("industryKey")
-
-        fields: Dict[str, str] = {}
-        if isinstance(sector, str) and sector.strip():
-            fields["Sector"] = sector.strip()
-        if isinstance(industry, str) and industry.strip():
-            fields["Industry"] = industry.strip()
-        if isinstance(subindustry, str) and subindustry.strip():
-            fields["SubIndustry"] = subindustry.strip()
-        out[sym] = fields
+        out[sym] = extract_yfinance_classification_fields(info)
     return out
