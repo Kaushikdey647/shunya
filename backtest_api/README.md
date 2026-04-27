@@ -2,9 +2,10 @@
 
 Repo-local **FastAPI** service (not part of the published `shunya-py` wheel) for:
 
-- **`/alphas`** — CRUD on alpha definitions (`import_ref` allow-list: `examples.alphas.<module>:alpha` only) and stored `finstrat_config` JSON.
+- **`/alphas`** — CRUD on alpha definitions: optional **inline** `source_code` (Python saved in `api_alphas`, executed in the worker) or module **`import_ref`** (allow-list: `examples.alphas.<module>:alpha` when not using inline). At least one must be set. If `source_code` is non-empty, it takes precedence at backtest time. Run migration **`003_alpha_source_code.sql`** (via `shunya-timescale migrate`) for the `source_code` column. Stored `finstrat_config` JSON.
 - **`/backtests`** — Enqueue async jobs (`POST`), list/get status, fetch JSON results when `succeeded` (same shape as `FinBT.results(show=False)` plus optional `benchmark`).
 - **`POST /data`** — Panel NaN counts per ticker/column and per-ticker return / annualized vol / Sharpe / Sortino from `finTs` (Timescale when `DATABASE_URL` is set and `market_data_provider` is `auto` or `timescale`).
+- **`GET /data/dashboard`** — Database-wide analytics for a stored `interval` / `source`: reference window `[MIN(ts), MAX(ts)]` over `ohlcv_bars`, per-ticker completeness vs that window (heatmap buckets), aggregated risk/return metrics from stored closes, and completeness histogram bins. Bucket granularity defaults to **`auto`** (chooses day, week, or month so the heatmap stays within `max_buckets`, default **200**); adjacent periods may be merged (logical OR). Optional **`SHUNYA_DASHBOARD_MAX_TICKERS`** caps symbols (alphabetical order).
 - **`/instruments/...`** — Search and OHLCV: prefers Timescale when the DB is reachable and coverage is complete; otherwise yfinance (with optional write-back to Timescale).
 
 ## Install
@@ -20,6 +21,7 @@ Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrat
 ```bash
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
 shunya-timescale migrate
+uv run python scripts/bootstrap_example_alphas.py
 uv run uvicorn backtest_api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -48,6 +50,7 @@ Alternatively, use Docker Compose in this repo (`api` service mounts the repo an
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` / `SHUNYA_DATABASE_URL` | Postgres for API tables + Timescale OHLCV reads |
+| `SHUNYA_DASHBOARD_MAX_TICKERS` | Optional cap for `GET /data/dashboard` symbol list (positive integer); omit for no cap |
 | `SHUNYA_API_DATABASE_URL` | Optional override (via `pydantic-settings`) |
 | `SHUNYA_API_WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval (default `1.0`) |
 | `YFINANCE_TLS_VERIFY` | If set to `1` / `true` / `yes` / `on`, yfinance uses default TLS verification instead of the `curl_cffi` session with `verify=False` (useful outside corporate TLS inspection). |

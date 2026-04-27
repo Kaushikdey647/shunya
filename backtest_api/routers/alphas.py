@@ -12,10 +12,6 @@ router = APIRouter(prefix="/alphas", tags=["alphas"])
 @router.post("", response_model=AlphaOut, status_code=status.HTTP_201_CREATED)
 def create_alpha(body: AlphaCreate) -> AlphaOut:
     try:
-        validate_import_ref(body.import_ref)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    try:
         return repo.insert_alpha(body)
     except RuntimeError as exc:
         if str(exc) == "duplicate_alpha_name":
@@ -43,7 +39,7 @@ def get_alpha(alpha_id: str) -> AlphaOut:
 
 @router.patch("/{alpha_id}", response_model=AlphaOut)
 def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
-    if body.import_ref is not None:
+    if body.import_ref:
         try:
             validate_import_ref(body.import_ref)
         except ValueError as exc:

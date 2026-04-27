@@ -30,10 +30,13 @@ async def backtest_worker_loop(stop: asyncio.Event) -> None:
             if ar is None:
                 await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, "Alpha not found.")
                 continue
+            ir = ar.get("import_ref")
+            sc = ar.get("source_code")
             serialized, summary = await asyncio.to_thread(
                 run_backtest_from_payload,
                 payload,
-                str(ar["import_ref"]),
+                ir if ir is not None else None,
+                sc if sc is not None else None,
                 dict(ar["finstrat_config"]),
             )
             await asyncio.to_thread(jobs_repo.mark_job_succeeded, job_id, serialized, summary)

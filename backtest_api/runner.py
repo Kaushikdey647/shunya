@@ -10,7 +10,7 @@ from shunya.algorithm.finbt import FinBT
 from shunya.algorithm.finstrat import FinStrat
 
 from backtest_api.fin_ts_factory import build_fin_ts
-from backtest_api.resolver import resolve_alpha
+from backtest_api.resolver import resolve_alpha_for_backtest
 from backtest_api.schemas.models import BacktestCreate, FinStratConfig
 from backtest_api.serializer import result_summary_from_metrics, serialize_backtest_result
 from backtest_api.settings import get_settings
@@ -59,10 +59,13 @@ def _benchmark_block(
 
 
 def run_backtest_job(
-    alpha_import_ref: str, finstrat_stored: dict[str, Any], body: BacktestCreate
+    alpha_import_ref: str | None,
+    source_code: str | None,
+    finstrat_stored: dict[str, Any],
+    body: BacktestCreate,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     settings = get_settings()
-    algo = resolve_alpha(alpha_import_ref)
+    algo = resolve_alpha_for_backtest(alpha_import_ref, source_code)
     fts = build_fin_ts(body.fin_ts)
     fs_kw = _merge_finstrat(finstrat_stored, body.finstrat_override)
     fs = FinStrat(fts, algo, **fs_kw)
@@ -86,9 +89,14 @@ def run_backtest_job(
     return serialized, summary
 
 
-def run_backtest_from_payload(request_dict: dict[str, Any], alpha_import_ref: str, finstrat_stored: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def run_backtest_from_payload(
+    request_dict: dict[str, Any],
+    alpha_import_ref: str | None,
+    source_code: str | None,
+    finstrat_stored: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
     try:
         body = BacktestCreate.model_validate(request_dict)
     except ValidationError as exc:
         raise ValueError(f"invalid stored request: {exc}") from exc
-    return run_backtest_job(alpha_import_ref, finstrat_stored, body)
+    return run_backtest_job(alpha_import_ref, source_code, finstrat_stored, body)

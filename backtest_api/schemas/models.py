@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from backtest_api.alpha_validation import validate_import_ref
 
 BarUnitLiteral = Literal["SECONDS", "MINUTES", "HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"]
 FeatureModeLiteral = Literal["full", "ohlcv_only"]
@@ -69,25 +71,56 @@ class FinBtConfig(BaseModel):
     validate_finite_targets: bool = True
 
 
+_SOURCE_MAX = 524_288  # 512 KiB, aligned with backtest_api.inline_alpha
+
+
 class AlphaCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$")
     description: Optional[str] = Field(default=None, max_length=2048)
-    import_ref: str = Field(min_length=1, max_length=256)
+    import_ref: Optional[str] = Field(default=None, max_length=256)
+    source_code: Optional[str] = Field(default=None, max_length=_SOURCE_MAX)
     finstrat_config: FinStratConfig = Field(default_factory=FinStratConfig)
+
+    @field_validator("import_ref", "source_code", mode="before")
+    @classmethod
+    def _blank_to_none(cls, v: object) -> object:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @model_validator(mode="after")
+    def _ref_or_source(self) -> Self:
+        if not (self.import_ref or self.source_code):
+            raise ValueError("Provide import_ref and/or non-empty source_code (at least one).")
+        if self.import_ref is not None:
+            try:
+                validate_import_ref(self.import_ref)
+            except ValueError as exc:
+                raise ValueError(str(exc)) from exc
+        return self
 
 
 class AlphaPatch(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$")
     description: Optional[str] = Field(default=None, max_length=2048)
-    import_ref: Optional[str] = Field(default=None, min_length=1, max_length=256)
+    import_ref: Optional[str] = Field(default=None, max_length=256)
+    source_code: Optional[str] = Field(default=None, max_length=_SOURCE_MAX)
     finstrat_config: Optional[FinStratConfig] = None
+
+    @field_validator("import_ref", "source_code", mode="before")
+    @classmethod
+    def _blank_to_none(cls, v: object) -> object:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
 
 
 class AlphaOut(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    import_ref: str
+    import_ref: Optional[str]
+    source_code: Optional[str]
     finstrat_config: dict[str, Any]
     created_at: datetime
     updated_at: datetime
@@ -148,6 +181,52 @@ class DataSummaryResponse(BaseModel):
     bar_unit: str
     bar_step: int
     periods_per_year: float
+
+
+DashboardBucketGranularityLiteral = Literal["day", "week", "month"]
+DashboardBucketParamLiteral = Literal["auto", "day", "week", "month"]
+
+
+class DashboardBucketMeta(BaseModel):
+    index: int
+    start: str
+    end: str
+
+
+class TickerDashboardRow(BaseModel):
+    ticker: str
+    first_ts: Optional[str] = None
+    last_ts: Optional[str] = None
+    raw_bar_count: int = 0
+    completeness_pct: float = 0.0
+    longest_run_buckets: int = 0
+    coverage: list[int] = Field(default_factory=list)
+    return_pct: Optional[float] = None
+    risk_ann_pct: Optional[float] = None
+    sharpe: Optional[float] = None
+    sortino: Optional[float] = None
+
+
+class DataDashboardResponse(BaseModel):
+    interval: str
+    source: str
+    bucket_granularity: DashboardBucketGranularityLiteral
+    bucket_auto_subsampled: bool = False
+    reference_start: str
+    reference_end: str
+    bucket_count: int
+    ticker_count: int
+    truncated: bool = False
+    aggregate_mean_completeness_pct: float
+    aggregate_median_completeness_pct: float
+    completeness_histogram: list[int]
+    buckets: list[DashboardBucketMeta]
+    tickers: list[TickerDashboardRow]
+    per_ticker_metrics: list[TickerRiskRow]
+    bar_unit: str
+    bar_step: int
+    periods_per_year: float
+    max_buckets: int = 200
 
 
 class InstrumentSearchQuote(BaseModel):
