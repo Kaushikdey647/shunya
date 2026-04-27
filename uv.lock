@@ -2353,6 +2353,7 @@ dependencies = [
 
 [package.optional-dependencies]
 api = [
+    { name = "curl-cffi" },
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -2384,6 +2385,7 @@ dev = [
 requires-dist = [
     { name = "alpaca-py", specifier = ">=0.43.2" },
     { name = "backtrader", specifier = ">=1.9.78.123" },
+    { name = "curl-cffi", marker = "extra == 'api'", specifier = ">=0.6.0" },
     { name = "curl-cffi", marker = "extra == 'notebook'", specifier = ">=0.6.0" },
     { name = "fastapi", marker = "extra == 'api'", specifier = ">=0.115.0" },
     { name = "financetoolkit", specifier = ">=2.0.7" },

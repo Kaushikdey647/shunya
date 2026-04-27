@@ -7,8 +7,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from backtest_api.health_checks import collect_health
 from backtest_api.repositories import backtests as jobs_repo
-from backtest_api.routers import alphas, backtests, data
+from backtest_api.routers import alphas, backtests, data, instruments
+from backtest_api.schemas.models import HealthResponseModel
 from backtest_api.worker import backtest_worker_loop
 
 _log = logging.getLogger(__name__)
@@ -36,10 +38,11 @@ def create_app() -> FastAPI:
     app.include_router(alphas.router)
     app.include_router(backtests.router)
     app.include_router(data.router)
+    app.include_router(instruments.router)
 
-    @app.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    @app.get("/health", response_model=HealthResponseModel)
+    def health() -> HealthResponseModel:
+        return collect_health()
 
     return app
 

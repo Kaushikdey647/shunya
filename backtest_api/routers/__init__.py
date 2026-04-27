@@ -1,3 +1,3 @@
-from backtest_api.routers import alphas, backtests, data
+from backtest_api.routers import alphas, backtests, data, instruments
 
-__all__ = ["alphas", "backtests", "data"]
+__all__ = ["alphas", "backtests", "data", "instruments"]

@@ -148,3 +148,81 @@ class DataSummaryResponse(BaseModel):
     bar_unit: str
     bar_step: int
     periods_per_year: float
+
+
+class InstrumentSearchQuote(BaseModel):
+    symbol: str
+    shortname: Optional[str] = None
+    longname: Optional[str] = None
+    exchange: Optional[str] = None
+    quote_type: Optional[str] = None
+
+
+class InstrumentSearchNewsItem(BaseModel):
+    title: str
+    link: Optional[str] = None
+    publisher: Optional[str] = None
+
+
+class InstrumentNavLink(BaseModel):
+    title: str
+    url: str
+
+
+class InstrumentSearchResponse(BaseModel):
+    quotes: list[InstrumentSearchQuote]
+    news: list[InstrumentSearchNewsItem]
+    nav_links: list[InstrumentNavLink] = Field(default_factory=list)
+
+
+class OhlcvBar(BaseModel):
+    time: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: Optional[float] = None
+
+
+InstrumentOhlcvDataSourceLiteral = Literal["timescale", "yfinance"]
+InstrumentOhlcvStorageStatusLiteral = Literal["none", "ok", "failed", "deferred"]
+
+
+class InstrumentOhlcvResponse(BaseModel):
+    symbol: str
+    interval: str
+    period: str
+    bars: list[OhlcvBar]
+    data_source: InstrumentOhlcvDataSourceLiteral = "yfinance"
+    storage_status: InstrumentOhlcvStorageStatusLiteral = "none"
+    storage_error: Optional[str] = None
+    storage_job_id: Optional[int] = None
+    storage_skipped: bool = False
+
+
+class IngestionRunOut(BaseModel):
+    id: int
+    job: str
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    provider: Optional[str] = None
+    params: Optional[Any] = None
+    rows_upserted: Optional[int] = None
+    status: str
+    error: Optional[str] = None
+
+
+HealthComponentStatusLiteral = Literal["ok", "error"]
+OverallHealthStatusLiteral = Literal["ok", "degraded", "error"]
+
+
+class HealthComponentModel(BaseModel):
+    status: HealthComponentStatusLiteral
+    latency_ms: float = Field(ge=0.0)
+
+
+class HealthResponseModel(BaseModel):
+    status: OverallHealthStatusLiteral
+    backend: HealthComponentModel
+    database: HealthComponentModel
+    yfinance: HealthComponentModel
