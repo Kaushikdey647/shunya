@@ -375,7 +375,6 @@ def compute_data_dashboard(
 
     sector_counts: list[ClassificationLabelCount] = []
     industry_counts: list[ClassificationLabelCount] = []
-    sub_industry_counts: list[ClassificationLabelCount] = []
     with psycopg.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -384,16 +383,14 @@ def compute_data_dashboard(
                     SELECT DISTINCT ON (sc.symbol_id)
                         sc.symbol_id,
                         sc.sector,
-                        sc.industry,
-                        sc.sub_industry
+                        sc.industry
                     FROM symbol_classifications sc
                     WHERE sc.source = 'yfinance'
                     ORDER BY sc.symbol_id, sc.as_of DESC
                 )
                 SELECT
                     COALESCE(l.sector, 'Unknown'),
-                    COALESCE(l.industry, 'Unknown'),
-                    COALESCE(l.sub_industry, 'Unknown')
+                    COALESCE(l.industry, 'Unknown')
                 FROM symbols s
                 LEFT JOIN latest l ON l.symbol_id = s.id
                 WHERE s.ticker = ANY(%s)
@@ -403,11 +400,9 @@ def compute_data_dashboard(
             cls_rows = cur.fetchall()
     sec_c: Counter[str] = Counter()
     ind_c: Counter[str] = Counter()
-    sub_c: Counter[str] = Counter()
-    for sec, ind, sub in cls_rows:
+    for sec, ind in cls_rows:
         sec_c[str(sec)] += 1
         ind_c[str(ind)] += 1
-        sub_c[str(sub)] += 1
 
     def _sorted_counts(c: Counter[str]) -> list[ClassificationLabelCount]:
         items = sorted(c.items(), key=lambda x: (-x[1], x[0]))
@@ -415,7 +410,6 @@ def compute_data_dashboard(
 
     sector_counts = _sorted_counts(sec_c)
     industry_counts = _sorted_counts(ind_c)
-    sub_industry_counts = _sorted_counts(sub_c)
 
     return DataDashboardResponse(
         interval=interval,
@@ -439,5 +433,4 @@ def compute_data_dashboard(
         max_buckets=max_buckets,
         sector_counts=sector_counts,
         industry_counts=industry_counts,
-        sub_industry_counts=sub_industry_counts,
     )

@@ -166,19 +166,17 @@ def get_alpha_raw(alpha_id: str) -> Optional[dict[str, Any]]:
 
 
 def delete_alpha(alpha_id: str) -> bool:
+    """Remove the alpha and all ``api_backtest_jobs`` referencing it (single transaction)."""
     import psycopg
-    from psycopg import errors as pg_errors
 
     try:
         UUID(alpha_id)
     except ValueError:
         return False
-    try:
-        with psycopg.connect(resolve_database_url()) as conn:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM api_alphas WHERE id = %s", (alpha_id,))
-                n = cur.rowcount
-            conn.commit()
-    except pg_errors.ForeignKeyViolation:
-        raise RuntimeError("foreign_key_violation") from None
+    with psycopg.connect(resolve_database_url()) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM api_backtest_jobs WHERE alpha_id = %s", (alpha_id,))
+            cur.execute("DELETE FROM api_alphas WHERE id = %s", (alpha_id,))
+            n = cur.rowcount
+        conn.commit()
     return n > 0

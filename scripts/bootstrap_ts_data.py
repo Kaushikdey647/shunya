@@ -21,12 +21,12 @@ verification.
 Example::
 
     export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
-    # Defaults: 2020-01-01 .. 2027-01-01 (exclusive), incremental OHLCV skip from DB coverage
-    uv run python scripts/bootstrap_sp500_ohlcv.py
+    # Defaults: 2020-01-01 .. 2026-01-01 (exclusive), aligned with HTTP backtest window
+    uv run python scripts/bootstrap_ts_data.py
 
     Full re-download (no DB coverage skip)::
 
-    uv run python scripts/bootstrap_sp500_ohlcv.py --full
+    uv run python scripts/bootstrap_ts_data.py --full
 
     **Incremental Yahoo usage (default):** OHLCV ``download`` runs only for tickers that fail DB
     coverage checks for ``[--start, --end)`` (unless ``--full``). After OHLCV, ``ticker.info`` and
@@ -661,8 +661,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--end",
-        default="2027-01-01",
-        help="Exclusive end date (YYYY-MM-DD, yfinance-style); default 2027-01-01 (through calendar 2026)",
+        default="2026-01-01",
+        help="Exclusive end date (YYYY-MM-DD, yfinance-style); default 2026-01-01 (matches HTTP backtest window [2020,2026))",
     )
     p.add_argument("--database-url", default=None, help="Postgres URL (default: DATABASE_URL / SHUNYA_DATABASE_URL)")
     p.add_argument("--source", default="yfinance", help="Stored ohlcv_bars.source tag")

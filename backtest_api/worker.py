@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import traceback
 
-from backtest_api.errors import FinTsConfigurationError
-from backtest_api.repositories import alphas as alphas_repo
 from backtest_api.repositories import backtests as jobs_repo
-from backtest_api.runner import run_backtest_from_payload
 from backtest_api.settings import get_settings
+from backtest_api.worker_job import execute_claimed_backtest_job
 
 _log = logging.getLogger(__name__)
 
@@ -25,27 +22,12 @@ async def backtest_worker_loop(stop: asyncio.Event) -> None:
                 pass
             continue
         job_id, payload = row
-        try:
-            alpha_id = str(payload["alpha_id"])
-            ar = await asyncio.to_thread(alphas_repo.get_alpha_raw, alpha_id)
-            if ar is None:
-                await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, "Alpha not found.")
-                continue
-            ir = ar.get("import_ref")
-            sc = ar.get("source_code")
-            serialized, summary = await asyncio.to_thread(
-                run_backtest_from_payload,
-                payload,
-                ir if ir is not None else None,
-                sc if sc is not None else None,
-                dict(ar["finstrat_config"]),
-            )
+        err, serialized, summary = await asyncio.to_thread(
+            execute_claimed_backtest_job, job_id, payload
+        )
+        if err is not None:
+            _log.error("backtest job %s failed", job_id)
+            await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, err)
+        else:
+            assert serialized is not None and summary is not None
             await asyncio.to_thread(jobs_repo.mark_job_succeeded, job_id, serialized, summary)
-        except FinTsConfigurationError as exc:
-            _log.warning("backtest job %s: fin_ts configuration: %s", job_id, exc.message)
-            await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, exc.message[:8000])
-        except Exception as exc:  # noqa: BLE001
-            tb = traceback.format_exc()
-            _log.exception("backtest job %s failed", job_id)
-            msg = f"{exc!s}\n{tb}"[:8000]
-            await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, msg)

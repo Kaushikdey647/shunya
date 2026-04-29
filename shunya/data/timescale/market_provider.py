@@ -132,7 +132,9 @@ class TimescaleMarketDataProvider:
             out.index.name = "Date"
             return normalize_history_index(out, spec, policy=idx_policy)
 
-        wide = pd.concat(parts, keys=keys, axis=1)
+        # Inner join: only timestamps where every ticker has a finite OHLCV row (outer
+        # union would leave NaNs for missing symbol-dates and break finTs strict_ohlcv).
+        wide = pd.concat(parts, keys=keys, axis=1, join="inner")
         wide.columns = wide.columns.set_names(["Ticker", None])
         wide.index.name = "Date"
         return normalize_history_index(wide, spec, policy=idx_policy)

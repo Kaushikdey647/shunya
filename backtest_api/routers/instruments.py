@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 import yfinance as yf
@@ -15,6 +16,8 @@ from backtest_api.schemas.models import (
     InstrumentSearchNewsItem,
     InstrumentSearchQuote,
     InstrumentSearchResponse,
+    InstrumentTickerNewsItem,
+    InstrumentTickerNewsResponse,
 )
 from backtest_api.services.instrument_ohlcv import PendingOhlcvWriteback, resolve_instrument_ohlcv_sync
 from shunya.data.yfinance_session import build_yfinance_session
@@ -111,6 +114,134 @@ def _news_from_raw(item: dict[str, Any]) -> InstrumentSearchNewsItem | None:
     )
 
 
+def _published_at_from_raw(pub_raw: Any, ppt_raw: Any) -> str | None:
+    if isinstance(pub_raw, str) and pub_raw.strip():
+        return pub_raw.strip()
+    if isinstance(ppt_raw, (int, float)):
+        ts = int(ppt_raw)
+        if ts > 10_000_000_000:
+            ts //= 1000
+        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    return None
+
+
+def _str_opt(val: Any) -> str | None:
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    return None
+
+
+def _news_item_from_ticker_news_dict(item: dict[str, Any]) -> InstrumentTickerNewsItem | None:
+    """Map yfinance ``Ticker.news`` entry (nested ``content`` or legacy flat) to API model."""
+    if not isinstance(item, dict):
+        return None
+    inner = item.get("content")
+    if isinstance(inner, dict):
+        title = inner.get("title")
+        if not isinstance(title, str) or not title.strip():
+            return None
+        pub_raw = inner.get("pubDate") or inner.get("displayTime")
+        published_at = _published_at_from_raw(pub_raw, None)
+        link: str | None = None
+        cu = inner.get("canonicalUrl")
+        site = region = lang = None
+        if isinstance(cu, dict):
+            u = cu.get("url")
+            if isinstance(u, str) and u.strip():
+                link = u.strip()
+            site = _str_opt(cu.get("site"))
+            region = _str_opt(cu.get("region"))
+            lang = _str_opt(cu.get("lang"))
+        if link is None:
+            ct = inner.get("clickThroughUrl")
+            if isinstance(ct, dict):
+                u = ct.get("url")
+                if isinstance(u, str) and u.strip():
+                    link = u.strip()
+        publisher = None
+        provider_url = None
+        provider_source_id = None
+        prov = inner.get("provider")
+        if isinstance(prov, dict):
+            publisher = _str_opt(prov.get("displayName"))
+            provider_url = _str_opt(prov.get("url"))
+            provider_source_id = _str_opt(prov.get("sourceId"))
+        summary = _str_opt(inner.get("summary"))
+        description = _str_opt(inner.get("description"))
+        content_type = _str_opt(inner.get("contentType"))
+        story_id = _str_opt(item.get("id")) or _str_opt(inner.get("id"))
+        is_hosted = inner.get("isHosted") if isinstance(inner.get("isHosted"), bool) else None
+        thumb_url = None
+        thumb = inner.get("thumbnail")
+        if isinstance(thumb, dict):
+            thumb_url = _str_opt(thumb.get("originalUrl"))
+        editors_pick = None
+        meta = inner.get("metadata")
+        if isinstance(meta, dict) and isinstance(meta.get("editorsPick"), bool):
+            editors_pick = meta["editorsPick"]
+        is_premium_news = is_premium_free = None
+        fin = inner.get("finance")
+        if isinstance(fin, dict):
+            pf = fin.get("premiumFinance")
+            if isinstance(pf, dict):
+                if isinstance(pf.get("isPremiumNews"), bool):
+                    is_premium_news = pf["isPremiumNews"]
+                if isinstance(pf.get("isPremiumFreeNews"), bool):
+                    is_premium_free = pf["isPremiumFreeNews"]
+        return InstrumentTickerNewsItem(
+            title=title.strip(),
+            link=link,
+            publisher=publisher,
+            published_at=published_at,
+            story_id=story_id,
+            content_type=content_type,
+            summary=summary,
+            description=description,
+            provider_url=provider_url,
+            provider_source_id=provider_source_id,
+            canonical_site=site,
+            canonical_region=region,
+            canonical_lang=lang,
+            is_hosted=is_hosted,
+            thumbnail_url=thumb_url,
+            editors_pick=editors_pick,
+            is_premium_news=is_premium_news,
+            is_premium_free_news=is_premium_free,
+        )
+    title = item.get("title")
+    if not isinstance(title, str) or not title.strip():
+        return None
+    link = item.get("link")
+    pub = item.get("publisher")
+    published_at = _published_at_from_raw(item.get("pubDate"), item.get("providerPublishTime"))
+    return InstrumentTickerNewsItem(
+        title=title.strip(),
+        link=link if isinstance(link, str) else None,
+        publisher=pub if isinstance(pub, str) else None,
+        published_at=published_at,
+    )
+
+
+def _run_ticker_news(symbol: str, limit: int) -> InstrumentTickerNewsResponse:
+    try:
+        t = yf.Ticker(symbol, session=build_yfinance_session())
+        raw_list = t.news or []
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("yfinance ticker news failed for %s: %s", symbol, exc)
+        raise HTTPException(status_code=502, detail="news provider unavailable") from exc
+
+    out: list[InstrumentTickerNewsItem] = []
+    for item in raw_list:
+        if not isinstance(item, dict):
+            continue
+        row = _news_item_from_ticker_news_dict(item)
+        if row:
+            out.append(row)
+        if len(out) >= limit:
+            break
+    return InstrumentTickerNewsResponse(symbol=symbol, news=out)
+
+
 def _nav_from_raw(item: dict[str, Any]) -> InstrumentNavLink | None:
     title = item.get("title")
     url = item.get("url") or item.get("href")
@@ -202,6 +333,15 @@ async def get_ingestion_run(run_id: int) -> IngestionRunOut:
     if row is None:
         raise HTTPException(status_code=404, detail="ingestion run not found")
     return IngestionRunOut(**row)
+
+
+@router.get("/{symbol}/news", response_model=InstrumentTickerNewsResponse)
+async def get_instrument_news(
+    symbol: str,
+    limit: int = Query(40, ge=1, le=100),
+) -> InstrumentTickerNewsResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(_run_ticker_news, sym, limit)
 
 
 @router.get("/{symbol}/ohlcv", response_model=InstrumentOhlcvResponse)

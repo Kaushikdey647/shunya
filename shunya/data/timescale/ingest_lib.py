@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 
 _NAME_MAX = 2048
@@ -97,11 +98,15 @@ def _append_ticker_bars(
     idx = pd.DatetimeIndex(pd.to_datetime(part.index))
     for i in range(len(part)):
         ts = idx[i]
-        o = float(part["Open"].iloc[i])
-        h = float(part["High"].iloc[i])
-        l = float(part["Low"].iloc[i])
-        c = float(part["Close"].iloc[i])
-        v = float(part["Volume"].iloc[i])
+        o = float(pd.to_numeric(part["Open"].iloc[i], errors="coerce"))
+        h = float(pd.to_numeric(part["High"].iloc[i], errors="coerce"))
+        l = float(pd.to_numeric(part["Low"].iloc[i], errors="coerce"))
+        c = float(pd.to_numeric(part["Close"].iloc[i], errors="coerce"))
+        v = float(pd.to_numeric(part["Volume"].iloc[i], errors="coerce"))
+        if not (np.isfinite(o) and np.isfinite(h) and np.isfinite(l) and np.isfinite(c) and np.isfinite(v)):
+            continue
+        if v < 0.0:
+            continue
         rows.append((symbol_id, ts.to_pydatetime(), interval, o, h, l, c, v, source))
 
 
@@ -154,7 +159,7 @@ ON CONFLICT (symbol_id, period_end, freq, field, source) DO UPDATE SET
 
 UPSERT_SYMBOL_CLASSIFICATIONS_SQL = """
 INSERT INTO symbol_classifications (
-    symbol_id, as_of, sector, industry, sub_industry, source,
+    symbol_id, as_of, sector, industry, source,
     sector_disp, sector_key, industry_disp, industry_key,
     quote_type, type_disp, exchange, full_exchange_name,
     currency, region, market, country, state, city, zip,
@@ -162,7 +167,7 @@ INSERT INTO symbol_classifications (
     full_time_employees
 )
 VALUES (
-    %s, %s, %s, %s, %s, %s,
+    %s, %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s,
     %s, %s, %s, %s, %s, %s, %s,
@@ -172,7 +177,6 @@ VALUES (
 ON CONFLICT (symbol_id, source, as_of) DO UPDATE SET
     sector = EXCLUDED.sector,
     industry = EXCLUDED.industry,
-    sub_industry = EXCLUDED.sub_industry,
     sector_disp = EXCLUDED.sector_disp,
     sector_key = EXCLUDED.sector_key,
     industry_disp = EXCLUDED.industry_disp,
@@ -210,7 +214,6 @@ def symbol_classification_upsert_tuple(
         as_of,
         meta.get("sector"),
         meta.get("industry"),
-        meta.get("sub_industry"),
         source,
         meta.get("sector_disp"),
         meta.get("sector_key"),

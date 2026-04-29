@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from collections.abc import Sequence
 from typing import Any, Optional
 from uuid import UUID
 
@@ -9,6 +10,8 @@ from psycopg.rows import dict_row
 
 from backtest_api.db import resolve_database_url
 from backtest_api.schemas.models import BacktestCreate, BacktestJobOut
+
+_DELETE_BATCH_MAX = 200
 
 
 def _job_row_to_out(row: dict[str, Any]) -> BacktestJobOut:
@@ -193,6 +196,50 @@ def mark_job_failed(job_id: str, message: str) -> None:
                 (message[:8000], job_id),
             )
         conn.commit()
+
+
+def delete_job(job_id: str) -> bool:
+    import psycopg
+
+    try:
+        UUID(job_id)
+    except ValueError:
+        return False
+    with psycopg.connect(resolve_database_url()) as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM api_backtest_jobs WHERE id = %s", (job_id,))
+            n = cur.rowcount
+        conn.commit()
+    return n > 0
+
+
+def delete_jobs_by_ids(job_ids: Sequence[str]) -> int:
+    """Delete jobs by id. Skips strings that are not valid UUIDs. At most ``_DELETE_BATCH_MAX`` ids."""
+    import psycopg
+
+    parsed: list[UUID] = []
+    seen: set[UUID] = set()
+    for raw in job_ids:
+        try:
+            u = UUID(str(raw).strip())
+        except ValueError:
+            continue
+        if u not in seen:
+            seen.add(u)
+            parsed.append(u)
+    if len(parsed) > _DELETE_BATCH_MAX:
+        raise ValueError("delete_batch_too_large")
+    if not parsed:
+        return 0
+    with psycopg.connect(resolve_database_url()) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM api_backtest_jobs WHERE id = ANY(%s::uuid[])",
+                (parsed,),
+            )
+            n = cur.rowcount
+        conn.commit()
+    return int(n)
 
 
 def get_result_payload(job_id: str) -> Optional[dict[str, Any]]:

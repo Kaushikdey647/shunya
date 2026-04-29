@@ -186,6 +186,16 @@ class BacktestJobOut(BaseModel):
     finished_at: Optional[datetime] = None
 
 
+class BacktestJobsDeleteBatchRequest(BaseModel):
+    """Job ids to remove. Non-UUID strings are ignored. At most 200 unique valid UUIDs (see API)."""
+
+    ids: list[str] = Field(..., min_length=1)
+
+
+class BacktestJobsDeleteBatchOut(BaseModel):
+    deleted: int
+
+
 class BacktestResultOut(BaseModel):
     job_id: str
     metrics: dict[str, Any]
@@ -281,7 +291,6 @@ class DataDashboardResponse(BaseModel):
     max_buckets: int = 200
     sector_counts: list[ClassificationLabelCount] = Field(default_factory=list)
     industry_counts: list[ClassificationLabelCount] = Field(default_factory=list)
-    sub_industry_counts: list[ClassificationLabelCount] = Field(default_factory=list)
 
 
 class InstrumentSearchQuote(BaseModel):
@@ -307,6 +316,34 @@ class InstrumentSearchResponse(BaseModel):
     quotes: list[InstrumentSearchQuote]
     news: list[InstrumentSearchNewsItem]
     nav_links: list[InstrumentNavLink] = Field(default_factory=list)
+
+
+class InstrumentTickerNewsItem(BaseModel):
+    """Ticker-scoped story from yfinance ``Ticker.news`` (structured where available)."""
+
+    title: str
+    link: Optional[str] = None
+    publisher: Optional[str] = None
+    published_at: Optional[str] = None
+    story_id: Optional[str] = None
+    content_type: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    provider_url: Optional[str] = None
+    provider_source_id: Optional[str] = None
+    canonical_site: Optional[str] = None
+    canonical_region: Optional[str] = None
+    canonical_lang: Optional[str] = None
+    is_hosted: Optional[bool] = None
+    thumbnail_url: Optional[str] = None
+    editors_pick: Optional[bool] = None
+    is_premium_news: Optional[bool] = None
+    is_premium_free_news: Optional[bool] = None
+
+
+class InstrumentTickerNewsResponse(BaseModel):
+    symbol: str
+    news: list[InstrumentTickerNewsItem]
 
 
 class OhlcvBar(BaseModel):

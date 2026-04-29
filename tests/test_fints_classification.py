@@ -36,12 +36,10 @@ def test_fints_attaches_classification_columns(monkeypatch):
             "AAPL": {
                 "Sector": "Technology",
                 "Industry": "Consumer Electronics",
-                "SubIndustry": "Hardware",
             },
             "XOM": {
                 "Sector": "Energy",
                 "Industry": "Oil & Gas",
-                "SubIndustry": "Integrated",
             },
         }
 
@@ -55,7 +53,7 @@ def test_fints_attaches_classification_columns(monkeypatch):
         attach_yfinance_classifications=True,
         feature_mode="ohlcv_only",
     )
-    assert {"Sector", "Industry", "SubIndustry"}.issubset(set(fts.df.columns))
+    assert {"Sector", "Industry"}.issubset(set(fts.df.columns))
     aapl_sector = fts.df.loc[("AAPL", pd.Timestamp("2024-01-02")), "Sector"]
     xom_industry = fts.df.loc[("XOM", pd.Timestamp("2024-01-03")), "Industry"]
     assert aapl_sector == "Technology"
@@ -82,8 +80,7 @@ def test_fints_uses_unknown_fallbacks_when_missing(monkeypatch):
         fts.df.loc[("MSFT", pd.Timestamp("2024-01-03")), "Sector"] == "UnknownSector"
     )
     assert (
-        fts.df.loc[("AAPL", pd.Timestamp("2024-01-03")), "SubIndustry"]
-        == "UnknownSubIndustry"
+        fts.df.loc[("AAPL", pd.Timestamp("2024-01-03")), "Industry"] == "UnknownIndustry"
     )
 
 

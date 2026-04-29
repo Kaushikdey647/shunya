@@ -58,7 +58,20 @@ Alternatively, use Docker Compose in this repo (`api` service mounts the repo an
 | `SHUNYA_DASHBOARD_MAX_TICKERS` | Optional cap for `GET /data/dashboard` symbol list (positive integer); omit for no cap |
 | `SHUNYA_API_DATABASE_URL` | Optional override (via `pydantic-settings`) |
 | `SHUNYA_API_WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval (default `1.0`) |
+| `SHUNYA_API_INDEX_OHLCV_BACKFILL_BATCH_SIZE` | Tickers per Yahoo batch when the worker backfills OHLCV after a recoverable index backtest data error (default `40`). |
 | `YFINANCE_TLS_VERIFY` | If set to `1` / `true` / `yes` / `on`, yfinance uses default TLS verification instead of the `curl_cffi` session with `verify=False` (useful outside corporate TLS inspection). |
+
+## Optional: prune stored OHLCV to the HTTP backtest window
+
+HTTP backtests use daily bars in **`[2020-01-01, 2026-01-01)`** (end exclusive). To drop older or newer `ohlcv_bars` rows so stored data matches that policy (adjust if your `ts` semantics differ), run SQL once as an operator:
+
+```sql
+DELETE FROM ohlcv_bars
+WHERE ts < TIMESTAMPTZ '2020-01-01'
+   OR ts >= TIMESTAMPTZ '2026-01-01';
+```
+
+Re-bootstrap with `scripts/bootstrap_ts_data.py` (defaults use the same window) to refill the canonical range.
 
 ## Tests
 

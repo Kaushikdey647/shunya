@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     max_target_history_points: int = 500
     """Cap serialized target_history rows per job result."""
 
+    index_ohlcv_backfill_batch_size: int = 40
+    """Tickers per yfinance download when backfilling OHLCV for failed index backtests."""
+
 
 @lru_cache
 def get_settings() -> Settings:

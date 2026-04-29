@@ -11,7 +11,7 @@ def load_classifications_for_tickers(ticker_list: list[str]) -> Mapping[str, Map
     """
     Latest ``as_of`` row per symbol (``source='yfinance'`` matches ingest CLI).
 
-    Maps DB lowercase columns to finTs keys ``Sector``, ``Industry``, ``SubIndustry``.
+    Maps DB lowercase columns to finTs keys ``Sector`` and ``Industry``.
     """
     if not ticker_list:
         return {}
@@ -25,8 +25,7 @@ def load_classifications_for_tickers(ticker_list: list[str]) -> Mapping[str, Map
                 SELECT DISTINCT ON (s.ticker)
                     s.ticker,
                     COALESCE(c.sector, '') AS sector,
-                    COALESCE(c.industry, '') AS industry,
-                    COALESCE(c.sub_industry, '') AS sub_industry
+                    COALESCE(c.industry, '') AS industry
                 FROM symbols s
                 INNER JOIN symbol_classifications c ON c.symbol_id = s.id AND c.source = 'yfinance'
                 WHERE s.ticker = ANY(%s)
@@ -35,10 +34,9 @@ def load_classifications_for_tickers(ticker_list: list[str]) -> Mapping[str, Map
                 (list(str(t) for t in ticker_list),),
             )
             for row in cur.fetchall():
-                t, sec, ind, sub = str(row[0]), str(row[1]), str(row[2]), str(row[3])
+                t, sec, ind = str(row[0]), str(row[1]), str(row[2])
                 out[t] = {
                     "Sector": sec or "UnknownSector",
                     "Industry": ind or "UnknownIndustry",
-                    "SubIndustry": sub or "UnknownSubIndustry",
                 }
     return out

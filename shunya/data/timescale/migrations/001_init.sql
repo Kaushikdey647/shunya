@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS symbol_classifications (
     as_of DATE NOT NULL,
     sector TEXT,
     industry TEXT,
-    sub_industry TEXT,
     source TEXT NOT NULL DEFAULT 'yfinance',
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT symbol_classifications_unique UNIQUE (symbol_id, source, as_of)

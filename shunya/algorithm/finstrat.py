@@ -19,7 +19,7 @@ Neutralization = Literal["none", "market", "group", "sector", "industry"]
 DecayMode = Literal["ema", "linear"]
 NanPolicy = Literal["strict", "zero_fill"]
 TemporalMode = Literal["bar_step", "elapsed_trading_time"]
-STANDARD_GROUP_COLUMNS: Tuple[str, ...] = ("Sector", "Industry", "SubIndustry")
+STANDARD_GROUP_COLUMNS: Tuple[str, ...] = ("Sector", "Industry")
 
 
 @jax.jit

@@ -277,13 +277,10 @@ def _info_int(info: dict, key: str) -> Optional[int]:
 def extract_yfinance_classification_fields(info: dict) -> Dict[str, Any]:
     """
     Map yfinance ``ticker.info`` to DB columns on ``symbol_classifications`` plus
-    finTs keys ``Sector`` / ``Industry`` / ``SubIndustry``.
-
-    ``sub_industry`` / ``SubIndustry`` come **only** from ``info["subIndustry"]``.
+    finTs keys ``Sector`` and ``Industry``.
     """
     sector = _info_str(info, "sector")
     industry = _info_str(info, "industryDisp") or _info_str(info, "industry")
-    sub_industry = _info_str(info, "subIndustry")
 
     out: Dict[str, Any] = {}
     if sector:
@@ -292,9 +289,6 @@ def extract_yfinance_classification_fields(info: dict) -> Dict[str, Any]:
     if industry:
         out["industry"] = industry
         out["Industry"] = industry
-    if sub_industry:
-        out["sub_industry"] = sub_industry
-        out["SubIndustry"] = sub_industry
 
     text_pairs = (
         ("sector_disp", "sectorDisp"),
@@ -337,9 +331,8 @@ def fetch_yfinance_classifications(
     """
     Best-effort classification lookup from yfinance.
 
-    Returns per ticker a dict with lowercase DB keys (``sector``, ``industry``,
-    ``sub_industry``, …), ``full_time_employees`` when present, and finTs keys
-    ``Sector`` / ``Industry`` / ``SubIndustry`` (``SubIndustry`` from ``subIndustry`` only).
+    Returns per ticker a dict with lowercase DB keys (``sector``, ``industry``, …),
+    ``full_time_employees`` when present, and finTs keys ``Sector`` / ``Industry``.
     """
     out: Dict[str, Dict[str, Any]] = {}
     for sym in ticker_list:

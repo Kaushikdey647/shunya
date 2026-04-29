@@ -173,12 +173,84 @@ def test_alphas_crud_and_backtest_job(
         assert body["metrics"]["total_return_pct"] == 1.23
 
         dl = client.delete(f"/alphas/{alpha_id}")
-        assert dl.status_code == 409
+        assert dl.status_code == 204, dl.text
+        assert client.get(f"/alphas/{alpha_id}").status_code == 404
+        assert client.get(f"/backtests/{job_id}").status_code == 404
 
-        with psycopg.connect(api_database_url_queue_isolated) as conn:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM api_backtest_jobs WHERE id = %s::uuid", (job_id,))
-            conn.commit()
 
-        dl2 = client.delete(f"/alphas/{alpha_id}")
-        assert dl2.status_code == 204
+async def _idle_worker_loop(stop: asyncio.Event) -> None:
+    """Does not claim jobs (for delete tests that need stable queued rows)."""
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=0.2)
+        except TimeoutError:
+            pass
+
+
+def test_delete_backtest_jobs_single_batch_and_cap(
+    api_database_url_queue_isolated: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", api_database_url_queue_isolated)
+    from shunya.data.timescale.dbutil import apply_migrations
+
+    apply_migrations()
+
+    import psycopg
+
+    with psycopg.connect(api_database_url_queue_isolated) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM api_backtest_jobs WHERE status IN ('queued', 'running')"
+            )
+        conn.commit()
+
+    monkeypatch.setattr(
+        "backtest_api.main.backtest_worker_loop",
+        _idle_worker_loop,
+    )
+
+    from backtest_api.main import create_app
+
+    alpha_name = f"api-del-jobs-{uuid.uuid4().hex[:12]}"
+    with TestClient(create_app()) as client:
+        r = client.post(
+            "/alphas",
+            json={
+                "name": alpha_name,
+                "import_ref": "examples.alphas.sma_ratio_20:alpha",
+                "finstrat_config": {"neutralization": "market"},
+            },
+        )
+        assert r.status_code == 201, r.text
+        alpha_id = r.json()["id"]
+
+        payload = {
+            "alpha_id": alpha_id,
+            "fin_ts": {
+                "start_date": "2024-01-01",
+                "end_date": "2024-02-01",
+                "ticker_list": ["AAPL"],
+                "market_data_provider": "yfinance",
+            },
+            "finbt": {"cash": 100000.0},
+        }
+        j1 = client.post("/backtests", json=payload).json()["id"]
+        j2 = client.post("/backtests", json=payload).json()["id"]
+
+        assert client.delete(f"/backtests/{j1}").status_code == 204
+        assert client.get(f"/backtests/{j1}").status_code == 404
+
+        batch = client.post(
+            "/backtests/delete-batch",
+            json={"ids": [j2, "not-a-uuid", j2]},
+        )
+        assert batch.status_code == 200
+        assert batch.json()["deleted"] == 1
+        assert client.get(f"/backtests/{j2}").status_code == 404
+
+        too_many = [str(uuid.uuid4()) for _ in range(201)]
+        cap = client.post("/backtests/delete-batch", json={"ids": too_many})
+        assert cap.status_code == 400
+
+        assert client.delete("/backtests/not-a-uuid").status_code == 404

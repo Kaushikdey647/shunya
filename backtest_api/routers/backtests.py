@@ -8,7 +8,12 @@ from backtest_api.backtest_resolve import resolve_index_backtest_if_needed
 from backtest_api.backtest_windows import normalize_backtest_create
 from backtest_api.repositories import alphas as alphas_repo
 from backtest_api.repositories import backtests as jobs_repo
-from backtest_api.schemas.models import BacktestCreate, BacktestJobOut
+from backtest_api.schemas.models import (
+    BacktestCreate,
+    BacktestJobOut,
+    BacktestJobsDeleteBatchOut,
+    BacktestJobsDeleteBatchRequest,
+)
 
 router = APIRouter(prefix="/backtests", tags=["backtests"])
 
@@ -32,6 +37,27 @@ def list_backtests(
     if status_filter is not None and status_filter not in ("queued", "running", "succeeded", "failed"):
         raise HTTPException(status_code=400, detail="Invalid status filter.")
     return jobs_repo.list_jobs(limit=limit, offset=offset, alpha_id=alpha_id, status=status_filter)
+
+
+@router.post("/delete-batch", response_model=BacktestJobsDeleteBatchOut)
+def delete_backtests_batch(body: BacktestJobsDeleteBatchRequest) -> BacktestJobsDeleteBatchOut:
+    try:
+        deleted = jobs_repo.delete_jobs_by_ids(body.ids)
+    except ValueError as exc:
+        if str(exc) == "delete_batch_too_large":
+            raise HTTPException(
+                status_code=400,
+                detail="Too many job ids after deduplication (max 200 per request).",
+            ) from exc
+        raise
+    return BacktestJobsDeleteBatchOut(deleted=deleted)
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_backtest(job_id: str) -> None:
+    ok = jobs_repo.delete_job(job_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Job not found.")
 
 
 @router.get("/{job_id}", response_model=BacktestJobOut)

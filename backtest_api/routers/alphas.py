@@ -52,14 +52,6 @@ def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
 
 @router.delete("/{alpha_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_alpha(alpha_id: str) -> None:
-    try:
-        ok = repo.delete_alpha(alpha_id)
-    except RuntimeError as exc:
-        if str(exc) == "foreign_key_violation":
-            raise HTTPException(
-                status_code=409,
-                detail="Cannot delete alpha while backtest jobs reference it.",
-            ) from exc
-        raise
+    ok = repo.delete_alpha(alpha_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Alpha not found.")

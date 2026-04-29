@@ -73,11 +73,10 @@ def _series_for_plot_break_calendar_gaps(
 
 
 _OHLCV_EXCLUDE_CORR = frozenset({"Open", "High", "Low", "Close", "Adj Close", "Volume"})
-_CLASSIFICATION_COLUMNS = ("Sector", "Industry", "SubIndustry")
+_CLASSIFICATION_COLUMNS = ("Sector", "Industry")
 _CLASSIFICATION_FALLBACKS = {
     "Sector": "UnknownSector",
     "Industry": "UnknownIndustry",
-    "SubIndustry": "UnknownSubIndustry",
 }
 
 

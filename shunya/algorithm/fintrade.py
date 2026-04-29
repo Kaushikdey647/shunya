@@ -151,7 +151,7 @@ class FinTrade:
             if self._group_column not in df.columns:
                 raise KeyError(
                     f"group_column {self._group_column!r} not found in fin_ts.df. "
-                    "Expected one of {'Sector', 'Industry', 'SubIndustry'} "
+                    "Expected one of {'Sector', 'Industry'} "
                     "or a custom column added per (Ticker, Date)."
                 )
         elif n == "sector":

@@ -11,6 +11,8 @@ from backtest_api.schemas.models import (
     InstrumentSearchNewsItem,
     InstrumentSearchQuote,
     InstrumentSearchResponse,
+    InstrumentTickerNewsItem,
+    InstrumentTickerNewsResponse,
     OhlcvBar,
 )
 from backtest_api.services.instrument_ohlcv import InstrumentOhlcvResult
@@ -86,3 +88,35 @@ def test_ingestion_run_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     client = TestClient(create_app())
     r = client.get("/instruments/ingestion-runs/1")
     assert r.status_code == 503
+
+
+def test_ticker_news_returns_items(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake(sym: str, limit: int) -> InstrumentTickerNewsResponse:
+        assert sym == "ZZZ"
+        assert limit == 40
+        return InstrumentTickerNewsResponse(
+            symbol=sym,
+            news=[
+                InstrumentTickerNewsItem(
+                    title="Headline",
+                    link="https://example.com/a",
+                    publisher="Yahoo",
+                    published_at="2024-06-01T12:00:00+00:00",
+                ),
+            ],
+        )
+
+    monkeypatch.setattr("backtest_api.routers.instruments._run_ticker_news", _fake)
+    client = TestClient(create_app())
+    r = client.get("/instruments/ZZZ/news")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["symbol"] == "ZZZ"
+    assert data["news"][0]["title"] == "Headline"
+    assert data["news"][0]["published_at"] == "2024-06-01T12:00:00+00:00"
+
+
+def test_ticker_news_invalid_symbol() -> None:
+    client = TestClient(create_app())
+    r = client.get("/instruments/bad%20sym/news")
+    assert r.status_code == 400
