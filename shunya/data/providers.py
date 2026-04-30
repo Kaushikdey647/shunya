@@ -7,6 +7,7 @@ Implement :class:`MarketDataProvider` to swap Yahoo Finance for Alpaca bars
 
 from __future__ import annotations
 
+import logging
 import os
 import math
 from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
@@ -30,6 +31,71 @@ from .timeframes import (
     normalize_history_index,
     resample_ohlcv_yearly,
 )
+
+_LOG = logging.getLogger(__name__)
+
+_OHLCV_COLS: tuple[str, ...] = ("Open", "High", "Low", "Close", "Volume")
+_REPAIRED_META = "Repaired?"
+
+
+def env_yfinance_repair_default() -> bool:
+    """
+    Whether Yahoo downloads should use yfinance ``repair=True`` (price/dividend fixes).
+
+    Reads ``SHUNYA_YFINANCE_REPAIR`` or ``SHUNYA_API_YFINANCE_REPAIR``; unset means enabled.
+    Truthy: 1, true, yes, on (case-insensitive). Falsy: 0, false, no, off, empty.
+    """
+    for key in ("SHUNYA_YFINANCE_REPAIR", "SHUNYA_API_YFINANCE_REPAIR"):
+        raw = os.environ.get(key)
+        if raw is None or not str(raw).strip():
+            continue
+        return str(raw).strip().lower() not in ("0", "false", "no", "off")
+    return True
+
+
+def sanitize_yfinance_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Keep only OHLCV columns so downstream finTa/finta and ingest see a stable contract.
+
+    Strips yfinance ``repair=True`` metadata (e.g. ``Repaired?``) after optional logging.
+    """
+    if df.empty:
+        return df.copy()
+
+    def _log_repaired(part: pd.DataFrame) -> None:
+        if _REPAIRED_META not in part.columns:
+            return
+        s = pd.to_numeric(part[_REPAIRED_META], errors="coerce").fillna(0)
+        # Booleans / 0-1 flags
+        truth = s.astype(float) > 0.5
+        n = int(truth.sum())
+        if n > 0:
+            _LOG.debug(
+                "yfinance repair: %d/%d rows marked repaired in chunk",
+                n,
+                len(part),
+            )
+
+    if isinstance(df.columns, pd.MultiIndex):
+        tickers = df.columns.get_level_values(0).unique().tolist()
+        pieces: Dict[str, pd.DataFrame] = {}
+        for t in tickers:
+            sub = df[str(t)].copy()
+            _log_repaired(sub)
+            keep = [c for c in _OHLCV_COLS if c in sub.columns]
+            if len(keep) < len(_OHLCV_COLS):
+                miss = [c for c in _OHLCV_COLS if c not in sub.columns]
+                raise KeyError(f"yfinance OHLCV missing columns after repair: {miss} (ticker={t!r})")
+            pieces[str(t)] = sub[list(_OHLCV_COLS)]
+        out = pd.concat(pieces, axis=1)
+        return out
+    work = df.copy()
+    _log_repaired(work)
+    keep = [c for c in _OHLCV_COLS if c in work.columns]
+    if len(keep) < len(_OHLCV_COLS):
+        miss = [c for c in _OHLCV_COLS if c not in work.columns]
+        raise KeyError(f"yfinance OHLCV missing columns after repair: {miss}")
+    return work[list(_OHLCV_COLS)]
 
 
 @runtime_checkable
@@ -89,8 +155,14 @@ def _alpaca_request_bounds(
 class YFinanceMarketDataProvider:
     """Yahoo Finance path; ``interval`` derives from :class:`~.timeframes.BarSpec`."""
 
-    def __init__(self, session: Optional[requests.Session] = None) -> None:
+    def __init__(
+        self,
+        session: Optional[requests.Session] = None,
+        *,
+        repair: bool = True,
+    ) -> None:
         self._session = session
+        self._repair = repair
 
     def download(
         self,
@@ -100,6 +172,7 @@ class YFinanceMarketDataProvider:
         *,
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
+        repair: Optional[bool] = None,
     ) -> pd.DataFrame:
         spec = bar_spec if bar_spec is not None else default_bar_spec()
         idx_policy = (
@@ -121,6 +194,7 @@ class YFinanceMarketDataProvider:
         else:
             fetch_interval = yfi_interval
 
+        use_repair = self._repair if repair is None else repair
         dl_kw: dict = dict(
             start=start,
             end=end,
@@ -128,11 +202,15 @@ class YFinanceMarketDataProvider:
             group_by="ticker",
             progress=False,
             interval=fetch_interval,
+            repair=use_repair,
         )
         if self._session is not None:
             dl_kw["session"] = self._session
 
         df = yf.download(ticker_list, **dl_kw)
+        # Avoid read-only buffers from numpy/yfinance when repair mutates arrays.
+        df = df.copy()
+        df = sanitize_yfinance_ohlcv(df)
         if post_year_resample:
             df = _resample_monthly_ohlcv_to_years(df)
             return normalize_history_index(df, year_norm_spec, policy=idx_policy)

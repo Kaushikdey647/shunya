@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from backtest_api.schemas.models import InstrumentOhlcvResponse, OhlcvBar
 from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import bar_spec_is_intraday, default_bar_index_policy
+from backtest_api.settings import env_yfinance_repair_default
 from shunya.data.yfinance_session import build_yfinance_session
 from shunya.data.validation import validate_core_ohlcv_coverage
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
@@ -160,7 +161,7 @@ def _fetch_yfinance_ohlcv(
     session: object | None,
 ) -> pd.DataFrame:
     policy = default_bar_index_policy()
-    prov = YFinanceMarketDataProvider(session=session)
+    prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
     try:
         return prov.download([symbol], start, end_exclusive, bar_spec=bar_spec, bar_index_policy=policy)
     except Exception as exc:  # noqa: BLE001

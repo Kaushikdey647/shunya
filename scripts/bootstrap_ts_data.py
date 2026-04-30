@@ -714,6 +714,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Always call the fundamentals provider for every OHLCV batch (default: omit tickers with quarterly fundamentals in the ingest window)",
     )
     p.add_argument("--dry-run", action="store_true", help="Resolve symbols and print counts only; no DB writes")
+    p.add_argument(
+        "--no-yfinance-repair",
+        action="store_true",
+        help="Disable yfinance price repair for this run (overrides SHUNYA_*_YFINANCE_REPAIR env)",
+    )
     args = p.parse_args(argv)
 
     if args.batch_size < 1:
@@ -760,7 +765,7 @@ def main(argv: list[str] | None = None) -> int:
     fund_bar_spec = default_bar_spec()
 
     yfinance_session = build_yfinance_session()
-    prov = YFinanceMarketDataProvider(session=yfinance_session)
+    prov = YFinanceMarketDataProvider(session=yfinance_session, repair=not args.no_yfinance_repair)
 
     try:
         from examples.yfinance_fundamental_provider import YFinanceFundamentalDataProvider

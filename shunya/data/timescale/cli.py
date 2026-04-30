@@ -9,7 +9,11 @@ import sys
 from datetime import date
 from typing import List, Sequence
 
-from ..providers import YFinanceMarketDataProvider, fetch_yfinance_classifications
+from ..providers import (
+    YFinanceMarketDataProvider,
+    env_yfinance_repair_default,
+    fetch_yfinance_classifications,
+)
 from ..timeframes import BarSpec, default_bar_index_policy, default_bar_spec
 from .dbutil import apply_migrations, get_database_url
 from .index_membership_sync import load_py_ticker_index_union, sync_symbol_index_memberships
@@ -76,8 +80,15 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
     interval = bar_spec_to_interval_key(spec)
     source = str(args.source)
 
-    prov = YFinanceMarketDataProvider(session=session)
-    raw = prov.download(symbols, args.start, args.end, bar_spec=spec, bar_index_policy=policy)
+    prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
+    raw = prov.download(
+        symbols,
+        args.start,
+        args.end,
+        bar_spec=spec,
+        bar_index_policy=policy,
+        repair=env_yfinance_repair_default(),
+    )
     if raw.empty:
         print("provider returned empty frame", file=sys.stderr)
         return 1

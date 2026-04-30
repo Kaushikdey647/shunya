@@ -5,18 +5,11 @@ from typing import Optional
 
 from shunya.data.fints import finTs
 from shunya.data.providers import MarketDataProvider
-from shunya.data.timeframes import BarSpec, BarUnit, default_bar_spec
+
+from shunya.schemas import FinTsRequest, bar_spec_model_to_bar_spec
 
 from backtest_api.errors import FinTsConfigurationError
-from backtest_api.schemas.models import FinTsRequest
 from backtest_api.timescale_classifications import load_classifications_for_tickers
-
-
-def _bar_spec_from_model(req: FinTsRequest) -> BarSpec:
-    if req.bar_spec is None:
-        return default_bar_spec()
-    unit = BarUnit(req.bar_spec.unit)
-    return BarSpec(unit=unit, step=req.bar_spec.step)
 
 
 def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvider]:
@@ -49,7 +42,7 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
 
 
 def build_fin_ts(req: FinTsRequest) -> finTs:
-    bar_spec = _bar_spec_from_model(req)
+    bar_spec = bar_spec_model_to_bar_spec(req.bar_spec)
     md = resolve_market_data_provider(req)
     if req.market_data_provider == "timescale" and md is None:
         raise FinTsConfigurationError(

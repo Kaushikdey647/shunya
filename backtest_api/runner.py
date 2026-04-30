@@ -12,16 +12,14 @@ from shunya.algorithm.finstrat import FinStrat
 from backtest_api.fin_ts_factory import build_fin_ts
 from backtest_api.resolver import resolve_alpha_for_backtest
 from backtest_api.result_tune_filter import apply_tune_only_to_finbt_results
-from backtest_api.schemas.models import BacktestCreate, FinStratConfig
+from backtest_api.schemas.models import BacktestCreate, FinStratConfig, FinTsRequest
 from backtest_api.serializer import result_summary_from_metrics, serialize_backtest_result
 from backtest_api.settings import get_settings
+from shunya.schemas import merge_finstrat_runtime_dict
 
 
 def _merge_finstrat(stored: dict[str, Any], override: Optional[FinStratConfig]) -> dict[str, Any]:
-    base = FinStratConfig.model_validate(stored).model_dump(mode="json", exclude_none=True)
-    if override is not None:
-        base.update(override.model_dump(mode="json", exclude_none=True))
-    return FinStratConfig.model_validate(base).model_dump(mode="json", exclude_none=True)
+    return merge_finstrat_runtime_dict(stored, override)
 
 
 def _benchmark_block(
@@ -29,8 +27,6 @@ def _benchmark_block(
     fin_ts_request_dict: dict[str, Any],
     strategy_equity: pd.DataFrame,
 ) -> dict[str, Any]:
-    from backtest_api.schemas.models import FinTsRequest
-
     req = FinTsRequest.model_validate({**fin_ts_request_dict, "ticker_list": [bench_ticker]})
     bfts = build_fin_ts(req)
     df = bfts.df

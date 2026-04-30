@@ -9,7 +9,7 @@ import pandas as pd
 import psycopg
 
 from backtest_api.schemas.models import HealthComponentModel, HealthResponseModel
-from backtest_api.settings import get_settings
+from backtest_api.settings import env_yfinance_repair_default, get_settings
 from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_index_policy
 from shunya.data.yfinance_session import build_yfinance_session
@@ -57,7 +57,7 @@ def check_yfinance() -> HealthComponentModel:
         session = build_yfinance_session()
         policy = default_bar_index_policy()
         spec = BarSpec(BarUnit.DAYS, 1)
-        prov = YFinanceMarketDataProvider(session=session)
+        prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
         df = prov.download(["SPY"], start, end, bar_spec=spec, bar_index_policy=policy)
         if df is None or df.empty:
             return HealthComponentModel(status="error", latency_ms=_elapsed_ms(t0))

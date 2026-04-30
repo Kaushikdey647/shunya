@@ -7,6 +7,7 @@ import logging
 from typing import Any, Sequence
 
 import pandas as pd
+from backtest_api.settings import env_yfinance_repair_default
 from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_index_policy
 from shunya.data.timescale.ingest_lib import UPSERT_OHLCV_SQL, ensure_symbols, rows_from_provider_ohlcv
@@ -67,7 +68,7 @@ def backfill_ohlcv_from_yfinance(
     dsn = resolve_database_url()
     interval_key = bar_spec_to_interval_key(_DAILY)
     policy = default_bar_index_policy()
-    prov = YFinanceMarketDataProvider()
+    prov = YFinanceMarketDataProvider(repair=env_yfinance_repair_default())
     total = 0
     run_id: int | None = None
 

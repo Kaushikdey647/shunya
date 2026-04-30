@@ -155,7 +155,8 @@ def test_alpaca_provider_raises_on_empty_response(monkeypatch):
 
 def test_yfinance_provider_normalizes_index(monkeypatch):
     def _fake_download(*args, **kwargs):
-        del args, kwargs
+        assert kwargs.get("repair") is True
+        del args
         idx = pd.DatetimeIndex(
             [pd.Timestamp("2024-01-02 16:00:00-05:00"), pd.Timestamp("2024-01-03 16:00:00-05:00")]
         )
@@ -182,6 +183,7 @@ def test_yfinance_provider_intraday_preserves_time_and_sets_interval(monkeypatch
     seen: dict = {}
 
     def _fake_download_tickers(tickers, *args, **kwargs):
+        assert kwargs.get("repair") is True
         seen["interval"] = kwargs.get("interval")
         del tickers, args
         idx = pd.DatetimeIndex([pd.Timestamp("2024-01-02 14:30:00+00:00")])

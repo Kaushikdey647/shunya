@@ -13,6 +13,7 @@ from finta import TA
 from .providers import (
     MarketDataProvider,
     YFinanceMarketDataProvider,
+    env_yfinance_repair_default,
     fetch_yfinance_classifications,
 )
 from .fundamentals import (
@@ -238,7 +239,10 @@ class finTs:
         if self._require_history_bars_opt is not None and self._require_history_bars_opt < 1:
             raise ValueError("require_history_bars must be >= 1 when set")
 
-        provider = market_data or YFinanceMarketDataProvider(session=session)
+        provider = market_data or YFinanceMarketDataProvider(
+            session=session,
+            repair=env_yfinance_repair_default(),
+        )
         raw = provider.download(
             self.ticker_list,
             self.start_date,

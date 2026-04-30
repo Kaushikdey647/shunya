@@ -44,7 +44,7 @@ def test_case3_no_database_uses_yfinance(no_database: None, monkeypatch: pytest.
     mock_prov.download.return_value = df
     monkeypatch.setattr(
         "backtest_api.services.instrument_ohlcv.YFinanceMarketDataProvider",
-        lambda session=None: mock_prov,
+        lambda session=None, **kwargs: mock_prov,
     )
 
     out = resolve_instrument_ohlcv_sync("ZZZ", "1d", "1mo")
@@ -82,7 +82,7 @@ def test_case1_timescale_complete(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_yf = MagicMock()
     monkeypatch.setattr(
         "backtest_api.services.instrument_ohlcv.YFinanceMarketDataProvider",
-        lambda session=None: mock_yf,
+        lambda session=None, **kwargs: mock_yf,
     )
 
     out = resolve_instrument_ohlcv_sync("ZZZ", "1d", "1mo")
@@ -130,7 +130,7 @@ def test_case2_timescale_incomplete_triggers_yfinance_writeback(
     mock_yf.download.return_value = df_yf_price_first
     monkeypatch.setattr(
         "backtest_api.services.instrument_ohlcv.YFinanceMarketDataProvider",
-        lambda session=None: mock_yf,
+        lambda session=None, **kwargs: mock_yf,
     )
 
     with patch("backtest_api.services.instrument_ohlcv.replace_ohlcv_range_sync") as wr:

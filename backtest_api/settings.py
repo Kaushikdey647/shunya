@@ -4,6 +4,10 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from shunya.data.providers import env_yfinance_repair_default
+
+__all__ = ["Settings", "get_settings", "env_yfinance_repair_default"]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SHUNYA_API_", extra="ignore")
@@ -19,6 +23,9 @@ class Settings(BaseSettings):
 
     index_ohlcv_backfill_batch_size: int = 40
     """Tickers per yfinance download when backfilling OHLCV for failed index backtests."""
+
+    # Yahoo price repair uses env_yfinance_repair_default():
+    # SHUNYA_YFINANCE_REPAIR or SHUNYA_API_YFINANCE_REPAIR — see shunya.data.providers.
 
 
 @lru_cache
