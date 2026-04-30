@@ -7,7 +7,7 @@
 [![Data](https://img.shields.io/badge/data-yfinance-informational.svg)](https://pypi.org/project/yfinance/)
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
 
-Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN-style processing), **backtrader** backtests, and an early **tick-to-trade streaming foundation**. Historical data is provider-driven (`yfinance` by default, optional Alpaca bars, optional **local TimescaleDB** via `TimescaleMarketDataProvider`); features include OHLCV plus technicals from `finta`.
+Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN-style processing), **backtrader** backtests, and an early **tick-to-trade streaming foundation**. Historical data is provider-driven (`yfinance` by default, optional Alpaca bars, optional **Tiingo** end-of-day bars for **Timescale ingest**, optional **local TimescaleDB** via `TimescaleMarketDataProvider`); features include OHLCV plus technicals from `finta`.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension patterns, and coding guidelines.
 
@@ -36,7 +36,7 @@ from shunya import (
 )
 ```
 
-The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (for example `PanelQADiagnostics`, `YFinanceMarketDataProvider`, `TimescaleMarketDataProvider`, `TimescaleFundamentalDataProvider`, `apply_migrations`, `get_database_url`, `StreamingRunner`, `OrderManager`, target helpers, `logical`, `time_series`, and timestamp helpers).
+The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (for example `PanelQADiagnostics`, `YFinanceMarketDataProvider`, `TimescaleMarketDataProvider`, `TimescaleFundamentalDataProvider`, `apply_migrations`, `get_database_url`, `StreamingRunner`, `OrderManager`, target helpers, `logical`, `time_series`, and timestamp helpers). [`shunya.data`](shunya/data/__init__.py) also exports `TiingoMarketDataProvider` for Tiingo-backed OHLCV loading and CLI ingest.
 
 ## Core ideas
 
@@ -64,9 +64,10 @@ The canonical set of symbols re-exported at the package root is `__all__` in [`s
 
 6. **`DecisionContext`** (`shunya.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so live logic does not silently mix “Yahoo’s last bar” with “submit now.”  Pass `decision=DecisionContext(as_of=..., data_source=...)` into `FinTrade.run`, or set `as_of=` explicitly; otherwise the last date in the panel index is used.
 
-7. **`MarketDataProvider`** (`shunya.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo, and optional **`TimescaleMarketDataProvider`** for panels read from a local Postgres/Timescale store after ingest (same OHLCV contract as Yahoo).
+7. **`MarketDataProvider`** (`shunya.data.providers`) abstracts history loading: default `YFinanceMarketDataProvider` in `finTs`, optional `AlpacaHistoricalMarketDataProvider` for broker-aligned panels and parity checks vs Yahoo, **`TiingoMarketDataProvider`** for daily end-of-day OHLCV from [Tiingo](https://www.tiingo.com/) (unadjusted OHLC + volume; use `SHUNYA_TIINGO_API_KEY` or `TIINGO_API_KEY`), and optional **`TimescaleMarketDataProvider`** for panels read from a local Postgres/Timescale store after ingest (same OHLCV contract as Yahoo).
    - Provider output contract is consistent: `DatetimeIndex` named `Date`, normalized to daily granularity.
    - `AlpacaHistoricalMarketDataProvider` is strict: if requested symbols are missing bars, it raises a `ValueError` listing those symbols.
+   - `TiingoMarketDataProvider` is **daily-only**; Yahoo-style tickers are mapped to Tiingo symbology for API calls only (e.g. `BRK.B` → `BRK-B`) while `symbols.ticker` in the database stays unchanged.
 
 8. **`cross_section`** — JIT-friendly helpers: `rank`, `zscore`, `scale`, `sign`, `winsorize`, `neutralize_market`, `neutralize_groups`. `rank(x)` is increasing in `x` (smallest → ~0, largest → ~1); use `rank(-x)` to flip.
 
@@ -178,6 +179,14 @@ shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 202
 # optional: shunya-timescale ingest-fundamentals … , ingest-classifications …
 ```
 
+**Tiingo EOD ingest:** set **`SHUNYA_TIINGO_API_KEY`** or **`TIINGO_API_KEY`**, then load daily bars into `ohlcv_bars` (same upsert path as Yahoo/Alpha Vantage). `--end` is **exclusive**; use `--tiingo-delay-seconds` to pace requests under account quotas; `--db-limit` / `--db-offset` chunk `--symbols-from-db` runs.
+
+```bash
+export TIINGO_API_KEY=...   # or SHUNYA_TIINGO_API_KEY
+shunya-timescale ingest-ohlcv --symbols-from-db --start 2010-01-01 --end 2026-01-01 \
+  --provider tiingo --source tiingo --tiingo-delay-seconds 0
+```
+
 Equivalent: `python -m shunya.data.timescale.cli …`. Override the DSN per run with `--database-url`.
 
 ### HTTP API and dashboard (`backtest_api`)
@@ -260,7 +269,7 @@ The main streaming building blocks are:
 ## Requirements
 
 - Python **≥ 3.12**
-- Main libraries: `jax`, `pandas`, `yfinance`, `backtrader`, `finta`, `matplotlib`, … (see `pyproject.toml`)
+- Main libraries: `jax`, `pandas`, `yfinance`, `tiingo`, `backtrader`, `finta`, `matplotlib`, … (see `pyproject.toml`)
 
 Install from [PyPI](https://pypi.org/project/shunya-py/) (import the **`shunya`** package):
 
@@ -317,7 +326,7 @@ uv sync
 
 ## Risks: Yahoo vs Alpaca, margin, paper vs live
 
-- **yfinance vs Alpaca:** Yahoo-adjusted history, time zones, and corporate-action handling can differ from Alpaca’s tape. Treat research PnL on Yahoo-only panels as indicative; for execution alignment prefer `AlpacaHistoricalMarketDataProvider` and `DecisionContext(data_source="alpaca_bars")`, or reconcile closes explicitly before trusting live notionals.
+- **yfinance vs Alpaca vs Tiingo:** Yahoo-adjusted history, time zones, and corporate-action handling can differ from Alpaca’s tape and from Tiingo’s composite EOD feed. Treat research PnL on Yahoo-only panels as indicative; for execution alignment prefer `AlpacaHistoricalMarketDataProvider` and `DecisionContext(data_source="alpaca_bars")`, or reconcile closes explicitly before trusting live notionals.
 - **Shorting and margin:** Negative target notionals imply shorts. Alpaca requires margin, borrow availability, and `shortable` assets; orders can reject if the account is cash-only or the name is not shortable. The execution layer warns on non-shortable names but does not guarantee borrow.
 - **Paper vs live checklist:** Confirm `paper=True`/`False` on `TradingClient`, that keys are scoped and never committed to git, use `dry_run=True` for rehearsal, set `require_market_open=True` when you must avoid after-hours submits, and read `ExecutionReport.warnings` (buying-power cap, Yahoo parity note, etc.) on every run.
 

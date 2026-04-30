@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 import os
 import math
-from typing import Any, Dict, List, Optional, Protocol, Union, runtime_checkable
+import time
+from typing import Any, Dict, List, Literal, Optional, Protocol, Union, runtime_checkable
 
 import pandas as pd
 import requests
@@ -331,6 +332,321 @@ class AlpacaHistoricalMarketDataProvider:
             return frames[0]
         out = pd.concat({k: f for k, f in zip(keys, frames, strict=True)}, axis=1)
         return out
+
+
+_ALPHAVANTAGE_QUERY_URL = "https://www.alphavantage.co/query"
+_TIME_SERIES_DAILY = "TIME_SERIES_DAILY"
+
+
+def alphavantage_resolve_api_key(explicit: Optional[str] = None) -> str:
+    """API key from ``explicit`` or ``ALPHAVANTAGE_API_KEY`` / ``ALPHA_VANTAGE_API_KEY``."""
+    if explicit is not None and str(explicit).strip():
+        return str(explicit).strip()
+    for key in ("ALPHAVANTAGE_API_KEY", "ALPHA_VANTAGE_API_KEY"):
+        raw = os.environ.get(key)
+        if raw is not None and str(raw).strip():
+            return str(raw).strip()
+    raise ValueError(
+        "Alpha Vantage API key required: set ALPHAVANTAGE_API_KEY or ALPHA_VANTAGE_API_KEY "
+        "or pass api_key= to AlphaVantageMarketDataProvider."
+    )
+
+
+def alphavantage_daily_payload_to_ohlcv(
+    payload: dict[str, Any],
+    *,
+    symbol: str,
+) -> pd.DataFrame:
+    """
+    Parse Alpha Vantage JSON for ``TIME_SERIES_DAILY`` into a single-ticker OHLCV frame.
+
+    Raises ``ValueError`` / ``RuntimeError`` for API errors, rate-limit notes, or missing series.
+    """
+    err = payload.get("Error Message")
+    if isinstance(err, str) and err.strip():
+        raise ValueError(f"alphavantage {symbol!r}: {err.strip()}")
+
+    info = payload.get("Information")
+    if isinstance(info, str) and info.strip():
+        raise RuntimeError(f"alphavantage {symbol!r}: {info.strip()}")
+
+    note = payload.get("Note")
+    if isinstance(note, str) and note.strip():
+        raise RuntimeError(f"alphavantage {symbol!r}: {note.strip()}")
+
+    raw_series = payload.get("Time Series (Daily)")
+    if not isinstance(raw_series, dict):
+        raise ValueError(
+            f"alphavantage {symbol!r}: missing 'Time Series (Daily)' "
+            f"(keys={list(payload.keys())})"
+        )
+
+    records: list[dict[str, float]] = []
+    idx_list: list[pd.Timestamp] = []
+    for date_str in sorted(raw_series.keys()):
+        row = raw_series[date_str]
+        if not isinstance(row, dict):
+            continue
+        records.append(
+            {
+                "Open": float(row["1. open"]),
+                "High": float(row["2. high"]),
+                "Low": float(row["3. low"]),
+                "Close": float(row["4. close"]),
+                "Volume": float(row["5. volume"]),
+            }
+        )
+        idx_list.append(pd.Timestamp(date_str))
+    if not records:
+        return pd.DataFrame(columns=list(_OHLCV_COLS))
+
+    out = pd.DataFrame(records, index=pd.DatetimeIndex(idx_list))
+    out.index.name = "Date"
+    return out[list(_OHLCV_COLS)]
+
+
+class AlphaVantageMarketDataProvider:
+    """
+    Daily OHLCV via Alpha Vantage ``TIME_SERIES_DAILY`` (one HTTP request per symbol).
+
+    Free-tier keys typically only receive ``outputsize=compact`` (~100 points); ``full`` requires
+    a premium plan per Alpha Vantage documentation.
+    """
+
+    def __init__(
+        self,
+        *,
+        api_key: Optional[str] = None,
+        session: Optional[requests.Session] = None,
+        outputsize: Literal["compact", "full"] = "compact",
+        inter_request_delay_seconds: float = 0.0,
+    ) -> None:
+        self._api_key = alphavantage_resolve_api_key(api_key)
+        self._session = session
+        self._outputsize = outputsize
+        self._delay = max(0.0, float(inter_request_delay_seconds))
+
+    def download(
+        self,
+        ticker_list: List[str],
+        start: Union[str, pd.Timestamp],
+        end: Union[str, pd.Timestamp],
+        *,
+        bar_spec: Optional[BarSpec] = None,
+        bar_index_policy: Optional[BarIndexPolicy] = None,
+    ) -> pd.DataFrame:
+        spec = bar_spec if bar_spec is not None else default_bar_spec()
+        if spec.unit != BarUnit.DAYS or spec.step != 1:
+            raise ValueError(
+                "AlphaVantageMarketDataProvider only supports daily bars (BarSpec(DAYS, 1)); "
+                f"got {spec!r}"
+            )
+
+        idx_policy = (
+            bar_index_policy
+            if bar_index_policy is not None
+            else default_bar_index_policy()
+        )
+        if not ticker_list:
+            return pd.DataFrame()
+
+        start_ts = pd.Timestamp(start).normalize()
+        end_ts = pd.Timestamp(end).normalize()
+        if end_ts <= start_ts:
+            return pd.DataFrame()
+
+        sess = self._session if self._session is not None else requests.Session()
+        frames: List[pd.DataFrame] = []
+        keys: List[str] = []
+
+        for i, sym in enumerate(ticker_list):
+            if i > 0 and self._delay > 0:
+                time.sleep(self._delay)
+
+            params = {
+                "function": _TIME_SERIES_DAILY,
+                "symbol": sym,
+                "apikey": self._api_key,
+                "datatype": "json",
+                "outputsize": self._outputsize,
+            }
+            resp = sess.get(_ALPHAVANTAGE_QUERY_URL, params=params, timeout=120)
+            resp.raise_for_status()
+            payload = resp.json()
+
+            part = alphavantage_daily_payload_to_ohlcv(payload, symbol=sym)
+            part = part.loc[(part.index >= start_ts) & (part.index < end_ts)]
+            part = normalize_history_index(part, spec, policy=idx_policy)
+            if part.empty:
+                raise ValueError(
+                    f"alphavantage: no daily bars for {sym!r} in [{start_ts.date()}, {end_ts.date()}) "
+                    "(check outputsize=compact vs requested window; premium outputsize=full may be required)."
+                )
+            frames.append(part)
+            keys.append(sym)
+
+        if len(frames) == 1 and len(ticker_list) == 1:
+            return frames[0]
+        return pd.concat({k: f for k, f in zip(keys, frames, strict=True)}, axis=1)
+
+
+def tiingo_resolve_api_key(explicit: Optional[str] = None) -> str:
+    """API token from ``explicit``, ``SHUNYA_TIINGO_API_KEY``, or ``TIINGO_API_KEY``."""
+    if explicit is not None and str(explicit).strip():
+        return str(explicit).strip()
+    for key in ("SHUNYA_TIINGO_API_KEY", "TIINGO_API_KEY"):
+        raw = os.environ.get(key)
+        if raw is not None and str(raw).strip():
+            return str(raw).strip()
+    raise ValueError(
+        "Tiingo API token required: set SHUNYA_TIINGO_API_KEY or TIINGO_API_KEY "
+        "or pass api_key= to TiingoMarketDataProvider."
+    )
+
+
+def ticker_to_tiingo_symbol(ticker: str) -> str:
+    """Map DB/Yahoo-style tickers to Tiingo symbology (e.g. ``BRK.B`` → ``BRK-B``)."""
+    return str(ticker).strip().upper().replace(".", "-")
+
+
+def tiingo_daily_json_to_ohlcv(payload: Any, *, symbol: str) -> pd.DataFrame:
+    """
+    Parse Tiingo EOD ``get_ticker_price(..., fmt='json')`` payload into a single-ticker OHLCV frame.
+
+    Uses unadjusted ``open``/``high``/``low``/``close`` and ``volume`` (not ``adj*`` fields).
+    """
+    if isinstance(payload, dict):
+        detail = payload.get("detail")
+        if detail is not None:
+            raise ValueError(f"tiingo {symbol!r}: {detail}")
+        raise ValueError(
+            f"tiingo {symbol!r}: unexpected JSON object (keys={list(payload.keys())})"
+        )
+    if not isinstance(payload, list):
+        raise ValueError(
+            f"tiingo {symbol!r}: expected a list of bars, got {type(payload).__name__}"
+        )
+
+    records: list[dict[str, float]] = []
+    idx_list: list[pd.Timestamp] = []
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        ds = row.get("date")
+        if ds is None:
+            continue
+        try:
+            o = float(row["open"])
+            h = float(row["high"])
+            l = float(row["low"])
+            c = float(row["close"])
+            v = float(row.get("volume", 0.0))
+        except (KeyError, TypeError, ValueError):
+            continue
+        records.append({"Open": o, "High": h, "Low": l, "Close": c, "Volume": v})
+        idx_list.append(pd.Timestamp(ds))
+
+    if not records:
+        return pd.DataFrame(columns=list(_OHLCV_COLS))
+
+    out = pd.DataFrame(records, index=pd.DatetimeIndex(idx_list))
+    out = out.sort_index()
+    out.index.name = "Date"
+    # Tiingo returns UTC-aware datetimes; use naive UTC dates for [start, end) filters like Alpha Vantage.
+    idx = pd.DatetimeIndex(out.index)
+    if idx.tz is not None:
+        out.index = idx.tz_convert("UTC").tz_localize(None)
+    return out[list(_OHLCV_COLS)]
+
+
+class TiingoMarketDataProvider:
+    """
+    Daily OHLCV via Tiingo EOD (``tiingo/daily/{ticker}/prices``), one request per symbol.
+
+    Requires ``SHUNYA_TIINGO_API_KEY`` or ``TIINGO_API_KEY`` (or ``api_key=`` / inject ``client``).
+    """
+
+    def __init__(
+        self,
+        *,
+        api_key: Optional[str] = None,
+        client: Any = None,
+        inter_request_delay_seconds: float = 0.0,
+    ) -> None:
+        self._delay = max(0.0, float(inter_request_delay_seconds))
+        if client is not None:
+            self._client = client
+        else:
+            from tiingo import TiingoClient
+
+            key = tiingo_resolve_api_key(api_key)
+            self._client = TiingoClient({"api_key": key})
+
+    def download(
+        self,
+        ticker_list: List[str],
+        start: Union[str, pd.Timestamp],
+        end: Union[str, pd.Timestamp],
+        *,
+        bar_spec: Optional[BarSpec] = None,
+        bar_index_policy: Optional[BarIndexPolicy] = None,
+    ) -> pd.DataFrame:
+        spec = bar_spec if bar_spec is not None else default_bar_spec()
+        if spec.unit != BarUnit.DAYS or spec.step != 1:
+            raise ValueError(
+                "TiingoMarketDataProvider only supports daily bars (BarSpec(DAYS, 1)); "
+                f"got {spec!r}"
+            )
+
+        idx_policy = (
+            bar_index_policy
+            if bar_index_policy is not None
+            else default_bar_index_policy()
+        )
+        if not ticker_list:
+            return pd.DataFrame()
+
+        start_ts = pd.Timestamp(start).normalize()
+        end_ts = pd.Timestamp(end).normalize()
+        if end_ts <= start_ts:
+            return pd.DataFrame()
+
+        last_date = end_ts - pd.Timedelta(days=1)
+        if last_date < start_ts:
+            return pd.DataFrame()
+
+        start_str = start_ts.strftime("%Y-%m-%d")
+        end_str = last_date.strftime("%Y-%m-%d")
+
+        frames: List[pd.DataFrame] = []
+        keys: List[str] = []
+
+        for i, sym in enumerate(ticker_list):
+            if i > 0 and self._delay > 0:
+                time.sleep(self._delay)
+
+            tiingo_sym = ticker_to_tiingo_symbol(sym)
+            raw = self._client.get_ticker_price(
+                tiingo_sym,
+                startDate=start_str,
+                endDate=end_str,
+                fmt="json",
+                frequency="daily",
+            )
+            part = tiingo_daily_json_to_ohlcv(raw, symbol=sym)
+            part = part.loc[(part.index >= start_ts) & (part.index < end_ts)]
+            part = normalize_history_index(part, spec, policy=idx_policy)
+            if part.empty:
+                raise ValueError(
+                    f"tiingo: no daily bars for {sym!r} (Tiingo symbol {tiingo_sym!r}) "
+                    f"in [{start_ts.date()}, {end_ts.date()})"
+                )
+            frames.append(part)
+            keys.append(sym)
+
+        if len(frames) == 1 and len(ticker_list) == 1:
+            return frames[0]
+        return pd.concat({k: f for k, f in zip(keys, frames, strict=True)}, axis=1)
 
 
 def _info_str(info: dict, key: str) -> Optional[str]:

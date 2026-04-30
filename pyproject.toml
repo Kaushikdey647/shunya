@@ -53,6 +53,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "tqdm>=4.67.3",
     "yfinance>=1.2.0",
+    "tiingo>=0.16.1",
 ]
 
 [project.optional-dependencies]

@@ -8,7 +8,12 @@ from .fundamentals import (
     align_fundamental_panel_to_panel_index,
     default_fundamental_fields,
 )
-from .providers import AlpacaHistoricalMarketDataProvider, MarketDataProvider, YFinanceMarketDataProvider
+from .providers import (
+    AlpacaHistoricalMarketDataProvider,
+    MarketDataProvider,
+    TiingoMarketDataProvider,
+    YFinanceMarketDataProvider,
+)
 from .timeframes import (
     BarIndexPolicy,
     BarSpec,
@@ -45,6 +50,7 @@ __all__ = [
     "MarketDataProvider",
     "PanelAlignReport",
     "PanelQADiagnostics",
+    "TiingoMarketDataProvider",
     "TimescaleFundamentalDataProvider",
     "TimescaleMarketDataProvider",
     "YFinanceMarketDataProvider",

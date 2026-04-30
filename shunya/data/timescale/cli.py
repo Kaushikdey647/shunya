@@ -10,6 +10,8 @@ from datetime import date
 from typing import List, Sequence
 
 from ..providers import (
+    AlphaVantageMarketDataProvider,
+    TiingoMarketDataProvider,
     YFinanceMarketDataProvider,
     env_yfinance_repair_default,
     fetch_yfinance_classifications,
@@ -31,6 +33,25 @@ from .intervals import bar_spec_to_interval_key
 
 def _parse_symbols(s: str) -> List[str]:
     return [x.strip() for x in s.replace(",", " ").split() if x.strip()]
+
+
+def _tickers_from_symbols_table(*, limit: int | None, offset: int) -> List[str]:
+    import psycopg
+
+    dsn = get_database_url()
+    parts = ["SELECT ticker FROM symbols ORDER BY ticker"]
+    params: list[int] = []
+    if limit is not None:
+        parts.append("LIMIT %s")
+        params.append(int(limit))
+    if offset:
+        parts.append("OFFSET %s")
+        params.append(int(offset))
+    sql = " ".join(parts)
+    with psycopg.connect(dsn) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [str(r[0]) for r in cur.fetchall()]
 
 
 def cmd_migrate(_: argparse.Namespace) -> int:
@@ -55,7 +76,10 @@ def cmd_sync_index_memberships(_: argparse.Namespace) -> int:
 def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
     import psycopg
 
-    symbols = _parse_symbols(args.symbols)
+    if args.symbols_from_db:
+        symbols = _tickers_from_symbols_table(limit=args.db_limit, offset=int(args.db_offset or 0))
+    else:
+        symbols = _parse_symbols(args.symbols or "")
     if not symbols:
         print("no symbols", file=sys.stderr)
         return 2
@@ -79,16 +103,45 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
 
     interval = bar_spec_to_interval_key(spec)
     source = str(args.source)
+    if args.provider == "alphavantage" and source == "yfinance":
+        source = "alphavantage"
+    if args.provider == "tiingo" and source == "yfinance":
+        source = "tiingo"
 
-    prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
-    raw = prov.download(
-        symbols,
-        args.start,
-        args.end,
-        bar_spec=spec,
-        bar_index_policy=policy,
-        repair=env_yfinance_repair_default(),
-    )
+    if args.provider == "yfinance":
+        prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
+        raw = prov.download(
+            symbols,
+            args.start,
+            args.end,
+            bar_spec=spec,
+            bar_index_policy=policy,
+            repair=env_yfinance_repair_default(),
+        )
+    elif args.provider == "tiingo":
+        prov = TiingoMarketDataProvider(
+            inter_request_delay_seconds=float(args.tiingo_delay_seconds),
+        )
+        raw = prov.download(
+            symbols,
+            args.start,
+            args.end,
+            bar_spec=spec,
+            bar_index_policy=policy,
+        )
+    else:
+        prov = AlphaVantageMarketDataProvider(
+            session=session,
+            outputsize=args.av_outputsize,
+            inter_request_delay_seconds=float(args.av_delay_seconds),
+        )
+        raw = prov.download(
+            symbols,
+            args.start,
+            args.end,
+            bar_spec=spec,
+            bar_index_policy=policy,
+        )
     if raw.empty:
         print("provider returned empty frame", file=sys.stderr)
         return 1
@@ -103,7 +156,24 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
                 VALUES ('ingest_ohlcv', %s, %s, 'running')
                 RETURNING id
                 """,
-                (source, json.dumps({"symbols": symbols, "start": args.start, "end": args.end, "interval": interval})),
+                (
+                    source,
+                    json.dumps(
+                        {
+                            "symbols": symbols,
+                            "start": args.start,
+                            "end": args.end,
+                            "interval": interval,
+                            "provider": args.provider,
+                            "av_outputsize": args.av_outputsize,
+                            "av_delay_seconds": args.av_delay_seconds,
+                            "tiingo_delay_seconds": args.tiingo_delay_seconds,
+                            "symbols_from_db": bool(args.symbols_from_db),
+                            "db_limit": args.db_limit,
+                            "db_offset": args.db_offset,
+                        }
+                    ),
+                ),
             )
             run_id = int(cur.fetchone()[0])
             tmap = ensure_symbols(cur, symbols)
@@ -281,11 +351,64 @@ def build_parser() -> argparse.ArgumentParser:
         help="Populate symbol_index_membership (+ symbols names) from PyTickerSymbols (SP100, SP500, …)",
     )
 
-    p_ohlcv = sub.add_parser("ingest-ohlcv", help="Download OHLCV via yfinance and upsert ohlcv_bars")
-    p_ohlcv.add_argument("--symbols", required=True, help="Space or comma separated tickers")
+    p_ohlcv = sub.add_parser(
+        "ingest-ohlcv",
+        help="Download OHLCV (yfinance, Alpha Vantage, or Tiingo) and upsert ohlcv_bars",
+    )
+    sym_grp = p_ohlcv.add_mutually_exclusive_group(required=True)
+    sym_grp.add_argument(
+        "--symbols",
+        default=None,
+        help="Space or comma separated tickers (mutually exclusive with --symbols-from-db)",
+    )
+    sym_grp.add_argument(
+        "--symbols-from-db",
+        action="store_true",
+        help="Ingest all tickers present in the symbols table (see --db-limit / --db-offset)",
+    )
     p_ohlcv.add_argument("--start", required=True)
     p_ohlcv.add_argument("--end", required=True)
-    p_ohlcv.add_argument("--source", default="yfinance")
+    p_ohlcv.add_argument(
+        "--source",
+        default="yfinance",
+        help="Stored in ohlcv_bars.source; default becomes alphavantage when --provider alphavantage",
+    )
+    p_ohlcv.add_argument(
+        "--provider",
+        choices=["yfinance", "alphavantage", "tiingo"],
+        default="yfinance",
+        help="Market data API (alphavantage/tiingo: daily only; set API keys per provider)",
+    )
+    p_ohlcv.add_argument(
+        "--av-outputsize",
+        choices=["compact", "full"],
+        default="compact",
+        help="Alpha Vantage TIME_SERIES_DAILY outputsize; full requires premium per AV docs",
+    )
+    p_ohlcv.add_argument(
+        "--av-delay-seconds",
+        type=float,
+        default=12.0,
+        help="Pause between Alpha Vantage symbol requests (default 12s ~ 5/min free tier)",
+    )
+    p_ohlcv.add_argument(
+        "--tiingo-delay-seconds",
+        type=float,
+        default=0.0,
+        help="Pause between Tiingo symbol requests (default 0; use for large batches under quotas)",
+    )
+    p_ohlcv.add_argument(
+        "--db-limit",
+        type=int,
+        default=None,
+        help="With --symbols-from-db: max number of tickers to process",
+    )
+    p_ohlcv.add_argument(
+        "--db-offset",
+        type=int,
+        default=0,
+        help="With --symbols-from-db: skip first N tickers (ordered)",
+    )
     p_ohlcv.add_argument("--insecure-curl", action="store_true", help="Use curl_cffi session verify=False")
     p_ohlcv.add_argument("--bar-unit", default=None, help="Override BarUnit name e.g. DAYS")
     p_ohlcv.add_argument("--bar-step", type=int, default=1)
