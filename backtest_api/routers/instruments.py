@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -20,6 +19,7 @@ from backtest_api.schemas.models import (
     InstrumentTickerNewsResponse,
 )
 from backtest_api.services.instrument_ohlcv import PendingOhlcvWriteback, resolve_instrument_ohlcv_sync
+from backtest_api.services.market_symbols import SYMBOL_RE, normalize_market_symbol
 from shunya.data.yfinance_session import build_yfinance_session
 from shunya.data.timescale.ohlcv_writeback import (
     create_deferred_ingestion_run_sync,
@@ -30,8 +30,6 @@ from shunya.data.timescale.ohlcv_writeback import (
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/instruments", tags=["instruments"])
-
-SYMBOL_RE = re.compile(r"^[A-Z0-9^.\-]{1,32}$")
 
 ALLOWED_INTERVALS = frozenset(
     {
@@ -71,10 +69,10 @@ MAX_SEARCH_LEN = 64
 
 
 def _normalize_symbol(raw: str) -> str:
-    s = raw.strip().upper()
-    if not SYMBOL_RE.match(s):
-        raise HTTPException(status_code=400, detail="invalid symbol")
-    return s
+    try:
+        return normalize_market_symbol(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid symbol") from exc
 
 
 def _quote_from_raw_safe(item: dict[str, Any]) -> InstrumentSearchQuote | None:

@@ -8,6 +8,7 @@ Repo-local **FastAPI** service (not part of the published `shunya-py` wheel) for
 - **`POST /data`** — Panel NaN counts per ticker/column and per-ticker return / annualized vol / Sharpe / Sortino from `finTs` (Timescale when `DATABASE_URL` is set and `market_data_provider` is `auto` or `timescale`).
 - **`GET /data/dashboard`** — Database-wide analytics for a stored `interval` / `source`: reference window `[MIN(ts), MAX(ts)]` over `ohlcv_bars`, per-ticker completeness vs that window (heatmap buckets), aggregated risk/return metrics from stored closes, and completeness histogram bins. Bucket granularity defaults to **`auto`** (chooses day, week, or month so the heatmap stays within `max_buckets`, default **200**); adjacent periods may be merged (logical OR). Optional **`SHUNYA_DASHBOARD_MAX_TICKERS`** caps symbols (alphabetical order).
 - **`/instruments/...`** — Search and OHLCV: prefers Timescale when the DB is reachable and coverage is complete; otherwise yfinance (with optional write-back to Timescale).
+- **`/market/...`** — Dashboard-oriented market data: **`POST /market/snapshot`** (batched daily OHLCV-derived quotes for macro strip / watchlists), **`GET /market/movers`** (`kind=gainers|losers|active`, Yahoo predefined screeners), **`GET /market/headlines`** (general financial headlines via Yahoo Search). Implemented in `backtest_api/services/market_*.py`.
 
 ## Install
 

@@ -130,6 +130,11 @@ class BacktestJobOut(BaseModel):
     finished_at: Optional[datetime] = None
 
 
+class BacktestLogLineOut(BaseModel):
+    ts: str
+    message: str
+
+
 class BacktestJobsDeleteBatchRequest(BaseModel):
     """Job ids to remove. Non-UUID strings are ignored. At most 200 unique valid UUIDs (see API)."""
 
@@ -341,3 +346,51 @@ class HealthResponseModel(BaseModel):
     backend: HealthComponentModel
     database: HealthComponentModel
     yfinance: HealthComponentModel
+
+
+MoversKindLiteral = Literal["gainers", "losers", "active"]
+
+
+class MarketSnapshotRow(BaseModel):
+    symbol: str
+    last: Optional[float] = None
+    pct_change_1d: Optional[float] = None
+    volume: Optional[float] = None
+    sparkline_close: list[float] = Field(default_factory=list)
+
+
+class MarketSnapshotRequest(BaseModel):
+    symbols: list[str] = Field(..., min_length=1, max_length=32)
+
+    @model_validator(mode="after")
+    def _non_empty_symbols(self) -> Self:
+        if not self.symbols:
+            raise ValueError("symbols must be non-empty")
+        return self
+
+
+class MarketSnapshotResponse(BaseModel):
+    rows: list[MarketSnapshotRow]
+
+
+class MarketMoverRow(BaseModel):
+    ticker: str
+    price: Optional[float] = None
+    pct_change: Optional[float] = None
+    volume: Optional[float] = None
+
+
+class MarketMoversResponse(BaseModel):
+    kind: MoversKindLiteral
+    rows: list[MarketMoverRow]
+
+
+class MarketHeadlineItem(BaseModel):
+    title: str
+    publisher: Optional[str] = None
+    link: Optional[str] = None
+    published_at: Optional[str] = None
+
+
+class MarketHeadlinesResponse(BaseModel):
+    headlines: list[MarketHeadlineItem]
