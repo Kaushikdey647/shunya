@@ -8,6 +8,7 @@ from typing import Any, Optional
 from backtest_api.backtest_windows import BACKTEST_SIM_END_EXCLUSIVE, BACKTEST_SIM_START
 from backtest_api.errors import FinTsConfigurationError
 from backtest_api.repositories import alphas as alphas_repo
+from backtest_api.repositories import backtests as jobs_repo
 from backtest_api.runner import run_backtest_from_payload
 from backtest_api.services.ohlcv_yfinance_backfill import (
     backfill_ohlcv_from_yfinance,
@@ -49,7 +50,7 @@ def execute_claimed_backtest_job(
     Returns ``(error_message, serialized_result, summary)`` — on success ``error_message`` is
     ``None`` and the other two are set; on failure ``error_message`` is set.
     """
-    _ = job_id
+    jobs_repo.append_job_log(job_id, "Worker started; resolving alpha and universe.")
     alpha_id = str(payload["alpha_id"])
     ar = alphas_repo.get_alpha_raw(alpha_id)
     if ar is None:

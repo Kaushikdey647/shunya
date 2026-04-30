@@ -168,6 +168,7 @@ def claim_next_queued_job() -> Optional[tuple[str, dict[str, Any]]]:
 def mark_job_succeeded(job_id: str, result: dict[str, Any], summary: dict[str, Any]) -> None:
     import psycopg
 
+    append_job_log(job_id, "Finished successfully.")
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -185,6 +186,7 @@ def mark_job_succeeded(job_id: str, result: dict[str, Any], summary: dict[str, A
 def mark_job_failed(job_id: str, message: str) -> None:
     import psycopg
 
+    append_job_log(job_id, "FAILED: " + message[:1200])
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -196,6 +198,61 @@ def mark_job_failed(job_id: str, message: str) -> None:
                 (message[:8000], job_id),
             )
         conn.commit()
+
+
+def append_job_log(job_id: str, message: str) -> None:
+    """Append one structured line to ``execution_log`` (JSON array of {ts, message})."""
+    import psycopg
+
+    try:
+        UUID(job_id)
+    except ValueError:
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+    chunk = json.dumps([{"ts": ts, "message": message[:4000]}])
+    with psycopg.connect(resolve_database_url()) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE api_backtest_jobs
+                SET execution_log = COALESCE(execution_log, '[]'::jsonb) || %s::jsonb
+                WHERE id = %s
+                """,
+                (chunk, job_id),
+            )
+        conn.commit()
+
+
+def get_job_logs(job_id: str) -> list[dict[str, Any]]:
+    import psycopg
+
+    try:
+        UUID(job_id)
+    except ValueError:
+        return []
+    with psycopg.connect(resolve_database_url()) as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT COALESCE(execution_log, '[]'::jsonb) AS execution_log
+                FROM api_backtest_jobs
+                WHERE id = %s
+                """,
+                (job_id,),
+            )
+            row = cur.fetchone()
+    if not row:
+        return []
+    raw = row.get("execution_log")
+    if isinstance(raw, str):
+        raw = json.loads(raw)
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if isinstance(item, dict) and "message" in item:
+            out.append({"ts": str(item.get("ts", "")), "message": str(item["message"])})
+    return out
 
 
 def delete_job(job_id: str) -> bool:

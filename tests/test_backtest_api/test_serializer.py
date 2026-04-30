@@ -31,3 +31,20 @@ def test_serialize_minimal() -> None:
     assert "metrics" in ser
     summ = result_summary_from_metrics(ser["metrics"])
     assert "total_return_pct" in summ
+    assert "sharpe_ratio" in summ
+
+
+def test_result_summary_includes_new_headline_keys_when_present() -> None:
+    metrics = {
+        "total_return_pct": 10.0,
+        "cagr_pct": 8.5,
+        "sharpe_ratio": 1.2,
+        "max_drawdown_pct": 5.0,
+        "win_rate_pct": 52.3,
+        "end_value": 110_000.0,
+        "bar_unit": "DAYS",
+        "bar_step": 1,
+    }
+    summ = result_summary_from_metrics(metrics)
+    assert summ["cagr_pct"] == 8.5
+    assert summ["win_rate_pct"] == 52.3

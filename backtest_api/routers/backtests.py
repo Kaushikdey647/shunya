@@ -13,6 +13,7 @@ from backtest_api.schemas.models import (
     BacktestJobOut,
     BacktestJobsDeleteBatchOut,
     BacktestJobsDeleteBatchRequest,
+    BacktestLogLineOut,
 )
 
 router = APIRouter(prefix="/backtests", tags=["backtests"])
@@ -66,6 +67,14 @@ def get_backtest(job_id: str) -> BacktestJobOut:
     if row is None:
         raise HTTPException(status_code=404, detail="Job not found.")
     return row
+
+
+@router.get("/{job_id}/logs", response_model=list[BacktestLogLineOut])
+def get_backtest_logs(job_id: str) -> list[BacktestLogLineOut]:
+    if jobs_repo.get_job(job_id) is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    rows = jobs_repo.get_job_logs(job_id)
+    return [BacktestLogLineOut(**r) for r in rows]
 
 
 @router.get("/{job_id}/result")

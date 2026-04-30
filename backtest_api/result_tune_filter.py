@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from backtest_api.backtest_windows import BACKTEST_TEST_START
+from shunya.algorithm.equity_metrics import cagr_pct_from_equity_df, win_rate_pct_from_equity_returns
 
 
 def _cutoff_timestamp(equity_index: pd.DatetimeIndex) -> pd.Timestamp:
@@ -80,6 +81,9 @@ def _recompute_metrics(
     else:
         sharpe_trimmed = None
 
+    cagr_pct = cagr_pct_from_equity_df(eq)
+    win_rate_pct = win_rate_pct_from_equity_returns(eq_ret)
+
     exec_start = prior_metrics.get("execution_start")
     trimmed_pre = prior_metrics.get("trimmed_pre_execution")
 
@@ -91,6 +95,8 @@ def _recompute_metrics(
         "max_drawdown_pct": max_drawdown_pct,
         "max_drawdown_len": int(max_dd_len),
         "sharpe_ratio": sharpe_trimmed,
+        "cagr_pct": cagr_pct,
+        "win_rate_pct": win_rate_pct,
         "execution_start": exec_start,
         "trimmed_pre_execution": trimmed_pre,
         "bar_unit": bar_unit,

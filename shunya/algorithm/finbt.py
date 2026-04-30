@@ -10,6 +10,7 @@ import pandas as pd
 
 from ..data.fints import finTs
 from ..data.timeframes import bar_spec_is_intraday
+from .equity_metrics import cagr_pct_from_equity_df, win_rate_pct_from_equity_returns
 from .finstrat import FinStrat
 from .targets import (
     apply_group_gross_cap,
@@ -446,6 +447,8 @@ class FinBT:
             )
         else:
             sharpe_trimmed = None
+        cagr_pct = cagr_pct_from_equity_df(equity)
+        win_rate_pct = win_rate_pct_from_equity_returns(eq_ret)
         metrics = {
             "start_value": start_val,
             "end_value": end_val,
@@ -454,6 +457,8 @@ class FinBT:
             "max_drawdown_pct": max_drawdown_pct,
             "max_drawdown_len": int(max_dd_len),
             "sharpe_ratio": sharpe_trimmed,
+            "cagr_pct": cagr_pct,
+            "win_rate_pct": win_rate_pct,
             "execution_start": str(execution_start) if execution_start is not None else None,
             "trimmed_pre_execution": bool(not include_pre_execution and execution_start is not None),
             "bar_unit": str(bar.unit),

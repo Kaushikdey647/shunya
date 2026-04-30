@@ -97,8 +97,10 @@ def serialize_backtest_result(
 def result_summary_from_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
     keys = (
         "total_return_pct",
+        "cagr_pct",
         "sharpe_ratio",
         "max_drawdown_pct",
+        "win_rate_pct",
         "end_value",
         "bar_unit",
         "bar_step",
