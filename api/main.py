@@ -48,6 +48,12 @@ def create_app() -> FastAPI:
     def health() -> HealthResponseModel:
         return collect_health()
 
+    @app.get("/healthz")
+    def healthz() -> dict[str, str]:
+        """Fast liveness probe (no DB / Yahoo). Use for Railway and load balancers."""
+
+        return {"status": "ok"}
+
     return app
 
 

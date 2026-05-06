@@ -1,0 +1,26 @@
+# Railway config-as-code — https://docs.railway.com/config-as-code
+#
+# Healthchecks: Railway waits until the path returns HTTP 200 before routing traffic.
+# Do NOT use GET /health here — it runs Postgres + yfinance work and can time out.
+# See https://docs.railway.com/deployments/healthchecks
+#
+# If probes still fail with "service unavailable", confirm:
+#   • Start command listens on $PORT (Railway injects it).
+#   • Target port / custom PORT variables match (networking docs).
+#   • Optional: RAILWAY_HEALTHCHECK_TIMEOUT_SEC (seconds) to extend the retry window.
+#
+# Before first deploy:
+#   • Reference Postgres DATABASE_URL on this service (TCP URL with hostname).
+#   • Run `shunya-timescale migrate` once (shell or pre-deploy) after DB exists.
+#
+# JSON schema (VS Code): https://railway.com/railway.schema.json
+
+[build]
+builder = "RAILPACK"
+buildCommand = "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && uv sync --frozen --extra api --extra timescale --no-dev"
+
+[deploy]
+startCommand = ".venv/bin/uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"

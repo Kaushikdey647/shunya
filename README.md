@@ -21,6 +21,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension pat
 | `shunya.algorithm` | `FinStrat` (context-based alpha pipeline), `FinBT` (backtrader), `FinTrade` (Alpaca live/paper orders), `cross_section` (rank, zscore, winsorize, neutralization) |
 | `shunya.streaming` | Event/tick plumbing for Alpaca-style streaming: normalized market events, per-symbol FIFO buffers, micro-bar aggregation, universe/subscription helpers, and rectangular snapshots for alpha evaluation |
 | `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
+| `api` | **FastAPI** service (alphas, backtest jobs, data dashboard, instruments, market routes); requires optional install `--extra api` (+ `--extra timescale` when using Postgres). See [HTTP API and dashboard](#http-api-and-dashboard-api). |
 
 Common imports from `shunya` (illustrative):
 
@@ -107,6 +108,8 @@ pip install "shunya-py[timescale]"   # optional: Postgres client for local Times
 
 # From a clone (installs the local project; add --extra notebook for Jupyter notebooks):
 uv sync --extra dev --extra timescale
+# optional: HTTP API + worker (FastAPI)
+# uv sync --extra dev --extra timescale --extra api
 uv run pytest
 ```
 
@@ -191,7 +194,23 @@ Equivalent: `python -m shunya.data.timescale.cli …`. Override the DSN per run 
 
 ### HTTP API and dashboard (`api`)
 
-**Backtest HTTP API (repo clone):** optional extras `api` + `timescale`, migrations (includes `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`), then `uv run uvicorn api.main:app` or `uv run python -m api`. Supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`api/README.md`](api/README.md)).
+The **Python package** is imported as `api` (directory `api/` at **repo root**; it is not shipped in the PyPI wheel, which only bundles `shunya`). From a **clone**, install API dependencies with **`uv sync --extra api`** (add **`--extra timescale`** when routes need Postgres). The **`api`** optional extra on PyPI exists so dependency versions align when developing from source; use **`pip install "shunya-py[api,timescale]"`** only when you need those libraries alongside a checkout.
+
+**Run locally** after migrations:
+
+```bash
+uv sync --extra api --extra timescale
+export DATABASE_URL=postgresql://...   # optional; many routes need it
+shunya-timescale migrate                 # if using Timescale
+uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+# or: uv run python -m api
+```
+
+Bind address and port default to `127.0.0.1` / `8000`; override with **`SHUNYA_API_HOST`** and **`SHUNYA_API_PORT`**. For **Railway** and similar hosts, bind **`0.0.0.0`** and **`PORT`** (e.g. `uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT`). Use **`GET /healthz`** for load-balancer liveness (instant **200**); **`GET /health`** runs Postgres + Yahoo checks and is not suitable as a deploy probe. Example Railway settings: [`railway.toml`](railway.toml).
+
+**Docker Compose:** `docker compose up` starts TimescaleDB plus the API (`uvicorn api.main:app` on port **8000**); see [`docker-compose.yml`](docker-compose.yml).
+
+**Backtest HTTP API (repo clone):** migrations include `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`. The API supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`api/README.md`](api/README.md)).
 
 Additional **market overview** routes (yfinance-backed, used by the **shunya-ui** home dashboard):
 
@@ -279,12 +298,15 @@ pip install shunya-py
 pip install "shunya-py[notebook]"
 # optional: local TimescaleDB ingest + DB-backed market/fundamental providers
 pip install "shunya-py[timescale]"
+# optional: FastAPI/uvicorn deps (use with a repo clone; the `api` module is not in the wheel)
+pip install "shunya-py[api]"
 ```
 
 Install from a clone (e.g. with [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 uv sync
+# optional: FastAPI HTTP API — add --extra api (+ --extra timescale for DB-backed routes)
 ```
 
 ## Classification and sector controls
@@ -340,8 +362,9 @@ uv sync
 ## Development tests
 
 ```bash
-uv sync --all-extras
+uv sync --extra dev --extra timescale --extra api   # or: uv sync --all-extras
 uv run pytest                      # default: unit tests only (@pytest.mark.timescale skipped unless env set)
+uv run pytest tests/test_api/ -m "not timescale"   # FastAPI package tests only (no DB container)
 export DATABASE_URL=postgresql://... && uv run pytest -m timescale   # against your DB
 # or: SHUNYA_RUN_TIMESCALE_CONTAINER=1 uv run pytest -m timescale     # ephemeral Timescale via Docker
 ```

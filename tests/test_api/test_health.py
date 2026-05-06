@@ -14,6 +14,16 @@ async def _worker_no_db(stop: asyncio.Event) -> None:
     await stop.wait()
 
 
+def test_healthz_returns_200(monkeypatch) -> None:
+    from api.main import create_app
+
+    monkeypatch.setattr("api.main.backtest_worker_loop", _worker_no_db)
+    with TestClient(create_app()) as client:
+        r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
 def test_health_ok_all_components(monkeypatch) -> None:
     from api import health_checks
     from api.main import create_app
