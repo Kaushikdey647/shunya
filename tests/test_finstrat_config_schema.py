@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backtest_api.schemas.models import FinStratConfig
+from api.schemas.models import FinStratConfig
 
 
 def test_finstrat_config_maps_legacy_group_to_sector() -> None:

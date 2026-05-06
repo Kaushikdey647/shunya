@@ -1,4 +1,4 @@
-"""Tests for shunya.algorithm.equity_metrics (no backtest_api imports)."""
+"""Tests for shunya.algorithm.equity_metrics (no api imports)."""
 
 from __future__ import annotations
 

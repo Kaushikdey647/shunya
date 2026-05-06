@@ -78,8 +78,8 @@ def main() -> int:
         print(f"dry-run: {len(rows)} alpha(s)")
         return 0
 
-    from backtest_api.repositories.alphas import insert_alpha, list_alphas
-    from backtest_api.schemas.models import AlphaCreate
+    from api.repositories.alphas import insert_alpha, list_alphas
+    from api.schemas.models import AlphaCreate
 
     existing = {a.name for a in list_alphas(limit=5000, offset=0)}
     inserted = 0

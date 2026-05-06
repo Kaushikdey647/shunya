@@ -35,7 +35,7 @@ services:
         pip install --no-cache-dir uv &&
         cd /workspace &&
         uv sync --frozen --extra api --extra timescale &&
-        uv run uvicorn backtest_api.main:app --host 0.0.0.0 --port 8000
+        uv run uvicorn api.main:app --host 0.0.0.0 --port 8000
 
 volumes:
   shunya_ts_data:

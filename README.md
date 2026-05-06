@@ -11,7 +11,7 @@ Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension patterns, and coding guidelines.
 
-**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-backtest_api) · [Streaming](#streaming-tick-to-trade-foundation) · [Development tests](#development-tests) · [Documentation](#documentation)
+**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Streaming](#streaming-tick-to-trade-foundation) · [Development tests](#development-tests) · [Documentation](#documentation)
 
 ## Layout
 
@@ -189,9 +189,9 @@ shunya-timescale ingest-ohlcv --symbols-from-db --start 2010-01-01 --end 2026-01
 
 Equivalent: `python -m shunya.data.timescale.cli …`. Override the DSN per run with `--database-url`.
 
-### HTTP API and dashboard (`backtest_api`)
+### HTTP API and dashboard (`api`)
 
-**Backtest HTTP API (repo clone):** optional extras `api` + `timescale`, migrations (includes `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`), then `uv run uvicorn backtest_api.main:app` or `uv run python -m backtest_api`. Supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`backtest_api/README.md`](backtest_api/README.md)).
+**Backtest HTTP API (repo clone):** optional extras `api` + `timescale`, migrations (includes `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`), then `uv run uvicorn api.main:app` or `uv run python -m api`. Supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`api/README.md`](api/README.md)).
 
 Additional **market overview** routes (yfinance-backed, used by the **shunya-ui** home dashboard):
 
@@ -201,7 +201,7 @@ Additional **market overview** routes (yfinance-backed, used by the **shunya-ui*
 | `GET` | `/market/movers` | Predefined Yahoo screeners: `kind=gainers\|losers\|active`. |
 | `GET` | `/market/headlines` | Broad financial headlines via Yahoo Search. |
 
-Service implementations live under `backtest_api/services/` (`market_snapshot.py`, `market_movers.py`, `market_headlines.py`); shared symbol validation is `backtest_api/services/market_symbols.py`.
+Service implementations live under `api/services/` (`market_snapshot.py`, `market_movers.py`, `market_headlines.py`); shared symbol validation is `api/services/market_symbols.py`.
 
 **Read in code:**
 
@@ -364,4 +364,4 @@ Build with `uv build` (wheel and sdist). Upload with [Twine](https://twine.readt
 - Main usage and behavior: [`README.md`](README.md)
 - Contributor and architecture guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - Local Timescale market store (compose, migrate, ingest, `finTs`): [`docs/data_timescale.md`](docs/data_timescale.md)
-- **Backtest + instrument HTTP API** (alphas, jobs, data dashboard, instruments, **market** overview): [`backtest_api/README.md`](backtest_api/README.md)
+- **Backtest + instrument HTTP API** (alphas, jobs, data dashboard, instruments, **market** overview): [`api/README.md`](api/README.md)
