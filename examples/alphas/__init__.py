@@ -11,6 +11,7 @@ from .mean_reversion_20 import alpha as mean_reversion_20
 from .sma20_deviation_rank import alpha as sma20_deviation_rank
 from .sma20_deviation_zscore import alpha as sma20_deviation_zscore
 from .sma_ratio_20 import alpha as sma_ratio_20
+from .zaremba_2019_alpha_momentum_reversal import alpha as zaremba_2019_alpha_momentum_reversal
 
 ALL_ALPHAS = {
     "sma_ratio_20": sma_ratio_20,
@@ -19,6 +20,7 @@ ALL_ALPHAS = {
     "sma20_deviation_rank": sma20_deviation_rank,
     "sma20_deviation_zscore": sma20_deviation_zscore,
     "fundamental_quality_yf": fundamental_quality_yf,
+    "zaremba_2019_alpha_momentum_reversal": zaremba_2019_alpha_momentum_reversal,
 }
 
 __all__ = [
@@ -28,5 +30,6 @@ __all__ = [
     "breakout_20",
     "sma20_deviation_rank",
     "fundamental_quality_yf",
+    "zaremba_2019_alpha_momentum_reversal",
 ]
 
