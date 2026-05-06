@@ -208,6 +208,8 @@ uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 
 Bind address and port default to `127.0.0.1` / `8000`; override with **`SHUNYA_API_HOST`** and **`SHUNYA_API_PORT`**. For **Railway** and similar hosts, bind **`0.0.0.0`** and **`PORT`** (e.g. `uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT`). Use **`GET /healthz`** for load-balancer liveness (instant **200**); **`GET /health`** runs Postgres + Yahoo checks and is not suitable as a deploy probe. Example Railway settings: [`railway.toml`](railway.toml).
 
+**Browser CORS:** If the UI is served from another origin (e.g. **shunya-ui** on Vercel), set **`SHUNYA_CORS_ORIGINS`** to a comma-separated **allowlist** of exact origins—scheme + host (+ optional port), **no path or trailing slash**. Example: `SHUNYA_CORS_ORIGINS=https://shunya-ui.vercel.app`. Add preview URLs as separate entries if needed. Register this on the **API** service (Railway variables); restart/redeploy so `create_app()` picks it up. Leave unset for same-origin or non-browser clients only.
+
 **Docker Compose:** `docker compose up` starts TimescaleDB plus the API (`uvicorn api.main:app` on port **8000**); see [`docker-compose.yml`](docker-compose.yml).
 
 **Backtest HTTP API (repo clone):** migrations include `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`. The API supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`api/README.md`](api/README.md)).

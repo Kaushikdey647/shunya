@@ -7,6 +7,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.health_checks import collect_health
 from api.repositories import backtests as jobs_repo
@@ -14,6 +15,14 @@ from api.routers import alphas, backtests, data, indices, instruments, market
 from api.schemas.models import HealthResponseModel
 
 _log = logging.getLogger(__name__)
+
+
+def _parse_cors_allow_origins() -> list[str]:
+    """Comma-separated browser origins for CORS (e.g. ``https://app.vercel.app``)."""
+    raw = os.environ.get("SHUNYA_CORS_ORIGINS", "").strip()
+    if not raw:
+        return []
+    return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 @asynccontextmanager
@@ -37,6 +46,17 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Shunya backtest API", version="0.1.0", lifespan=lifespan)
+
+    cors_origins = _parse_cors_allow_origins()
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
     app.include_router(alphas.router)
     app.include_router(indices.router)
     app.include_router(backtests.router)

@@ -53,6 +53,7 @@ Alternatively, use Docker Compose in this repo (`api` service mounts the repo an
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` / `SHUNYA_DATABASE_URL` | Postgres for API tables + Timescale OHLCV reads |
+| `SHUNYA_CORS_ORIGINS` | Optional comma-separated browser origins for cross-origin frontends (e.g. `https://app.vercel.app`). Omit if the UI is same-origin or only server-side clients call the API. |
 | `SHUNYA_RUN_TIMESCALE_CONTAINER` | Set to `1` to run Timescale-backed tests via Docker testcontainers when `DATABASE_URL` is unset, and for an **isolated** DB for `test_alphas_crud_and_backtest_job` (ignores shared `DATABASE_URL` for that fixture). |
 | `SHUNYA_API_INTEGRATION_DATABASE_URL` | Optional **dedicated** Postgres URL for queue-based API integration tests (`test_alphas_crud_and_backtest_job`). Use when you cannot run Docker testcontainers but must not share the job queue with another process (e.g. a running `uvicorn` on the same `DATABASE_URL`). |
 | `SHUNYA_TRUST_SHARED_DATABASE_FOR_QUEUE_TESTS` | Set to `1` only with `DATABASE_URL` / `SHUNYA_DATABASE_URL` when **no** other API worker process uses that database; otherwise job-queue tests can flake or fail. Prefer testcontainers or `SHUNYA_API_INTEGRATION_DATABASE_URL`. |

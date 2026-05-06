@@ -12,6 +12,8 @@
 # Before first deploy:
 #   • Reference Postgres DATABASE_URL on this service (TCP URL with hostname).
 #   • Run `shunya-timescale migrate` once (shell or pre-deploy) after DB exists.
+#   • If the UI is on another host (e.g. Vercel), set SHUNYA_CORS_ORIGINS to that
+#     origin (comma-separated list), e.g. https://your-app.vercel.app
 #
 # JSON schema (VS Code): https://railway.com/railway.schema.json
 
