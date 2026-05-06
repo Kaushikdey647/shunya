@@ -320,6 +320,164 @@ class InstrumentOhlcvResponse(BaseModel):
     storage_skipped: bool = False
 
 
+InstrumentKindLiteral = Literal[
+    "equity",
+    "etf",
+    "mutualfund",
+    "option",
+    "index",
+    "currency",
+    "future",
+    "crypto",
+    "structured",
+    "unknown",
+]
+
+InstrumentStatementLiteral = Literal["income", "balance", "cashflow"]
+InstrumentFinancialFrequencyLiteral = Literal["quarterly", "annual"]
+
+
+class InstrumentFeatureAvailability(BaseModel):
+    """Which lazy instrument sections are meaningful for this symbol (UI may still 200 empty)."""
+
+    financials: bool = False
+    holders: bool = False
+    options_chain: bool = False
+
+
+class InstrumentValuationMetrics(BaseModel):
+    trailing_pe: Optional[float] = None
+    forward_pe: Optional[float] = None
+    trailing_eps: Optional[float] = None
+    forward_eps: Optional[float] = None
+    return_on_equity: Optional[float] = None
+    return_on_assets: Optional[float] = None
+    price_to_book: Optional[float] = None
+    price_to_sales: Optional[float] = None
+    debt_to_equity: Optional[float] = None
+
+
+class InstrumentExecutive(BaseModel):
+    name: Optional[str] = None
+    title: Optional[str] = None
+    year_born: Optional[int] = None
+
+
+class InstrumentCompanyProfile(BaseModel):
+    long_business_summary: Optional[str] = None
+    sector: Optional[str] = None
+    industry: Optional[str] = None
+    address_line1: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    country: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    full_time_employees: Optional[int] = None
+
+
+class InstrumentFundTopHolding(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    holding_percent: Optional[float] = None
+
+
+class InstrumentFundSummary(BaseModel):
+    fund_family: Optional[str] = None
+    category: Optional[str] = None
+    expense_ratio: Optional[float] = None
+    yield_pct: Optional[float] = None
+    top_holdings: list[InstrumentFundTopHolding] = Field(default_factory=list)
+
+
+class InstrumentOptionContractSummary(BaseModel):
+    underlying_symbol: Optional[str] = None
+    strike: Optional[float] = None
+    expire_date: Optional[str] = None
+    contract_type: Optional[str] = None
+    last_price: Optional[float] = None
+    bid: Optional[float] = None
+    ask: Optional[float] = None
+    volume: Optional[int] = None
+    open_interest: Optional[int] = None
+    implied_volatility: Optional[float] = None
+
+
+class InstrumentOverviewResponse(BaseModel):
+    symbol: str
+    instrument_kind: InstrumentKindLiteral
+    yahoo_quote_type: Optional[str] = None
+    short_name: Optional[str] = None
+    long_name: Optional[str] = None
+    exchange: Optional[str] = None
+    currency: Optional[str] = None
+    market_cap: Optional[float] = None
+    beta: Optional[float] = None
+    valuation: InstrumentValuationMetrics = Field(default_factory=InstrumentValuationMetrics)
+    company: Optional[InstrumentCompanyProfile] = None
+    fund: Optional[InstrumentFundSummary] = None
+    option_contract: Optional[InstrumentOptionContractSummary] = None
+    executives: list[InstrumentExecutive] = Field(default_factory=list)
+    features: InstrumentFeatureAvailability = Field(default_factory=InstrumentFeatureAvailability)
+
+
+class InstrumentFinancialLineRow(BaseModel):
+    label: str
+    values: list[Optional[float]]
+
+
+class InstrumentFinancialStatementResponse(BaseModel):
+    symbol: str
+    statement: InstrumentStatementLiteral
+    frequency: InstrumentFinancialFrequencyLiteral
+    periods: list[str]
+    rows: list[InstrumentFinancialLineRow]
+    truncated: bool = False
+    available: bool = True
+
+
+class InstrumentHolderRow(BaseModel):
+    holder: str
+    date_reported: Optional[str] = None
+    shares: Optional[float] = None
+    value: Optional[float] = None
+    percent_held: Optional[float] = None
+    percent_change: Optional[float] = None
+
+
+class InstrumentHoldersResponse(BaseModel):
+    symbol: str
+    institutional: list[InstrumentHolderRow] = Field(default_factory=list)
+    mutual_funds: list[InstrumentHolderRow] = Field(default_factory=list)
+    available_institutional: bool = True
+    available_mutual_funds: bool = True
+
+
+class InstrumentOptionExpirationsResponse(BaseModel):
+    symbol: str
+    expirations: list[str] = Field(default_factory=list)
+    available: bool = True
+
+
+class InstrumentOptionLegRow(BaseModel):
+    strike: float
+    last: Optional[float] = None
+    bid: Optional[float] = None
+    ask: Optional[float] = None
+    volume: Optional[int] = None
+    open_interest: Optional[int] = None
+    implied_volatility: Optional[float] = None
+
+
+class InstrumentOptionChainResponse(BaseModel):
+    symbol: str
+    expiry: str
+    calls: list[InstrumentOptionLegRow] = Field(default_factory=list)
+    puts: list[InstrumentOptionLegRow] = Field(default_factory=list)
+    available: bool = True
+
+
 class IngestionRunOut(BaseModel):
     id: int
     job: str

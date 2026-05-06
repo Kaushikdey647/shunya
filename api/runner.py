@@ -75,6 +75,7 @@ def run_backtest_job(
     serialized = serialize_backtest_result(
         out,
         max_target_history=settings.max_target_history_points,
+        max_group_exposure_history=settings.max_group_exposure_history_points,
     )
     if body.benchmark_ticker:
         try:

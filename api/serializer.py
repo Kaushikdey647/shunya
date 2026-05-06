@@ -58,10 +58,39 @@ def turnover_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
     return out
 
 
+def _serialize_group_exposure_history(
+    raw_list: Any, *, max_points: int
+) -> list[dict[str, Any]]:
+    if not isinstance(raw_list, list) or not raw_list:
+        return []
+    tail = raw_list[-max_points:] if len(raw_list) > max_points else raw_list
+    out: list[dict[str, Any]] = []
+    for item in tail:
+        if isinstance(item, tuple) and len(item) == 2:
+            dt, payload = item
+            if not isinstance(payload, dict):
+                continue
+            gross = payload.get("gross_by_group")
+            net = payload.get("net_by_group")
+            if not isinstance(gross, dict):
+                gross = {}
+            if not isinstance(net, dict):
+                net = {}
+            out.append(
+                {
+                    "date": pd.Timestamp(dt).isoformat(),
+                    "gross_by_group": {str(k): _json_scalar(v) for k, v in gross.items()},
+                    "net_by_group": {str(k): _json_scalar(v) for k, v in net.items()},
+                }
+            )
+    return out
+
+
 def serialize_backtest_result(
     raw: dict[str, Any],
     *,
     max_target_history: int = 500,
+    max_group_exposure_history: int = 500,
 ) -> dict[str, Any]:
     metrics = {k: _json_scalar(v) for k, v in raw["metrics"].items()}
     eq = raw["equity_curve"]
@@ -83,6 +112,11 @@ def serialize_backtest_result(
         else:
             target_ser.append(_json_scalar(item))
 
+    group_exp = _serialize_group_exposure_history(
+        raw.get("group_exposure_history"),
+        max_points=max_group_exposure_history,
+    )
+
     return {
         "metrics": metrics,
         "equity_curve": equity_records,
@@ -91,6 +125,7 @@ def serialize_backtest_result(
         "drawdown_analysis": _json_scalar(raw.get("drawdown_analysis")),
         "sharpe_analysis": _json_scalar(raw.get("sharpe_analysis")),
         "target_history": target_ser,
+        "group_exposure_history": group_exp,
     }
 
 

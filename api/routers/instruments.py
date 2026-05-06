@@ -10,13 +10,27 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from api.schemas.models import (
     IngestionRunOut,
+    InstrumentFinancialFrequencyLiteral,
+    InstrumentFinancialStatementResponse,
+    InstrumentHoldersResponse,
     InstrumentNavLink,
+    InstrumentOptionChainResponse,
+    InstrumentOptionExpirationsResponse,
     InstrumentOhlcvResponse,
+    InstrumentOverviewResponse,
     InstrumentSearchNewsItem,
     InstrumentSearchQuote,
     InstrumentSearchResponse,
+    InstrumentStatementLiteral,
     InstrumentTickerNewsItem,
     InstrumentTickerNewsResponse,
+)
+from api.services.instrument_dashboard import (
+    fetch_instrument_financials,
+    fetch_instrument_holders,
+    fetch_instrument_overview,
+    fetch_option_chain,
+    fetch_option_expirations,
 )
 from api.services.instrument_ohlcv import PendingOhlcvWriteback, resolve_instrument_ohlcv_sync
 from api.services.market_symbols import SYMBOL_RE, normalize_market_symbol
@@ -331,6 +345,50 @@ async def get_ingestion_run(run_id: int) -> IngestionRunOut:
     if row is None:
         raise HTTPException(status_code=404, detail="ingestion run not found")
     return IngestionRunOut(**row)
+
+
+@router.get("/{symbol}/overview", response_model=InstrumentOverviewResponse)
+async def get_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_overview, sym)
+
+
+@router.get("/{symbol}/financials", response_model=InstrumentFinancialStatementResponse)
+async def get_instrument_financials(
+    symbol: str,
+    statement: InstrumentStatementLiteral = Query(..., description="income, balance, or cashflow"),
+    frequency: InstrumentFinancialFrequencyLiteral = Query("quarterly"),
+    periods: int = Query(8, ge=1, le=8),
+) -> InstrumentFinancialStatementResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(
+        fetch_instrument_financials,
+        sym,
+        statement=statement,
+        frequency=frequency,
+        periods=periods,
+    )
+
+
+@router.get("/{symbol}/holders", response_model=InstrumentHoldersResponse)
+async def get_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_holders, sym)
+
+
+@router.get("/{symbol}/options/expirations", response_model=InstrumentOptionExpirationsResponse)
+async def get_instrument_option_expirations(symbol: str) -> InstrumentOptionExpirationsResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_option_expirations, sym)
+
+
+@router.get("/{symbol}/options/chain", response_model=InstrumentOptionChainResponse)
+async def get_instrument_option_chain(
+    symbol: str,
+    expiry: str = Query(..., min_length=10, max_length=10, description="Expiry YYYY-MM-DD"),
+) -> InstrumentOptionChainResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_option_chain, sym, expiry)
 
 
 @router.get("/{symbol}/news", response_model=InstrumentTickerNewsResponse)
