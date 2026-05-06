@@ -12,6 +12,7 @@ from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_index_policy
 from shunya.data.timescale.ingest_lib import UPSERT_OHLCV_SQL, ensure_symbols, rows_from_provider_ohlcv
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
+from shunya.data.timescale.market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
 
 from api.db import resolve_database_url
 
@@ -139,11 +140,15 @@ def backfill_ohlcv_from_yfinance(
                     tmap = ensure_symbols(cur, symbols)
                     rows = rows_from_provider_ohlcv(df, tmap, interval=interval_key, source=source)
                     n = 0
-                    for chunk_start in range(0, len(rows), 2000):
-                        chunk = rows[chunk_start : chunk_start + 2000]
-                        cur.executemany(UPSERT_OHLCV_SQL, chunk)
-                        n += len(chunk)
-                    total += n
+                for chunk_start in range(0, len(rows), 2000):
+                    chunk = rows[chunk_start : chunk_start + 2000]
+                    cur.executemany(UPSERT_OHLCV_SQL, chunk)
+                    n += len(chunk)
+                for sym_ticker, sym_id in tmap.items():
+                    touch_ohlcv_refresh_manifest_on_cursor(
+                        cur, symbol_id=sym_id, interval=interval_key, source=source
+                    )
+                total += n
                 conn.commit()
 
         with psycopg.connect(dsn) as conn:

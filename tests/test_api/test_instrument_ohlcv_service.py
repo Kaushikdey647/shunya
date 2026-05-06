@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -77,6 +78,11 @@ def test_case1_timescale_complete(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "api.services.instrument_ohlcv.validate_core_ohlcv_coverage",
         lambda *a, **k: None,
+    )
+
+    monkeypatch.setattr(
+        "api.services.instrument_ohlcv.fetch_ohlcv_manifest_last_refresh_sync",
+        lambda *a, **k: datetime.now(timezone.utc),
     )
 
     mock_yf = MagicMock()

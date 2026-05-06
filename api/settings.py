@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     index_ohlcv_backfill_batch_size: int = 40
     """Tickers per yfinance download when backfilling OHLCV for failed index backtests."""
 
+    market_data_cache_ttl_days: int = 30
+    """Ignore Timescale OHLCV manifest and instrument yfinance JSON cache older than this many days."""
+
     # Yahoo price repair uses env_yfinance_repair_default():
     # SHUNYA_YFINANCE_REPAIR or SHUNYA_API_YFINANCE_REPAIR — see shunya.data.providers.
 

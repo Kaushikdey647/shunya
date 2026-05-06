@@ -29,6 +29,7 @@ from .ingest_lib import (
     symbol_classification_upsert_tuple,
 )
 from .intervals import bar_spec_to_interval_key
+from .market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
 
 
 def _parse_symbols(s: str) -> List[str]:
@@ -182,6 +183,10 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
                 chunk = rows[chunk_start : chunk_start + 2000]
                 cur.executemany(UPSERT_OHLCV_SQL, chunk)
                 n += len(chunk)
+            for _sym_t, sym_id in tmap.items():
+                touch_ohlcv_refresh_manifest_on_cursor(
+                    cur, symbol_id=sym_id, interval=interval, source=source
+                )
             cur.execute(
                 """
                 UPDATE ingestion_runs

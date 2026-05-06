@@ -2,48 +2,28 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import time
 from dataclasses import dataclass
+
 import pandas as pd
 from fastapi import HTTPException
 
 from api.schemas.models import InstrumentOhlcvResponse, OhlcvBar
-from shunya.data.providers import YFinanceMarketDataProvider
+from api.settings import get_settings
+from shunya.data.providers import YFinanceMarketDataProvider, env_yfinance_repair_default
 from shunya.data.timeframes import bar_spec_is_intraday, default_bar_index_policy
-from api.settings import env_yfinance_repair_default
-from shunya.data.yfinance_session import build_yfinance_session
-from shunya.data.validation import validate_core_ohlcv_coverage
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
+from shunya.data.timescale.market_cache_lib import (
+    fetch_ohlcv_manifest_last_refresh_sync,
+    ohlcv_manifest_is_fresh,
+)
 from shunya.data.timescale.ohlcv_window import period_to_utc_bounds, yfinance_interval_to_bar_spec
 from shunya.data.timescale.ohlcv_writeback import replace_ohlcv_range_sync
+from shunya.data.validation import validate_core_ohlcv_coverage
+from shunya.data.yfinance_session import build_yfinance_session
 
 _log = logging.getLogger(__name__)
-
-# #region agent log
-_AGENT_DEBUG_LOG = "/Users/kaushik.dey1/PythonProjects/shunya/.cursor/debug-612bbe.log"
-
-
-def _agent_log(hypothesis_id: str, message: str, data: dict) -> None:
-    try:
-        payload = {
-            "sessionId": "612bbe",
-            "runId": "post-fix",
-            "hypothesisId": hypothesis_id,
-            "location": "instrument_ohlcv.resolve",
-            "message": message,
-            "data": data,
-            "timestamp": int(time.time() * 1000),
-        }
-        with open(_AGENT_DEBUG_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, default=str) + "\n")
-    except OSError:
-        pass
-
-
-# #endregion
 
 OHLCV_SOURCE = "yfinance"
 MAX_OHLCV_ROWS = 5000
@@ -182,6 +162,7 @@ def resolve_instrument_ohlcv_sync(
     policy = default_bar_index_policy()
     intraday = bar_spec_is_intraday(bar_spec)
     val_start, val_end = _validation_window(start_inclusive, end_exclusive, intraday=intraday)
+    cache_ttl_days = get_settings().market_data_cache_ttl_days
 
     session = build_yfinance_session()
 
@@ -219,49 +200,52 @@ def resolve_instrument_ohlcv_sync(
                 bar_index_policy=policy,
             )
             if ts_df is not None and not ts_df.empty:
-                try:
-                    validate_core_ohlcv_coverage(
-                        ts_df,
-                        ticker_list=[symbol],
-                        start=val_start,
-                        end=val_end,
-                        bar_spec=bar_spec,
-                        strict_provider_universe=True,
-                        strict_ohlcv=True,
-                        strict_empty=True,
-                        strict_trading_grid=True,
-                        bar_index_policy=policy,
+                last_refresh = fetch_ohlcv_manifest_last_refresh_sync(
+                    dsn, ticker=symbol, interval=interval_key, source=OHLCV_SOURCE
+                )
+                if not ohlcv_manifest_is_fresh(last_refresh, ttl_days=cache_ttl_days):
+                    _log.info(
+                        "timescale ohlcv skipped (manifest missing/stale) for %s interval=%s",
+                        symbol,
+                        interval_key,
                     )
-                    bars = _dataframe_to_bars(
-                        _flatten_ohlcv_for_symbol(ts_df, symbol), max_rows=MAX_OHLCV_ROWS
-                    )
-                    return InstrumentOhlcvResult(
-                        response=InstrumentOhlcvResponse(
-                            symbol=symbol,
-                            interval=interval,
-                            period=period,
-                            bars=bars,
-                            data_source="timescale",
-                            storage_status="none",
-                            storage_error=None,
-                            storage_job_id=None,
-                            storage_skipped=False,
+                else:
+                    try:
+                        validate_core_ohlcv_coverage(
+                            ts_df,
+                            ticker_list=[symbol],
+                            start=val_start,
+                            end=val_end,
+                            bar_spec=bar_spec,
+                            strict_provider_universe=True,
+                            strict_ohlcv=True,
+                            strict_empty=True,
+                            strict_trading_grid=True,
+                            bar_index_policy=policy,
                         )
-                    )
-                except ValueError as exc:
-                    _log.info("timescale ohlcv incomplete for %s: %s", symbol, exc)
+                        bars = _dataframe_to_bars(
+                            _flatten_ohlcv_for_symbol(ts_df, symbol), max_rows=MAX_OHLCV_ROWS
+                        )
+                        return InstrumentOhlcvResult(
+                            response=InstrumentOhlcvResponse(
+                                symbol=symbol,
+                                interval=interval,
+                                period=period,
+                                bars=bars,
+                                data_source="timescale",
+                                storage_status="none",
+                                storage_error=None,
+                                storage_job_id=None,
+                                storage_skipped=False,
+                            )
+                        )
+                    except ValueError as exc:
+                        _log.info("timescale ohlcv incomplete for %s: %s", symbol, exc)
         except Exception as exc:  # noqa: BLE001
             _log.info("timescale read failed for %s: %s", symbol, exc)
 
     yf_df = _fetch_yfinance_ohlcv(symbol, bar_spec, start_inclusive, end_exclusive, session)
     if yf_df is None or yf_df.empty:
-        # #region agent log
-        _agent_log(
-            "H4",
-            "yfinance_empty_or_none",
-            {"symbol": symbol, "is_none": yf_df is None, "empty": yf_df is None or bool(yf_df.empty)},
-        )
-        # #endregion
         return InstrumentOhlcvResult(
             response=InstrumentOhlcvResponse(
                 symbol=symbol,
@@ -276,43 +260,8 @@ def resolve_instrument_ohlcv_sync(
             )
         )
 
-    # #region agent log
-    _mi = isinstance(yf_df.columns, pd.MultiIndex)
-    _lv0 = (
-        [str(x) for x in yf_df.columns.get_level_values(0).unique()][:24]
-        if _mi
-        else []
-    )
-    _agent_log(
-        "H1",
-        "post_yfinance_fetch",
-        {
-            "symbol": symbol,
-            "shape": list(yf_df.shape),
-            "empty": bool(yf_df.empty),
-            "multiindex": _mi,
-            "level0_unique": _lv0,
-        },
-    )
-    # #endregion
-
     _flat_yf = _flatten_ohlcv_for_symbol(yf_df, symbol)
-    # #region agent log
-    _agent_log(
-        "H1,H2",
-        "post_flatten_yf",
-        {
-            "symbol": symbol,
-            "shape": list(_flat_yf.shape),
-            "cols": [str(c) for c in _flat_yf.columns][:24],
-            "multiindex_after": isinstance(_flat_yf.columns, pd.MultiIndex),
-        },
-    )
-    # #endregion
     bars = _dataframe_to_bars(_flat_yf, max_rows=MAX_OHLCV_ROWS)
-    # #region agent log
-    _agent_log("H2", "post_bars_yf", {"symbol": symbol, "n_bars": len(bars)})
-    # #endregion
 
     if not timescale_ok or dsn is None:
         return InstrumentOhlcvResult(
@@ -354,7 +303,7 @@ def resolve_instrument_ohlcv_sync(
         )
 
     try:
-        _run_id, _n_up = replace_ohlcv_range_sync(
+        replace_ohlcv_range_sync(
             dsn,
             symbol=symbol,
             interval_key=interval_key,
@@ -363,9 +312,6 @@ def resolve_instrument_ohlcv_sync(
             end_exclusive=end_exclusive,
             ohlcv_df=_flat_yf,
         )
-        # #region agent log
-        _agent_log("H1,H3", "post_writeback", {"symbol": symbol, "rows_upserted": _n_up})
-        # #endregion
         return InstrumentOhlcvResult(
             response=InstrumentOhlcvResponse(
                 symbol=symbol,

@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 
 from .ingest_lib import UPSERT_OHLCV_SQL, ensure_symbols, rows_from_provider_ohlcv
+from .market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
 
 _log = logging.getLogger(__name__)
 
@@ -90,6 +91,9 @@ def replace_ohlcv_range_sync(
                     chunk = rows[chunk_start : chunk_start + 2000]
                     cur.executemany(UPSERT_OHLCV_SQL, chunk)
                     n += len(chunk)
+                touch_ohlcv_refresh_manifest_on_cursor(
+                    cur, symbol_id=tmap[symbol], interval=interval_key, source=source
+                )
                 cur.execute(
                     """
                     UPDATE ingestion_runs

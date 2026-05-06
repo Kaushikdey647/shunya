@@ -264,3 +264,34 @@ def test_option_chain_returns_legs(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r.status_code == 200
     data = r.json()
     assert data["calls"][0]["strike"] == 100.0
+
+
+def test_option_iv_heatmap(monkeypatch: pytest.MonkeyPatch) -> None:
+    from api.schemas.models import InstrumentIvHeatmapResponse
+
+    def _fake(symbol: str, max_expirations: int) -> InstrumentIvHeatmapResponse:
+        _ = max_expirations
+        return InstrumentIvHeatmapResponse(
+            symbol=symbol,
+            expirations=["2026-06-19", "2026-07-17"],
+            strikes=[100.0, 110.0],
+            iv_calls=[[0.2, 0.22], [0.25, 0.28]],
+            iv_puts=[[0.19, 0.21], [0.24, 0.27]],
+            available=True,
+        )
+
+    monkeypatch.setattr("api.routers.instruments.fetch_option_iv_heatmap", _fake)
+    client = TestClient(create_app())
+    r = client.get("/instruments/AAPL/options/iv-heatmap?max_expirations=2")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["expirations"] == ["2026-06-19", "2026-07-17"]
+    assert data["strikes"] == [100.0, 110.0]
+    assert data["iv_calls"][0][0] == 0.2
+    assert data["iv_puts"][1][1] == 0.27
+
+
+def test_option_iv_heatmap_query_bounds() -> None:
+    client = TestClient(create_app())
+    assert client.get("/instruments/AAPL/options/iv-heatmap?max_expirations=0").status_code == 422
+    assert client.get("/instruments/AAPL/options/iv-heatmap?max_expirations=41").status_code == 422

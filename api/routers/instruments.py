@@ -10,9 +10,12 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from api.schemas.models import (
     IngestionRunOut,
+    InstrumentAnalystPriceTargetsResponse,
     InstrumentFinancialFrequencyLiteral,
     InstrumentFinancialStatementResponse,
     InstrumentHoldersResponse,
+    InstrumentIvHeatmapResponse,
+    InstrumentJsonBlobResponse,
     InstrumentNavLink,
     InstrumentOptionChainResponse,
     InstrumentOptionExpirationsResponse,
@@ -24,6 +27,8 @@ from api.schemas.models import (
     InstrumentStatementLiteral,
     InstrumentTickerNewsItem,
     InstrumentTickerNewsResponse,
+    InstrumentValuationMeasuresPayload,
+    InstrumentYfinanceTableResponse,
 )
 from api.services.instrument_dashboard import (
     fetch_instrument_financials,
@@ -31,6 +36,27 @@ from api.services.instrument_dashboard import (
     fetch_instrument_overview,
     fetch_option_chain,
     fetch_option_expirations,
+    fetch_option_iv_heatmap,
+)
+from api.services.instrument_yfinance_extended import (
+    fetch_instrument_analyst_price_targets,
+    fetch_instrument_calendar,
+    fetch_instrument_earnings_estimate,
+    fetch_instrument_earnings_history,
+    fetch_instrument_eps_revisions,
+    fetch_instrument_eps_trend,
+    fetch_instrument_growth_estimates,
+    fetch_instrument_insider_purchases,
+    fetch_instrument_insider_roster_holders,
+    fetch_instrument_insider_transactions,
+    fetch_instrument_major_holders,
+    fetch_instrument_recommendations,
+    fetch_instrument_recommendations_summary,
+    fetch_instrument_revenue_estimate,
+    fetch_instrument_sec_filings,
+    fetch_instrument_sustainability,
+    fetch_instrument_upgrades_downgrades,
+    fetch_instrument_valuation_measures,
 )
 from api.services.instrument_ohlcv import PendingOhlcvWriteback, resolve_instrument_ohlcv_sync
 from api.services.market_symbols import SYMBOL_RE, normalize_market_symbol
@@ -389,6 +415,123 @@ async def get_instrument_option_chain(
 ) -> InstrumentOptionChainResponse:
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_option_chain, sym, expiry)
+
+
+@router.get("/{symbol}/options/iv-heatmap", response_model=InstrumentIvHeatmapResponse)
+async def get_instrument_option_iv_heatmap(
+    symbol: str,
+    max_expirations: int = Query(24, ge=1, le=40),
+) -> InstrumentIvHeatmapResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_option_iv_heatmap, sym, max_expirations)
+
+
+@router.get("/{symbol}/valuation-measures", response_model=InstrumentValuationMeasuresPayload)
+async def get_instrument_valuation_measures(symbol: str) -> InstrumentValuationMeasuresPayload:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_valuation_measures, sym)
+
+
+@router.get("/{symbol}/analyst/price-targets", response_model=InstrumentAnalystPriceTargetsResponse)
+async def get_instrument_analyst_price_targets(symbol: str) -> InstrumentAnalystPriceTargetsResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_analyst_price_targets, sym)
+
+
+@router.get("/{symbol}/analyst/earnings-estimate", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_earnings_estimate(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_earnings_estimate, sym)
+
+
+@router.get("/{symbol}/analyst/revenue-estimate", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_revenue_estimate(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_revenue_estimate, sym)
+
+
+@router.get("/{symbol}/analyst/earnings-history", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_earnings_history(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_earnings_history, sym)
+
+
+@router.get("/{symbol}/analyst/eps-trend", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_eps_trend(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_eps_trend, sym)
+
+
+@router.get("/{symbol}/analyst/eps-revisions", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_eps_revisions(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_eps_revisions, sym)
+
+
+@router.get("/{symbol}/analyst/growth-estimates", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_growth_estimates(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_growth_estimates, sym)
+
+
+@router.get("/{symbol}/analyst/recommendations", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_recommendations(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_recommendations, sym)
+
+
+@router.get("/{symbol}/analyst/recommendations-summary", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_recommendations_summary(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_recommendations_summary, sym)
+
+
+@router.get("/{symbol}/analyst/upgrades-downgrades", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_upgrades_downgrades(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_upgrades_downgrades, sym)
+
+
+@router.get("/{symbol}/sustainability", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_sustainability(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_sustainability, sym)
+
+
+@router.get("/{symbol}/insider/purchases", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_insider_purchases(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_insider_purchases, sym)
+
+
+@router.get("/{symbol}/insider/transactions", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_insider_transactions(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_insider_transactions, sym)
+
+
+@router.get("/{symbol}/insider/roster-holders", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_insider_roster_holders(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_insider_roster_holders, sym)
+
+
+@router.get("/{symbol}/insider/major-holders", response_model=InstrumentYfinanceTableResponse)
+async def get_instrument_major_holders(symbol: str) -> InstrumentYfinanceTableResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_major_holders, sym)
+
+
+@router.get("/{symbol}/calendar", response_model=InstrumentJsonBlobResponse)
+async def get_instrument_calendar(symbol: str) -> InstrumentJsonBlobResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_calendar, sym)
+
+
+@router.get("/{symbol}/sec-filings", response_model=InstrumentJsonBlobResponse)
+async def get_instrument_sec_filings(symbol: str) -> InstrumentJsonBlobResponse:
+    sym = _normalize_symbol(symbol)
+    return await asyncio.to_thread(fetch_instrument_sec_filings, sym)
 
 
 @router.get("/{symbol}/news", response_model=InstrumentTickerNewsResponse)

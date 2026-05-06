@@ -12,6 +12,18 @@ import pandas as pd
 import yfinance as yf
 from fastapi import HTTPException
 
+from shunya.data.timescale.market_cache_lib import (
+    DOC_FINANCIALS_BALANCE,
+    DOC_FINANCIALS_CASHFLOW,
+    DOC_FINANCIALS_INCOME,
+    DOC_HOLDERS,
+    DOC_OPTION_CHAIN,
+    DOC_OPTION_EXPIRATIONS,
+    DOC_OPTION_IV_SURFACE,
+    DOC_OVERVIEW,
+    DOC_VALUATION_MEASURES,
+)
+
 from api.schemas.models import (
     InstrumentCompanyProfile,
     InstrumentExecutive,
@@ -24,17 +36,31 @@ from api.schemas.models import (
     InstrumentHolderRow,
     InstrumentHoldersResponse,
     InstrumentKindLiteral,
+    InstrumentIvHeatmapResponse,
     InstrumentOptionChainResponse,
     InstrumentOptionContractSummary,
     InstrumentOptionExpirationsResponse,
     InstrumentOptionLegRow,
     InstrumentOverviewResponse,
     InstrumentStatementLiteral,
+    InstrumentValuationMeasuresPayload,
     InstrumentValuationMetrics,
+)
+from api.services.instrument_cache_store import (
+    instrument_yfinance_document_get as _instrument_cache_get,
+    instrument_yfinance_document_put as _instrument_cache_put,
+)
+from api.services.yfinance_tables import (
+    beta_from_valuation_measures,
+    dataframe_to_records,
+    dict_to_jsonable,
+    merge_valuation_metrics,
+    valuation_measures_to_metrics,
 )
 from shunya.data.yfinance_session import build_yfinance_session
 
 _log = logging.getLogger(__name__)
+
 
 _MAX_FIN_ROWS = 45
 _MAX_FIN_COLS = 8
@@ -43,6 +69,7 @@ _MAX_TOP_HOLDINGS = 15
 _MAX_EXECUTIVES = 20
 
 _EXPIRY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_MAX_IV_HEATMAP_EXPIRIES = 40
 
 _YAHOO_KIND_MAP: dict[str, InstrumentKindLiteral] = {
     "EQUITY": "equity",
@@ -136,15 +163,28 @@ def _df_to_financial_table(
 
 
 def _valuation_from_info(info: dict[str, Any]) -> InstrumentValuationMetrics:
+    """Scalars from ``Ticker.get_info()`` (yfinance flattened quoteSummary / quote)."""
+    trailing_eps = _num_opt(info.get("trailingEps"))
+    if trailing_eps is None:
+        trailing_eps = _num_opt(info.get("epsTrailingTwelveMonths"))
+    forward_eps = _num_opt(info.get("forwardEps"))
+    if forward_eps is None:
+        forward_eps = _num_opt(info.get("epsForward"))
+    price_to_sales = _num_opt(info.get("priceToSalesTrailing12Months"))
+    if price_to_sales is None:
+        mcap = _num_opt(info.get("marketCap"))
+        revenue = _num_opt(info.get("totalRevenue"))
+        if mcap is not None and revenue is not None and revenue > 0:
+            price_to_sales = mcap / revenue
     return InstrumentValuationMetrics(
         trailing_pe=_num_opt(info.get("trailingPE")),
         forward_pe=_num_opt(info.get("forwardPE")),
-        trailing_eps=_num_opt(info.get("trailingEps")),
-        forward_eps=_num_opt(info.get("forwardEps")),
+        trailing_eps=trailing_eps,
+        forward_eps=forward_eps,
         return_on_equity=_num_opt(info.get("returnOnEquity")),
         return_on_assets=_num_opt(info.get("returnOnAssets")),
         price_to_book=_num_opt(info.get("priceToBook")),
-        price_to_sales=_num_opt(info.get("priceToSalesTrailing12Months")),
+        price_to_sales=price_to_sales,
         debt_to_equity=_num_opt(info.get("debtToEquity")),
     )
 
@@ -166,7 +206,7 @@ def _executives_from_info(info: dict[str, Any]) -> list[InstrumentExecutive]:
 
 
 def _company_from_info(info: dict[str, Any]) -> InstrumentCompanyProfile | None:
-    summary = _str_opt(info.get("longBusinessSummary"))
+    summary = _str_opt(info.get("longBusinessSummary")) or _str_opt(info.get("description"))
     sector = _str_opt(info.get("sector"))
     industry = _str_opt(info.get("industry"))
     addr = _str_opt(info.get("address1"))
@@ -287,10 +327,21 @@ def _option_contract_from_info(info: dict[str, Any]) -> InstrumentOptionContract
 
 
 def fetch_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
+    hit = _instrument_cache_get(
+        InstrumentOverviewResponse, symbol=symbol, resource_type=DOC_OVERVIEW, resource_key=""
+    )
+    if hit is not None:
+        return hit
+
     session = build_yfinance_session()
     try:
         t = yf.Ticker(symbol, session=session)
-        info = t.info
+        info = t.get_info()
+        vm_df: pd.DataFrame | None = None
+        try:
+            vm_df = t.get_valuation_measures()
+        except Exception as vm_exc:  # noqa: BLE001
+            _log.warning("yfinance get_valuation_measures failed for %s: %s", symbol, vm_exc)
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance overview failed for %s: %s", symbol, exc)
         raise HTTPException(status_code=502, detail="instrument provider unavailable") from exc
@@ -304,13 +355,30 @@ def fetch_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
 
     mcap = _num_opt(info.get("marketCap"))
     beta = _num_opt(info.get("beta"))
+    vm_frame = vm_df if isinstance(vm_df, pd.DataFrame) else None
+    vm_metrics = valuation_measures_to_metrics(vm_frame)
+    beta_vm = beta_from_valuation_measures(vm_frame)
+    if beta is None and beta_vm is not None:
+        beta = beta_vm
+
+    cols, recs = dataframe_to_records(vm_frame)
+    vm_payload = InstrumentValuationMeasuresPayload(
+        symbol=symbol,
+        available=bool(recs),
+        columns=cols,
+        records=recs,
+    )
+    _instrument_cache_put(symbol=symbol, resource_type=DOC_VALUATION_MEASURES, resource_key="", obj=vm_payload)
 
     company = _company_from_info(info) if kind == "equity" else None
     executives = _executives_from_info(info) if kind == "equity" else []
     fund = _fund_summary(t, info, kind)
     opt_contract = _option_contract_from_info(info) if kind == "option" else None
 
-    return InstrumentOverviewResponse(
+    info_val = _valuation_from_info(info)
+    merged_val = merge_valuation_metrics(info_val, vm_metrics)
+
+    out = InstrumentOverviewResponse(
         symbol=symbol,
         instrument_kind=kind,
         yahoo_quote_type=yahoo_qt,
@@ -320,13 +388,23 @@ def fetch_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
         currency=_str_opt(info.get("currency")),
         market_cap=mcap,
         beta=beta,
-        valuation=_valuation_from_info(info),
+        valuation=merged_val,
         company=company,
         fund=fund,
         option_contract=opt_contract,
         executives=executives,
         features=features,
     )
+    _instrument_cache_put(symbol=symbol, resource_type=DOC_OVERVIEW, resource_key="", obj=out)
+    return out
+
+
+def _financials_resource_type(statement: InstrumentStatementLiteral) -> str:
+    if statement == "income":
+        return DOC_FINANCIALS_INCOME
+    if statement == "balance":
+        return DOC_FINANCIALS_BALANCE
+    return DOC_FINANCIALS_CASHFLOW
 
 
 def _statement_attr(
@@ -348,6 +426,17 @@ def fetch_instrument_financials(
     periods: int,
 ) -> InstrumentFinancialStatementResponse:
     cap = max(1, min(periods, _MAX_FIN_COLS))
+    rk = f"{frequency}|{cap}"
+    rt = _financials_resource_type(statement)
+    hit = _instrument_cache_get(
+        InstrumentFinancialStatementResponse,
+        symbol=symbol,
+        resource_type=rt,
+        resource_key=rk,
+    )
+    if hit is not None:
+        return hit
+
     session = build_yfinance_session()
     try:
         t = yf.Ticker(symbol, session=session)
@@ -368,7 +457,7 @@ def fetch_instrument_financials(
         )
 
     periods_labels, rows, truncated = _df_to_financial_table(df, max_rows=_MAX_FIN_ROWS, max_cols=cap)
-    return InstrumentFinancialStatementResponse(
+    out = InstrumentFinancialStatementResponse(
         symbol=symbol,
         statement=statement,
         frequency=frequency,
@@ -377,6 +466,8 @@ def fetch_instrument_financials(
         truncated=truncated,
         available=True,
     )
+    _instrument_cache_put(symbol=symbol, resource_type=rt, resource_key=rk, obj=out)
+    return out
 
 
 def _holders_df_to_rows(df: pd.DataFrame | None) -> tuple[list[InstrumentHolderRow], bool]:
@@ -413,6 +504,12 @@ def _holders_df_to_rows(df: pd.DataFrame | None) -> tuple[list[InstrumentHolderR
 
 
 def fetch_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
+    hit = _instrument_cache_get(
+        InstrumentHoldersResponse, symbol=symbol, resource_type=DOC_HOLDERS, resource_key=""
+    )
+    if hit is not None:
+        return hit
+
     session = build_yfinance_session()
     try:
         t = yf.Ticker(symbol, session=session)
@@ -424,16 +521,27 @@ def fetch_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
 
     i_rows, _ = _holders_df_to_rows(inst if isinstance(inst, pd.DataFrame) else None)
     m_rows, _ = _holders_df_to_rows(mf if isinstance(mf, pd.DataFrame) else None)
-    return InstrumentHoldersResponse(
+    out = InstrumentHoldersResponse(
         symbol=symbol,
         institutional=i_rows,
         mutual_funds=m_rows,
         available_institutional=bool(i_rows),
         available_mutual_funds=bool(m_rows),
     )
+    _instrument_cache_put(symbol=symbol, resource_type=DOC_HOLDERS, resource_key="", obj=out)
+    return out
 
 
 def fetch_option_expirations(symbol: str) -> InstrumentOptionExpirationsResponse:
+    hit = _instrument_cache_get(
+        InstrumentOptionExpirationsResponse,
+        symbol=symbol,
+        resource_type=DOC_OPTION_EXPIRATIONS,
+        resource_key="",
+    )
+    if hit is not None:
+        return hit
+
     session = build_yfinance_session()
     try:
         t = yf.Ticker(symbol, session=session)
@@ -443,12 +551,18 @@ def fetch_option_expirations(symbol: str) -> InstrumentOptionExpirationsResponse
         raise HTTPException(status_code=502, detail="instrument provider unavailable") from exc
 
     if opts is None:
-        return InstrumentOptionExpirationsResponse(symbol=symbol, expirations=[], available=False)
+        out = InstrumentOptionExpirationsResponse(symbol=symbol, expirations=[], available=False)
+        _instrument_cache_put(
+            symbol=symbol, resource_type=DOC_OPTION_EXPIRATIONS, resource_key="", obj=out
+        )
+        return out
     if isinstance(opts, (tuple, list)):
         expirations = [str(x) for x in opts]
     else:
         expirations = []
-    return InstrumentOptionExpirationsResponse(symbol=symbol, expirations=expirations, available=bool(expirations))
+    out = InstrumentOptionExpirationsResponse(symbol=symbol, expirations=expirations, available=bool(expirations))
+    _instrument_cache_put(symbol=symbol, resource_type=DOC_OPTION_EXPIRATIONS, resource_key="", obj=out)
+    return out
 
 
 def _option_frame_to_rows(df: pd.DataFrame | None) -> list[InstrumentOptionLegRow]:
@@ -478,6 +592,16 @@ def fetch_option_chain(symbol: str, expiry: str) -> InstrumentOptionChainRespons
     if not _EXPIRY_RE.match(expiry.strip()):
         raise HTTPException(status_code=400, detail="invalid expiry format (use YYYY-MM-DD)")
     expiry_clean = expiry.strip()
+
+    hit = _instrument_cache_get(
+        InstrumentOptionChainResponse,
+        symbol=symbol,
+        resource_type=DOC_OPTION_CHAIN,
+        resource_key=expiry_clean,
+    )
+    if hit is not None:
+        return hit
+
     session = build_yfinance_session()
     try:
         t = yf.Ticker(symbol, session=session)
@@ -488,10 +612,95 @@ def fetch_option_chain(symbol: str, expiry: str) -> InstrumentOptionChainRespons
 
     calls = _option_frame_to_rows(oc.calls if hasattr(oc, "calls") else None)
     puts = _option_frame_to_rows(oc.puts if hasattr(oc, "puts") else None)
-    return InstrumentOptionChainResponse(
+    out = InstrumentOptionChainResponse(
         symbol=symbol,
         expiry=expiry_clean,
         calls=calls,
         puts=puts,
         available=bool(calls or puts),
     )
+    _instrument_cache_put(
+        symbol=symbol, resource_type=DOC_OPTION_CHAIN, resource_key=expiry_clean, obj=out
+    )
+    return out
+
+
+def fetch_option_iv_heatmap(symbol: str, max_expirations: int) -> InstrumentIvHeatmapResponse:
+    """Build strike×expiry IV matrices from per-expiry chains (reuses chain cache)."""
+    cap = max(1, min(int(max_expirations), _MAX_IV_HEATMAP_EXPIRIES))
+    cache_key = str(cap)
+    hit = _instrument_cache_get(
+        InstrumentIvHeatmapResponse,
+        symbol=symbol,
+        resource_type=DOC_OPTION_IV_SURFACE,
+        resource_key=cache_key,
+    )
+    if hit is not None:
+        return hit
+
+    exp_resp = fetch_option_expirations(symbol)
+    if not exp_resp.available or not exp_resp.expirations:
+        out = InstrumentIvHeatmapResponse(symbol=symbol, available=False)
+        _instrument_cache_put(
+            symbol=symbol, resource_type=DOC_OPTION_IV_SURFACE, resource_key=cache_key, obj=out
+        )
+        return out
+
+    sorted_exp = sorted(exp_resp.expirations)
+    capped = sorted_exp[:cap]
+
+    chain_cols: list[tuple[str, InstrumentOptionChainResponse]] = []
+    for exp in capped:
+        try:
+            ch = fetch_option_chain(symbol, exp)
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, str) else "chain fetch failed"
+            _log.warning("option chain skipped for %s %s: %s", symbol, exp, detail)
+            continue
+        if ch.calls or ch.puts:
+            chain_cols.append((exp, ch))
+
+    if not chain_cols:
+        out = InstrumentIvHeatmapResponse(symbol=symbol, available=False)
+        _instrument_cache_put(
+            symbol=symbol, resource_type=DOC_OPTION_IV_SURFACE, resource_key=cache_key, obj=out
+        )
+        return out
+
+    strikes_set: set[float] = set()
+    for _, ch in chain_cols:
+        for r in ch.calls:
+            strikes_set.add(r.strike)
+        for r in ch.puts:
+            strikes_set.add(r.strike)
+    strikes_sorted = sorted(strikes_set)
+    strike_index = {s: i for i, s in enumerate(strikes_sorted)}
+    expirations = [exp for exp, _ in chain_cols]
+    n_strikes = len(strikes_sorted)
+    n_exp = len(expirations)
+
+    iv_calls: list[list[float | None]] = [[None] * n_exp for _ in range(n_strikes)]
+    iv_puts: list[list[float | None]] = [[None] * n_exp for _ in range(n_strikes)]
+
+    for j, (_, ch) in enumerate(chain_cols):
+        for r in ch.calls:
+            i = strike_index.get(r.strike)
+            if i is not None:
+                iv_calls[i][j] = r.implied_volatility
+        for r in ch.puts:
+            i = strike_index.get(r.strike)
+            if i is not None:
+                iv_puts[i][j] = r.implied_volatility
+
+    out = InstrumentIvHeatmapResponse(
+        symbol=symbol,
+        expirations=expirations,
+        strikes=strikes_sorted,
+        iv_calls=iv_calls,
+        iv_puts=iv_puts,
+        available=True,
+    )
+    _instrument_cache_put(
+        symbol=symbol, resource_type=DOC_OPTION_IV_SURFACE, resource_key=cache_key, obj=out
+    )
+    return out

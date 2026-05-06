@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+from datetime import datetime, timezone
 from typing import List, Optional, Union
 
 import numpy as np
@@ -60,9 +62,16 @@ class TimescaleMarketDataProvider:
         *,
         dsn: Optional[str] = None,
         source: str = "yfinance",
+        enforce_cache_ttl: bool | None = None,
     ) -> None:
         self._dsn = dsn or get_database_url()
         self._source = str(source)
+        if enforce_cache_ttl is None:
+            self._enforce_cache_ttl = str(
+                os.environ.get("SHUNYA_TIMESCALE_OHLCV_ENFORCE_CACHE_TTL", "")
+            ).lower() in ("1", "true", "yes", "on")
+        else:
+            self._enforce_cache_ttl = bool(enforce_cache_ttl)
 
     def download(
         self,
@@ -106,6 +115,22 @@ class TimescaleMarketDataProvider:
 
         with psycopg.connect(self._dsn) as conn:
             with conn.cursor() as cur:
+                if self._enforce_cache_ttl:
+                    from shunya.data.timescale.market_cache_lib import (
+                        default_market_cache_ttl_days,
+                        ohlcv_manifests_all_fresh_for_universe_on_cursor,
+                    )
+
+                    tickers_u = list(dict.fromkeys(str(t) for t in ticker_list))
+                    if not ohlcv_manifests_all_fresh_for_universe_on_cursor(
+                        cur,
+                        tickers=tickers_u,
+                        interval=interval,
+                        source=self._source,
+                        ttl_days=default_market_cache_ttl_days(),
+                        now=datetime.now(timezone.utc),
+                    ):
+                        return pd.DataFrame()
                 cur.execute(sql, params)
                 raw_rows = cur.fetchall()
 

@@ -74,6 +74,7 @@ from shunya.data.timescale.index_membership_sync import (
     sync_symbol_index_memberships,
 )
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
+from shunya.data.timescale.market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
 
 _LOG = logging.getLogger(__name__)
 
@@ -628,6 +629,10 @@ def _upsert_batch(
                 chunk = rows[chunk_start : chunk_start + 2000]
                 cur.executemany(UPSERT_OHLCV_SQL, chunk)
                 n += len(chunk)
+            for _sym_t, sym_id in tmap.items():
+                touch_ohlcv_refresh_manifest_on_cursor(
+                    cur, symbol_id=sym_id, interval=interval_key, source=source
+                )
             cur.execute(
                 """
                 UPDATE ingestion_runs

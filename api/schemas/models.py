@@ -478,6 +478,57 @@ class InstrumentOptionChainResponse(BaseModel):
     available: bool = True
 
 
+class InstrumentIvHeatmapResponse(BaseModel):
+    """Strike × expiry matrices of implied volatility (decimal, e.g. 0.25 = 25%)."""
+
+    symbol: str
+    expirations: list[str] = Field(default_factory=list)
+    strikes: list[float] = Field(default_factory=list)
+    iv_calls: list[list[Optional[float]]] = Field(default_factory=list)
+    iv_puts: list[list[Optional[float]]] = Field(default_factory=list)
+    available: bool = True
+
+
+class InstrumentYfinanceTablePayload(BaseModel):
+    """JSON-safe table (pandas DataFrame via reset_index)."""
+
+    columns: list[str] = Field(default_factory=list)
+    records: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class InstrumentValuationMeasuresPayload(BaseModel):
+    """Cached key-statistics / ``get_valuation_measures()`` table."""
+
+    symbol: str
+    available: bool = False
+    columns: list[str] = Field(default_factory=list)
+    records: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class InstrumentYfinanceTableResponse(BaseModel):
+    symbol: str
+    available: bool = False
+    data: InstrumentYfinanceTablePayload = Field(default_factory=InstrumentYfinanceTablePayload)
+
+
+class InstrumentAnalystPriceTargetsResponse(BaseModel):
+    symbol: str
+    available: bool = False
+    current: Optional[float] = None
+    low: Optional[float] = None
+    high: Optional[float] = None
+    mean: Optional[float] = None
+    median: Optional[float] = None
+
+
+class InstrumentJsonBlobResponse(BaseModel):
+    """JSON-safe dict payload (calendar, sec filings, news list wrapper, etc.)."""
+
+    symbol: str
+    available: bool = False
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
 class IngestionRunOut(BaseModel):
     id: int
     job: str
