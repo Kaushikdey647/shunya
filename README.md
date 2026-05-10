@@ -1,6 +1,6 @@
 # shunya
 
-<!-- Banner: add `docs/banner.png` (e.g. 1200×300), then uncomment: ![Shunya](docs/banner.png) -->
+![Shunya](docs/banner.png)
 
 [![PyPI](https://img.shields.io/pypi/v/shunya-py.svg)](https://pypi.org/project/shunya-py/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
