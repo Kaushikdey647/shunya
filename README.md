@@ -16,7 +16,7 @@ Historical data is provider-driven: **`yfinance`** by default, optional **Alpaca
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture, extension patterns, and coding guidelines.
 
-**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Full stack (API + UI)](#full-stack-api--web-ui) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Streaming](#streaming-tick-to-trade-foundation) · [Development tests](#development-tests) · [Documentation](#documentation)
+**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Service and UI setup](#service-and-ui-setup) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Streaming](#streaming-tick-to-trade-foundation) · [Development tests](#development-tests) · [Documentation](#documentation)
 
 ## Layout
 
@@ -113,19 +113,61 @@ pip install "shunya-py[timescale]"   # optional: Postgres client for local Times
 
 # From a clone (installs the local project; add --extra notebook for Jupyter notebooks):
 uv sync --extra dev --extra timescale
-# optional: HTTP API + worker (FastAPI)
+# optional: HTTP API + worker (FastAPI) — see [Service and UI setup](#service-and-ui-setup)
 # uv sync --extra dev --extra timescale --extra api
 uv run pytest
 ```
 
-### Full stack (API + web UI)
+## Service and UI setup
 
-1. **This repo** — install API extras and (optionally) Timescale, migrate, run uvicorn (see [HTTP API and dashboard](#http-api-and-dashboard-api)).
-2. **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** — `npm install && npm run dev`; dev server proxies `/api` to `http://127.0.0.1:8000` by default.
-3. **CORS** — if the UI is not proxied, set `SHUNYA_CORS_ORIGINS` to the exact browser origin(s) of the UI.
-4. **Optional AI** — set `SHUNYA_API_OLLAMA_HOST` (and optionally `SHUNYA_API_OLLAMA_MODEL`) for Alpha Studio assist and metrics-only backtest review routes.
+Run the **FastAPI service** from this repo, then the **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** dev server. Order matters: start the API before the UI so health checks and proxied calls succeed.
 
-Full UI setup and scripts: **[shunya-ui README](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)**.
+### 1) API service (FastAPI + worker)
+
+**Option A — Docker Compose** (TimescaleDB + API on **http://127.0.0.1:8000**)
+
+```bash
+git clone https://github.com/Kaushikdey647/shunya.git
+cd shunya
+docker compose up -d
+# First time (or after new migrations): apply schema inside the running API container
+docker compose exec api uv run shunya-timescale migrate
+curl -sSf http://127.0.0.1:8000/healthz   # expect HTTP 200
+```
+
+See [`docker-compose.yml`](docker-compose.yml): the `api` service runs `uvicorn api.main:app` with `DATABASE_URL` pointing at the bundled `timescaledb` service.
+
+**Option B — Local `uv`** (typical development)
+
+```bash
+git clone https://github.com/Kaushikdey647/shunya.git
+cd shunya
+uv sync --extra dev --extra api --extra timescale
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya   # omit only if you accept limited routes
+shunya-timescale migrate
+uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+# equivalent: uv run python -m api
+```
+
+- **Without `DATABASE_URL`:** many **yfinance**-backed routes still work; **alphas, backtest job queue, `/data/dashboard`**, and similar features expect Postgres — use Docker Compose or point `DATABASE_URL` at a local Timescale instance ([Local TimescaleDB](#local-timescaledb-optional)).
+- **Smoke test:** `curl -sSf http://127.0.0.1:8000/healthz` (fast liveness). Interactive docs: **http://127.0.0.1:8000/docs**.
+- **Browser from another origin** (e.g. UI on port 5173): set **`SHUNYA_CORS_ORIGINS`** to the exact UI origin(s), comma-separated, no path or trailing slash — example: `SHUNYA_CORS_ORIGINS=http://localhost:5173`.
+- **Alpha Studio AI** (lint/assist/backtest review): optional **`SHUNYA_API_OLLAMA_HOST`** (e.g. `http://127.0.0.1:11434`) and **`SHUNYA_API_OLLAMA_MODEL`** on the API process ([HTTP API and dashboard](#http-api-and-dashboard-api)).
+
+More env vars, Railway, and route-level detail: [`api/README.md`](api/README.md).
+
+### 2) Web UI (shunya-ui)
+
+```bash
+git clone https://github.com/Kaushikdey647/shunya-ui.git
+cd shunya-ui
+npm install
+npm run dev
+```
+
+Open the URL Vite prints (default **http://localhost:5173**). In dev, **`vite.config.ts` proxies `/api` → `http://127.0.0.1:8000`**, so the API should listen on **8000** unless you change the proxy.
+
+**Production UI:** set **`VITE_API_BASE`** at **build** time to your public API origin if the UI is not served behind the same host as `/api`. See the **[shunya-ui README](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)** for `npm run build`, preview, and hosting notes.
 
 ```python
 import jax.numpy as jnp
@@ -210,15 +252,7 @@ Equivalent: `python -m shunya.data.timescale.cli …`. Override the DSN per run 
 
 The **Python package** is imported as `api` (directory `api/` at **repo root**; it is not shipped in the PyPI wheel, which only bundles `shunya`). From a **clone**, install API dependencies with **`uv sync --extra api`** (add **`--extra timescale`** when routes need Postgres). The **`api`** optional extra on PyPI exists so dependency versions align when developing from source; use **`pip install "shunya-py[api,timescale]"`** only when you need those libraries alongside a checkout.
 
-**Run locally** after migrations:
-
-```bash
-uv sync --extra api --extra timescale
-export DATABASE_URL=postgresql://...   # optional; many routes need it
-shunya-timescale migrate                 # if using Timescale
-uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
-# or: uv run python -m api
-```
+**Run the server** (install, `DATABASE_URL`, migrate, `uvicorn`) is covered in **[Service and UI setup](#service-and-ui-setup)** above; this subsection documents behavior, hosting, and integrations.
 
 Bind address and port default to `127.0.0.1` / `8000`; override with **`SHUNYA_API_HOST`** and **`SHUNYA_API_PORT`**. For **Railway** and similar hosts, bind **`0.0.0.0`** and **`PORT`** (e.g. `uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT`). Use **`GET /healthz`** for load-balancer liveness (instant **200**); **`GET /health`** runs Postgres + Yahoo checks and is not suitable as a deploy probe. Example Railway settings: [`railway.toml`](railway.toml).
 
