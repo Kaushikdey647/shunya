@@ -66,3 +66,70 @@ def test_migrate_and_ohlcv_roundtrip(timescale_dsn: str, monkeypatch: pytest.Mon
     out = prov.download([sym], "2024-06-01", "2024-06-10")
     assert not out.empty
     assert float(out["Close"].iloc[-1]) == pytest.approx(100.5)
+
+
+def test_fundamentals_wide_daily_roundtrip(timescale_dsn: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    import psycopg
+    from datetime import date, datetime, timezone
+
+    pytest.importorskip("psycopg")
+    monkeypatch.setenv("DATABASE_URL", timescale_dsn)
+
+    from shunya.data.timescale.dbutil import apply_migrations
+    from shunya.data.timescale.fundamental_provider import (
+        TimescaleDailyFundamentalDataProvider,
+        TimescaleFundamentalDataProvider,
+    )
+    from shunya.data.timescale.ingest_lib import (
+        UPSERT_FUND_DAILY_SQL,
+        UPSERT_FUND_QUARTERLY_SQL,
+        ensure_symbols,
+    )
+
+    apply_migrations()
+
+    sym = "__FUND_WIDE_TEST__"
+    fe = date(2024, 6, 30)
+    nums = [float(i + 1) for i in range(16)]
+
+    with psycopg.connect(timescale_dsn) as conn:
+        with conn.cursor() as cur:
+            tmap = ensure_symbols(cur, [sym])
+            sid = tmap[sym]
+            row_q = (sid, fe, "unit_test", *nums)
+            cur.execute(UPSERT_FUND_QUARTERLY_SQL, row_q)
+            cur.execute(UPSERT_FUND_QUARTERLY_SQL, row_q)
+            row_d = (
+                sid,
+                datetime(2024, 6, 3, tzinfo=timezone.utc),
+                "unit_test",
+                1e9,
+                None,
+                15.0,
+                None,
+                None,
+                None,
+                1.0,
+                None,
+                None,
+            )
+            cur.execute(UPSERT_FUND_DAILY_SQL, row_d)
+            cur.execute(UPSERT_FUND_DAILY_SQL, row_d)
+        conn.commit()
+
+    fp = TimescaleFundamentalDataProvider(dsn=timescale_dsn, source="unit_test")
+    out = fp.fetch([sym], "2024-01-01", "2024-12-31", quarterly=True, fields=["Revenue", "Net_Income"])
+    assert not out.empty
+    ts = pd.Timestamp(fe).normalize()
+    key = (sym, ts)
+    assert key in out.index
+    assert float(out.loc[key, "Revenue"]) == pytest.approx(1.0)
+    assert float(out.loc[key, "Net_Income"]) == pytest.approx(2.0)
+
+    dp = TimescaleDailyFundamentalDataProvider(dsn=timescale_dsn, source="unit_test")
+    dout = dp.fetch([sym], "2024-06-01", "2024-06-10", fields=["Market_Cap", "Trailing_PE"])
+    assert not dout.empty
+    dkey = (sym, pd.Timestamp("2024-06-03").normalize())
+    assert dkey in dout.index
+    assert float(dout.loc[dkey, "Market_Cap"]) == pytest.approx(1e9)
+    assert float(dout.loc[dkey, "Trailing_PE"]) == pytest.approx(15.0)

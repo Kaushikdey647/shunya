@@ -603,3 +603,85 @@ class MarketHeadlineItem(BaseModel):
 
 class MarketHeadlinesResponse(BaseModel):
     headlines: list[MarketHeadlineItem]
+
+
+# --- Alpha editor (lint / assist) ---
+
+
+class AlphaLintBodyRequest(BaseModel):
+    source_body: str = Field(..., max_length=_SOURCE_MAX)
+
+    @field_validator("source_body", mode="before")
+    @classmethod
+    def _strip_body(cls, v: object) -> object:
+        if isinstance(v, str):
+            return v
+        return v
+
+
+class AlphaLintDiagnostic(BaseModel):
+    severity: str
+    message: str
+    startLineNumber: int
+    startColumn: int
+    endLineNumber: int
+    endColumn: int
+
+
+class AlphaLintBodyResponse(BaseModel):
+    diagnostics: list[AlphaLintDiagnostic]
+
+
+class AlphaAssistBodyRequest(BaseModel):
+    source_body: str = Field(..., max_length=_SOURCE_MAX)
+    alpha_name: Optional[str] = Field(default=None, max_length=128)
+    alpha_description: Optional[str] = Field(default=None, max_length=2048)
+
+
+class AlphaAssistMarker(BaseModel):
+    severity: str
+    message: str
+    startLineNumber: int
+    startColumn: int
+    endLineNumber: int
+    endColumn: int
+
+
+class AlphaAssistIssue(BaseModel):
+    id: str
+    severity: str
+    message: str
+    startLineNumber: int
+    startColumn: int
+    endLineNumber: int
+    endColumn: int
+    corrected_body: Optional[str] = None
+
+
+class AlphaAssistBodyResponse(BaseModel):
+    """``markers`` mirrors issue coordinates for older clients; prefer ``issues``."""
+
+    issues: list[AlphaAssistIssue] = Field(default_factory=list)
+    markers: list[AlphaAssistMarker] = Field(default_factory=list)
+
+
+class AlphaAssistBacktestReviewRequest(BaseModel):
+    source_body: str = Field(..., max_length=_SOURCE_MAX)
+    alpha_name: Optional[str] = Field(default=None, max_length=128)
+    alpha_description: Optional[str] = Field(default=None, max_length=2048)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    result_summary: Optional[dict[str, Any]] = None
+
+    @field_validator("source_body", mode="before")
+    @classmethod
+    def _strip_body(cls, v: object) -> object:
+        return v if isinstance(v, str) else v
+
+
+class AlphaAssistBacktestReviewResponse(BaseModel):
+    """Structured bullets for UI; ``summary_markdown`` is kept for older clients."""
+
+    summary_points: list[str] = Field(default_factory=list)
+    risk_points: list[str] = Field(default_factory=list)
+    summary_markdown: str = ""
+    suggested_body: Optional[str] = None

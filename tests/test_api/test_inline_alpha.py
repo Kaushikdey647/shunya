@@ -5,10 +5,21 @@ import pytest
 from api.inline_alpha import resolve_alpha_from_source
 from api.resolver import resolve_alpha_for_backtest
 from shunya.algorithm.alpha_context import AlphaContext
+from shunya.algorithm.alpha_source_wrap import wrap_alpha_body
 import jax.numpy as jnp
 
 
-def test_resolve_from_source_valid() -> None:
+def test_resolve_from_wrapped_canonical() -> None:
+    src = wrap_alpha_body("return cs.rank(ctx.close)")
+    fn = resolve_alpha_from_source(src)
+    n = 3
+    t = 5
+    zero = jnp.zeros((t, n), dtype=jnp.float32)
+    ctx = AlphaContext(
+        open=zero, high=zero, low=zero, close=zero, adj_volume=zero, features=None
+    )
+    out = fn(ctx)
+    assert out.shape == (n,)
     src = """
 import jax.numpy as jnp
 

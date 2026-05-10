@@ -2,11 +2,69 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from api.alpha_assist import run_alpha_assist, run_alpha_backtest_review
+from api.alpha_lint import run_pyright_on_wrapped
 from api.alpha_validation import validate_import_ref
 from api.repositories import alphas as repo
-from api.schemas.models import AlphaCreate, AlphaOut, AlphaPatch
+from api.schemas.models import (
+    AlphaAssistBacktestReviewRequest,
+    AlphaAssistBacktestReviewResponse,
+    AlphaAssistBodyRequest,
+    AlphaAssistBodyResponse,
+    AlphaAssistIssue,
+    AlphaAssistMarker,
+    AlphaCreate,
+    AlphaLintBodyRequest,
+    AlphaLintBodyResponse,
+    AlphaLintDiagnostic,
+    AlphaOut,
+    AlphaPatch,
+)
+from shunya.algorithm.alpha_source_wrap import wrap_alpha_body
 
 router = APIRouter(prefix="/alphas", tags=["alphas"])
+
+
+@router.post("/lint-body", response_model=AlphaLintBodyResponse)
+def lint_alpha_body(body: AlphaLintBodyRequest) -> AlphaLintBodyResponse:
+    wrapped = wrap_alpha_body(body.source_body)
+    raw = run_pyright_on_wrapped(wrapped)
+    diagnostics = [AlphaLintDiagnostic(**d) for d in raw]
+    return AlphaLintBodyResponse(diagnostics=diagnostics)
+
+
+@router.post("/assist-body", response_model=AlphaAssistBodyResponse)
+def assist_alpha_body(body: AlphaAssistBodyRequest) -> AlphaAssistBodyResponse:
+    raw = run_alpha_assist(
+        source_body=body.source_body,
+        alpha_name=body.alpha_name,
+        alpha_description=body.alpha_description,
+    )
+    issues = [AlphaAssistIssue(**r) for r in raw]
+    markers = [
+        AlphaAssistMarker(
+            severity=i.severity,
+            message=i.message,
+            startLineNumber=i.startLineNumber,
+            startColumn=i.startColumn,
+            endLineNumber=i.endLineNumber,
+            endColumn=i.endColumn,
+        )
+        for i in issues
+    ]
+    return AlphaAssistBodyResponse(issues=issues, markers=markers)
+
+
+@router.post("/assist-backtest-review", response_model=AlphaAssistBacktestReviewResponse)
+def assist_backtest_review(body: AlphaAssistBacktestReviewRequest) -> AlphaAssistBacktestReviewResponse:
+    out = run_alpha_backtest_review(
+        source_body=body.source_body,
+        alpha_name=body.alpha_name,
+        alpha_description=body.alpha_description,
+        metrics=body.metrics,
+        result_summary=body.result_summary,
+    )
+    return AlphaAssistBacktestReviewResponse(**out)
 
 
 @router.post("", response_model=AlphaOut, status_code=status.HTTP_201_CREATED)

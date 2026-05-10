@@ -32,6 +32,8 @@ class FinTsRequest(BaseModel):
     market_data_provider: MarketDataProviderLiteral = "auto"
     attach_yfinance_classifications: bool = True
     attach_fundamentals: bool = False
+    attach_fundamentals_annual: bool = False
+    attach_fundamentals_daily: bool = False
     feature_mode: FeatureModeLiteral = "full"
     require_history_bars: Optional[int] = Field(default=None, ge=1)
     trading_axis_mode: TradingAxisModeLiteral = "observed"

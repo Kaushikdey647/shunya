@@ -6,8 +6,10 @@ import argparse
 import json
 import os
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import List, Sequence
+
+import pandas as pd
 
 from ..providers import (
     AlphaVantageMarketDataProvider,
@@ -232,6 +234,27 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
 
     from shunya.data.fundamentals import FUNDAMENTAL_FIELDS
 
+    from shunya.data.timescale.fundamentals_relational_lib import (
+        dataframe_to_columns_records,
+        earnings_dates_dataframe_to_rows,
+        insider_table_to_rows,
+        periodic_frame_to_wide_rows,
+        ticker_info_to_daily_row,
+        valuation_measures_to_daily_rows,
+        yfinance_dividends_splits_to_corporate_actions,
+    )
+    from shunya.data.timescale.ingest_lib import (
+        UPSERT_CORPORATE_ACTIONS_SQL,
+        UPSERT_EARNINGS_DATES_SQL,
+        UPSERT_FUND_ANNUAL_SQL,
+        UPSERT_FUND_DAILY_SQL,
+        UPSERT_FUND_QUARTERLY_SQL,
+        UPSERT_INSIDER_TRANSACTIONS_SQL,
+    )
+    from shunya.data.yfinance_session import build_yfinance_session
+
+    import yfinance as yf
+
     fund = YFinanceFundamentalDataProvider(session=session, enable_fetch_cache=False)
     if args.fields and str(args.fields).strip():
         fields = [x.strip() for x in str(args.fields).replace(",", " ").split() if x.strip()]
@@ -254,6 +277,8 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
     source = str(args.source)
     dsn = get_database_url()
     n = 0
+    fields_full = list(FUNDAMENTAL_FIELDS)
+    yf_sess = build_yfinance_session()
     with psycopg.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -271,6 +296,90 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
                 chunk = rows[chunk_start : chunk_start + 5000]
                 cur.executemany(UPSERT_FUND_SQL, chunk)
                 n += len(chunk)
+
+            if freq_q:
+                wq = periodic_frame_to_wide_rows(periodic, tmap, source=source)
+                if wq:
+                    cur.executemany(UPSERT_FUND_QUARTERLY_SQL, wq)
+                other = fund.fetch(
+                    symbols,
+                    args.start,
+                    args.end,
+                    fields=fields_full,
+                    quarterly=False,
+                    bar_spec=default_bar_spec(),
+                )
+                if not other.empty:
+                    wa = periodic_frame_to_wide_rows(other, tmap, source=source)
+                    if wa:
+                        cur.executemany(UPSERT_FUND_ANNUAL_SQL, wa)
+            else:
+                wa = periodic_frame_to_wide_rows(periodic, tmap, source=source)
+                if wa:
+                    cur.executemany(UPSERT_FUND_ANNUAL_SQL, wa)
+                other = fund.fetch(
+                    symbols,
+                    args.start,
+                    args.end,
+                    fields=fields_full,
+                    quarterly=True,
+                    bar_spec=default_bar_spec(),
+                )
+                if not other.empty:
+                    wq = periodic_frame_to_wide_rows(other, tmap, source=source)
+                    if wq:
+                        cur.executemany(UPSERT_FUND_QUARTERLY_SQL, wq)
+
+            as_of_info = datetime.now(timezone.utc)
+            for sym in symbols:
+                sid = tmap[str(sym)]
+                t = yf.Ticker(str(sym), session=yf_sess)
+                try:
+                    info = t.info or {}
+                except Exception:
+                    info = {}
+                if isinstance(info, Mapping) and info:
+                    try:
+                        drow = ticker_info_to_daily_row(sid, info, as_of=as_of_info, source=source)
+                        cur.execute(UPSERT_FUND_DAILY_SQL, drow)
+                    except Exception:
+                        pass
+                try:
+                    vm = t.get_valuation_measures()
+                except Exception:
+                    vm = None
+                cols, recs = dataframe_to_columns_records(vm if isinstance(vm, pd.DataFrame) else None)
+                if recs:
+                    drows = valuation_measures_to_daily_rows(
+                        sid, columns=cols, records=recs, source=source
+                    )
+                    if drows:
+                        cur.executemany(UPSERT_FUND_DAILY_SQL, drows)
+                try:
+                    ca = yfinance_dividends_splits_to_corporate_actions(
+                        sid, dividends=t.dividends, splits=t.splits, source=source
+                    )
+                    if ca:
+                        cur.executemany(UPSERT_CORPORATE_ACTIONS_SQL, ca)
+                except Exception:
+                    pass
+                try:
+                    ins = t.get_insider_transactions()
+                except Exception:
+                    ins = None
+                icols, irecs = dataframe_to_columns_records(ins if isinstance(ins, pd.DataFrame) else None)
+                if irecs:
+                    irows = insider_table_to_rows(sid, columns=icols, records=irecs, source=source)
+                    if irows:
+                        cur.executemany(UPSERT_INSIDER_TRANSACTIONS_SQL, irows)
+                try:
+                    edf = t.earnings_dates
+                except Exception:
+                    edf = None
+                erows = earnings_dates_dataframe_to_rows(sid, edf, source=source)
+                if erows:
+                    cur.executemany(UPSERT_EARNINGS_DATES_SQL, erows)
+
             cur.execute(
                 """
                 UPDATE ingestion_runs
@@ -280,7 +389,7 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
                 (n, run_id),
             )
         conn.commit()
-    print(f"ingest_fundamentals: upserted {n} EAV cells ({freq}, {source})")
+    print(f"ingest_fundamentals: upserted {n} EAV cells ({freq}, {source}); wide + events synced")
     return 0
 
 

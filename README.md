@@ -1,17 +1,22 @@
 # shunya
 
+<!-- Banner: add `docs/banner.png` (e.g. 1200×300), then uncomment: ![Shunya](docs/banner.png) -->
+
 [![PyPI](https://img.shields.io/pypi/v/shunya-py.svg)](https://pypi.org/project/shunya-py/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![Package Manager](https://img.shields.io/badge/package_manager-uv-6f42c1.svg)](https://docs.astral.sh/uv/)
 [![Tests](https://img.shields.io/badge/tests-pytest-green.svg)](https://docs.pytest.org/)
 [![Data](https://img.shields.io/badge/data-yfinance-informational.svg)](https://pypi.org/project/yfinance/)
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
+[![Web UI](https://img.shields.io/badge/UI-shunya--ui-646CFF?logo=react&logoColor=white)](https://github.com/Kaushikdey647/shunya-ui)
 
-Small Python stack for **multi-ticker equity panels**, **JAX alpha functions** (WorldQuant BRAIN-style processing), **backtrader** backtests, and an early **tick-to-trade streaming foundation**. Historical data is provider-driven (`yfinance` by default, optional Alpaca bars, optional **Tiingo** end-of-day bars for **Timescale ingest**, optional **local TimescaleDB** via `TimescaleMarketDataProvider`); features include OHLCV plus technicals from `finta`.
+**Shunya** is a Python stack for **systematic equity research**: multi-ticker **OHLCV panels** (`finTs`), **JAX** alpha pipelines (**FinStrat** / `cross_section`), **backtrader** execution (**FinBT**), optional **Alpaca** live/paper trading (**FinTrade**), optional **TimescaleDB** for durable bars and fundamentals, and a repo-local **FastAPI** service for **alphas, async backtests, instruments, market dashboards, and data coverage APIs**. A separate **React** app (**[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**) provides Alpha Studio (Monaco + lint/assist), backtest management, and charts against this API.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension patterns, and coding guidelines.
+Historical data is provider-driven: **`yfinance`** by default, optional **Alpaca** bars, **Tiingo** EOD for ingest, and **Timescale**-backed reads when `DATABASE_URL` is configured. Technicals attach via **`finta`**.
 
-**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Streaming](#streaming-tick-to-trade-foundation) · [Development tests](#development-tests) · [Documentation](#documentation)
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture, extension patterns, and coding guidelines.
+
+**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Full stack (API + UI)](#full-stack-api--web-ui) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Streaming](#streaming-tick-to-trade-foundation) · [Development tests](#development-tests) · [Documentation](#documentation)
 
 ## Layout
 
@@ -21,7 +26,7 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture details, extension pat
 | `shunya.algorithm` | `FinStrat` (context-based alpha pipeline), `FinBT` (backtrader), `FinTrade` (Alpaca live/paper orders), `cross_section` (rank, zscore, winsorize, neutralization) |
 | `shunya.streaming` | Event/tick plumbing for Alpaca-style streaming: normalized market events, per-symbol FIFO buffers, micro-bar aggregation, universe/subscription helpers, and rectangular snapshots for alpha evaluation |
 | `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
-| `api` | **FastAPI** service (alphas, backtest jobs, data dashboard, instruments, market routes); requires optional install `--extra api` (+ `--extra timescale` when using Postgres). See [HTTP API and dashboard](#http-api-and-dashboard-api). |
+| `api` | **FastAPI** service (alphas, backtest jobs, worker queue, data dashboard, instruments, market routes, optional **Ollama**-backed alpha assist / backtest review); requires `--extra api` (+ `--extra timescale` for Postgres). Consumed by **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**. See [HTTP API and dashboard](#http-api-and-dashboard-api). |
 
 Common imports from `shunya` (illustrative):
 
@@ -112,6 +117,15 @@ uv sync --extra dev --extra timescale
 # uv sync --extra dev --extra timescale --extra api
 uv run pytest
 ```
+
+### Full stack (API + web UI)
+
+1. **This repo** — install API extras and (optionally) Timescale, migrate, run uvicorn (see [HTTP API and dashboard](#http-api-and-dashboard-api)).
+2. **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** — `npm install && npm run dev`; dev server proxies `/api` to `http://127.0.0.1:8000` by default.
+3. **CORS** — if the UI is not proxied, set `SHUNYA_CORS_ORIGINS` to the exact browser origin(s) of the UI.
+4. **Optional AI** — set `SHUNYA_API_OLLAMA_HOST` (and optionally `SHUNYA_API_OLLAMA_MODEL`) for Alpha Studio assist and metrics-only backtest review routes.
+
+Full UI setup and scripts: **[shunya-ui README](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)**.
 
 ```python
 import jax.numpy as jnp
@@ -223,6 +237,8 @@ Additional **market overview** routes (yfinance-backed, used by the **shunya-ui*
 | `GET` | `/market/headlines` | Broad financial headlines via Yahoo Search. |
 
 Service implementations live under `api/services/` (`market_snapshot.py`, `market_movers.py`, `market_headlines.py`); shared symbol validation is `api/services/market_symbols.py`.
+
+**Alpha Studio helpers (optional Ollama):** `POST /alphas/lint-body`, `POST /alphas/assist-body`, and `POST /alphas/assist-backtest-review` power the **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** Monaco workspace. Set **`SHUNYA_API_OLLAMA_HOST`** (and optionally **`SHUNYA_API_OLLAMA_MODEL`**, **`SHUNYA_API_OLLAMA_TIMEOUT_SECONDS`**) on the API process; when the host is unset, assist and review return empty or stub payloads (see `api/alpha_assist.py`).
 
 **Read in code:**
 
@@ -387,6 +403,7 @@ Build with `uv build` (wheel and sdist). Upload with [Twine](https://twine.readt
 ## Documentation
 
 - Main usage and behavior: [`README.md`](README.md)
+- **Web UI (Alpha Studio, dashboards):** **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** — [`README.md`](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)
 - Contributor and architecture guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - Local Timescale market store (compose, migrate, ingest, `finTs`): [`docs/data_timescale.md`](docs/data_timescale.md)
 - **Backtest + instrument HTTP API** (alphas, jobs, data dashboard, instruments, **market** overview): [`api/README.md`](api/README.md)

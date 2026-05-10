@@ -157,6 +157,127 @@ ON CONFLICT (symbol_id, period_end, freq, field, source) DO UPDATE SET
     ingested_at = now()
 """
 
+UPSERT_FUND_DAILY_SQL = """
+INSERT INTO fundamentals_daily (
+    symbol_id, as_of_ts, source,
+    market_cap, enterprise_value, trailing_pe, forward_pe, peg_ratio, price_to_book,
+    dividend_yield, beta, shares_outstanding
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (symbol_id, as_of_ts, source) DO UPDATE SET
+    market_cap = EXCLUDED.market_cap,
+    enterprise_value = EXCLUDED.enterprise_value,
+    trailing_pe = EXCLUDED.trailing_pe,
+    forward_pe = EXCLUDED.forward_pe,
+    peg_ratio = EXCLUDED.peg_ratio,
+    price_to_book = EXCLUDED.price_to_book,
+    dividend_yield = EXCLUDED.dividend_yield,
+    beta = EXCLUDED.beta,
+    shares_outstanding = EXCLUDED.shares_outstanding,
+    ingested_at = now()
+"""
+
+UPSERT_FUND_QUARTERLY_SQL = """
+INSERT INTO fundamentals_quarterly (
+    symbol_id, fiscal_period_end, source,
+    revenue, net_income, eps_diluted, operating_cash_flow, free_cash_flow,
+    total_assets, total_equity, total_debt, current_ratio,
+    gross_margin, operating_margin, return_on_assets, return_on_equity,
+    debt_to_equity, free_cash_flow_yield, price_to_earnings
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (symbol_id, fiscal_period_end, source) DO UPDATE SET
+    revenue = EXCLUDED.revenue,
+    net_income = EXCLUDED.net_income,
+    eps_diluted = EXCLUDED.eps_diluted,
+    operating_cash_flow = EXCLUDED.operating_cash_flow,
+    free_cash_flow = EXCLUDED.free_cash_flow,
+    total_assets = EXCLUDED.total_assets,
+    total_equity = EXCLUDED.total_equity,
+    total_debt = EXCLUDED.total_debt,
+    current_ratio = EXCLUDED.current_ratio,
+    gross_margin = EXCLUDED.gross_margin,
+    operating_margin = EXCLUDED.operating_margin,
+    return_on_assets = EXCLUDED.return_on_assets,
+    return_on_equity = EXCLUDED.return_on_equity,
+    debt_to_equity = EXCLUDED.debt_to_equity,
+    free_cash_flow_yield = EXCLUDED.free_cash_flow_yield,
+    price_to_earnings = EXCLUDED.price_to_earnings,
+    ingested_at = now()
+"""
+
+UPSERT_FUND_ANNUAL_SQL = """
+INSERT INTO fundamentals_annual (
+    symbol_id, fiscal_period_end, source,
+    revenue, net_income, eps_diluted, operating_cash_flow, free_cash_flow,
+    total_assets, total_equity, total_debt, current_ratio,
+    gross_margin, operating_margin, return_on_assets, return_on_equity,
+    debt_to_equity, free_cash_flow_yield, price_to_earnings
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (symbol_id, fiscal_period_end, source) DO UPDATE SET
+    revenue = EXCLUDED.revenue,
+    net_income = EXCLUDED.net_income,
+    eps_diluted = EXCLUDED.eps_diluted,
+    operating_cash_flow = EXCLUDED.operating_cash_flow,
+    free_cash_flow = EXCLUDED.free_cash_flow,
+    total_assets = EXCLUDED.total_assets,
+    total_equity = EXCLUDED.total_equity,
+    total_debt = EXCLUDED.total_debt,
+    current_ratio = EXCLUDED.current_ratio,
+    gross_margin = EXCLUDED.gross_margin,
+    operating_margin = EXCLUDED.operating_margin,
+    return_on_assets = EXCLUDED.return_on_assets,
+    return_on_equity = EXCLUDED.return_on_equity,
+    debt_to_equity = EXCLUDED.debt_to_equity,
+    free_cash_flow_yield = EXCLUDED.free_cash_flow_yield,
+    price_to_earnings = EXCLUDED.price_to_earnings,
+    ingested_at = now()
+"""
+
+UPSERT_CORPORATE_ACTIONS_SQL = """
+INSERT INTO corporate_actions (
+    symbol_id, action_ts, kind, amount, split_ratio, currency, source, raw
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+ON CONFLICT (symbol_id, action_ts, kind, source) DO UPDATE SET
+    amount = EXCLUDED.amount,
+    split_ratio = EXCLUDED.split_ratio,
+    currency = EXCLUDED.currency,
+    raw = EXCLUDED.raw,
+    ingested_at = now()
+"""
+
+UPSERT_INSIDER_TRANSACTIONS_SQL = """
+INSERT INTO insider_transactions (
+    symbol_id, report_date, transaction_start_date, owner_name, transaction_type,
+    shares, value, position, source, row_fingerprint
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (symbol_id, row_fingerprint, source) DO UPDATE SET
+    report_date = EXCLUDED.report_date,
+    transaction_start_date = EXCLUDED.transaction_start_date,
+    owner_name = EXCLUDED.owner_name,
+    transaction_type = EXCLUDED.transaction_type,
+    shares = EXCLUDED.shares,
+    value = EXCLUDED.value,
+    position = EXCLUDED.position,
+    ingested_at = now()
+"""
+
+UPSERT_EARNINGS_DATES_SQL = """
+INSERT INTO earnings_dates (
+    symbol_id, earnings_date, source, eps_estimate, reported_eps, surprise_pct, quarter_label
+)
+VALUES (%s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (symbol_id, earnings_date, source) DO UPDATE SET
+    eps_estimate = EXCLUDED.eps_estimate,
+    reported_eps = EXCLUDED.reported_eps,
+    surprise_pct = EXCLUDED.surprise_pct,
+    quarter_label = EXCLUDED.quarter_label,
+    ingested_at = now()
+"""
+
 UPSERT_SYMBOL_CLASSIFICATIONS_SQL = """
 INSERT INTO symbol_classifications (
     symbol_id, as_of, sector, industry, source,

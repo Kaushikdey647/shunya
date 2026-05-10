@@ -96,10 +96,40 @@ FUNDAMENTAL_FIELD_MAP: Dict[str, FundamentalFieldSpec] = {
     spec.column: spec for spec in _FUNDAMENTAL_FIELD_SPECS
 }
 
+# Daily / price-linked fields (stored in fundamentals_daily; same names on AlphaContext when attached).
+DAILY_FUNDAMENTAL_FIELDS: tuple[str, ...] = (
+    "Market_Cap",
+    "Enterprise_Value",
+    "Trailing_PE",
+    "Forward_PE",
+    "PEG_Ratio",
+    "Price_To_Book",
+    "Dividend_Yield",
+    "Beta",
+    "Shares_Outstanding",
+)
+
 
 def default_fundamental_fields() -> tuple[str, ...]:
     """Curated first-pass field set exposed by default."""
     return FUNDAMENTAL_FIELDS
+
+
+def validate_daily_fundamental_fields(fields: Sequence[str] | None) -> tuple[str, ...]:
+    if fields is None:
+        return DAILY_FUNDAMENTAL_FIELDS
+    allowed = set(DAILY_FUNDAMENTAL_FIELDS)
+    out: list[str] = []
+    missing: list[str] = []
+    for f in fields:
+        s = str(f)
+        if s in allowed:
+            out.append(s)
+        else:
+            missing.append(s)
+    if missing:
+        raise KeyError(f"Unknown daily fundamental fields: {missing}")
+    return tuple(out)
 
 
 def validate_fundamental_fields(fields: Optional[Sequence[str]]) -> tuple[FundamentalFieldSpec, ...]:
@@ -272,6 +302,67 @@ def align_fundamental_panel_to_panel_index(
     return periodic.reindex(periodic.index.union(target)).sort_index().ffill().reindex(target)
 
 
+def align_daily_fundamental_panel_to_panel_index(
+    daily: pd.DataFrame,
+    panel_index: pd.Index | pd.MultiIndex,
+) -> pd.DataFrame:
+    """
+    Align daily fundamentals to the panel index using **exact** bar dates only (no forward-fill).
+    """
+    if isinstance(panel_index, pd.MultiIndex):
+        if tuple(panel_index.names) != ("Ticker", "Date"):
+            raise ValueError(
+                f"Expected panel index names ('Ticker', 'Date'), got {tuple(panel_index.names)!r}"
+            )
+        columns = list(daily.columns)
+        if not columns:
+            return pd.DataFrame(index=panel_index)
+        frames: list[pd.DataFrame] = []
+        tickers = panel_index.get_level_values("Ticker").unique().tolist()
+        for ticker in tickers:
+            target = pd.DatetimeIndex(
+                panel_index[panel_index.get_level_values("Ticker") == ticker].get_level_values("Date"),
+                name="Date",
+            )
+            target = pd.DatetimeIndex(pd.to_datetime(target)).normalize()
+            if isinstance(daily.index, pd.MultiIndex) and ticker in daily.index.get_level_values("Ticker"):
+                src = daily.xs(ticker, level="Ticker").sort_index()
+                src.index = pd.DatetimeIndex(pd.to_datetime(src.index)).normalize()
+            else:
+                src = pd.DataFrame(index=pd.DatetimeIndex([], name="Date"), columns=columns, dtype=float)
+            aligned = src.reindex(target)
+            frames.append(aligned)
+        out = pd.concat(frames, keys=tickers, names=["Ticker", "Date"])
+        return out.reindex(panel_index)
+
+    if isinstance(daily.index, pd.MultiIndex):
+        tickers = daily.index.get_level_values("Ticker").unique().tolist()
+        if len(tickers) > 1:
+            raise ValueError("Single-index panel cannot align multiple ticker fundamentals")
+        daily = daily.xs(tickers[0], level="Ticker")
+    target = pd.DatetimeIndex(
+        pd.to_datetime(panel_index), name=getattr(panel_index, "name", "Date")
+    ).normalize()
+    src = daily.sort_index()
+    src.index = pd.DatetimeIndex(pd.to_datetime(src.index)).normalize()
+    return src.reindex(target)
+
+
+@runtime_checkable
+class FundamentalDailyDataProvider(Protocol):
+    """Fetch daily fundamental columns indexed by ``('Ticker', 'Date')`` (bar dates)."""
+
+    def fetch(
+        self,
+        ticker_list: Sequence[str],
+        start: str | pd.Timestamp,
+        end: str | pd.Timestamp,
+        *,
+        fields: Optional[Sequence[str]] = None,
+        bar_spec: Optional[BarSpec] = None,
+    ) -> pd.DataFrame: ...
+
+
 class FinanceToolkitFundamentalDataProvider:
     """Equities-only fundamental adapter backed by FinanceToolkit / FinanceModelingPrep."""
 
@@ -369,10 +460,14 @@ __all__ = [
     "FUND",
     "FUNDAMENTAL_FIELDS",
     "FUNDAMENTAL_FIELD_MAP",
+    "DAILY_FUNDAMENTAL_FIELDS",
     "FundamentalDataProvider",
+    "FundamentalDailyDataProvider",
     "FundamentalFieldSpec",
     "FinanceToolkitFundamentalDataProvider",
+    "align_daily_fundamental_panel_to_panel_index",
     "align_fundamental_panel_to_panel_index",
     "default_fundamental_fields",
     "validate_fundamental_fields",
+    "validate_daily_fundamental_fields",
 ]

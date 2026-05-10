@@ -2,9 +2,11 @@ from .fints import FeatureMode, PanelAlignReport, PanelQADiagnostics, finTs
 from .fundamentals import (
     FUND,
     FUNDAMENTAL_FIELDS,
+    FundamentalDailyDataProvider,
     FundamentalDataProvider,
     FundamentalFieldSpec,
     FinanceToolkitFundamentalDataProvider,
+    align_daily_fundamental_panel_to_panel_index,
     align_fundamental_panel_to_panel_index,
     default_fundamental_fields,
 )
@@ -32,7 +34,7 @@ except ImportError:
     KiteHistoricalMarketDataProvider = None  # type: ignore[assignment,misc]
 
 from .timescale.dbutil import apply_migrations, get_database_url
-from .timescale.fundamental_provider import TimescaleFundamentalDataProvider
+from .timescale.fundamental_provider import TimescaleDailyFundamentalDataProvider, TimescaleFundamentalDataProvider
 from .timescale.market_provider import TimescaleMarketDataProvider
 
 __all__ = [
@@ -44,6 +46,7 @@ __all__ = [
     "FUND",
     "FUNDAMENTAL_FIELDS",
     "FinanceToolkitFundamentalDataProvider",
+    "FundamentalDailyDataProvider",
     "FundamentalDataProvider",
     "FundamentalFieldSpec",
     "KiteHistoricalMarketDataProvider",
@@ -51,6 +54,7 @@ __all__ = [
     "PanelAlignReport",
     "PanelQADiagnostics",
     "TiingoMarketDataProvider",
+    "TimescaleDailyFundamentalDataProvider",
     "TimescaleFundamentalDataProvider",
     "TimescaleMarketDataProvider",
     "YFinanceMarketDataProvider",
@@ -62,6 +66,7 @@ __all__ = [
     "default_bar_spec",
     "default_fundamental_fields",
     "finTs",
+    "align_daily_fundamental_panel_to_panel_index",
     "align_fundamental_panel_to_panel_index",
     "timestamp_is_on_trading_grid",
     "trading_time_distance",

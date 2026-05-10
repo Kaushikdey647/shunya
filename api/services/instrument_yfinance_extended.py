@@ -20,6 +20,11 @@ from api.services.instrument_cache_store import (
     instrument_yfinance_document_get,
     instrument_yfinance_document_put,
 )
+from shunya.data.timescale.fundamentals_upsert import (
+    sync_calendar_dict_to_earnings_db,
+    sync_insider_transactions_table_to_db,
+    sync_valuation_measures_to_db,
+)
 from api.services.yfinance_tables import dataframe_to_records, dict_to_jsonable
 from shunya.data.timescale.market_cache_lib import (
     DOC_ANALYST_PRICE_TARGETS,
@@ -96,6 +101,13 @@ def _fetch_df_cached(
     instrument_yfinance_document_put(
         symbol=symbol, resource_type=resource_type, resource_key=resource_key, obj=out
     )
+    if resource_type == DOC_INSIDER_TRANSACTIONS and out.available and out.data.records:
+        sync_insider_transactions_table_to_db(
+            ticker=symbol,
+            source="yfinance",
+            columns=out.data.columns,
+            records=out.data.records,
+        )
     return out
 
 
@@ -121,6 +133,12 @@ def fetch_instrument_valuation_measures(symbol: str) -> InstrumentValuationMeasu
     )
     instrument_yfinance_document_put(
         symbol=symbol, resource_type=DOC_VALUATION_MEASURES, resource_key="", obj=out
+    )
+    sync_valuation_measures_to_db(
+        ticker=symbol,
+        source="yfinance",
+        columns=out.columns,
+        records=out.records,
     )
     return out
 
@@ -301,6 +319,8 @@ def fetch_instrument_calendar(symbol: str) -> InstrumentJsonBlobResponse:
         symbol=symbol, available=bool(d), data=dict_to_jsonable(d) if d else {}
     )
     instrument_yfinance_document_put(symbol=symbol, resource_type=DOC_CALENDAR, resource_key="", obj=out)
+    if out.available and out.data:
+        sync_calendar_dict_to_earnings_db(ticker=symbol, source="yfinance", data=out.data)
     return out
 
 

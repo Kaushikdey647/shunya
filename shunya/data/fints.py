@@ -18,8 +18,11 @@ from .providers import (
 )
 from .fundamentals import (
     FinanceToolkitFundamentalDataProvider,
+    FundamentalDailyDataProvider,
     FundamentalDataProvider,
+    align_daily_fundamental_panel_to_panel_index,
     align_fundamental_panel_to_panel_index,
+    validate_daily_fundamental_fields,
     validate_fundamental_fields,
 )
 from .timeframes import (
@@ -193,6 +196,11 @@ class finTs:
         attach_fundamentals: bool = False,
         fundamental_fields: Optional[Sequence[str]] = None,
         fundamental_quarterly: bool = True,
+        attach_fundamentals_annual: bool = False,
+        fundamental_annual_fields: Optional[Sequence[str]] = None,
+        fundamental_daily_data: Optional[FundamentalDailyDataProvider] = None,
+        attach_fundamentals_daily: bool = False,
+        fundamental_daily_fields: Optional[Sequence[str]] = None,
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
         *,
@@ -282,6 +290,24 @@ class finTs:
                 provider,
                 fields=fundamental_fields,
                 quarterly=fundamental_quarterly,
+                append_columns=False,
+                column_suffix="",
+            )
+            if attach_fundamentals_annual and fundamental_quarterly:
+                self._attach_fundamentals(
+                    provider,
+                    fields=fundamental_annual_fields or fundamental_fields,
+                    quarterly=False,
+                    append_columns=True,
+                    column_suffix="_Annual",
+                )
+        if attach_fundamentals_daily:
+            from .timescale.fundamental_provider import TimescaleDailyFundamentalDataProvider
+
+            daily_prov = fundamental_daily_data or TimescaleDailyFundamentalDataProvider()
+            self._attach_fundamentals_daily(
+                daily_prov,
+                fields=fundamental_daily_fields,
             )
 
     @property
@@ -489,6 +515,8 @@ class finTs:
         *,
         fields: Optional[Sequence[str]] = None,
         quarterly: bool = True,
+        append_columns: bool = False,
+        column_suffix: str = "",
     ) -> None:
         if not isinstance(self.df, pd.DataFrame) or self.df.empty:
             return
@@ -514,9 +542,45 @@ class finTs:
         missing = [col for col in requested if col not in aligned.columns]
         for col in missing:
             aligned[col] = np.nan
+        out_cols = [f"{c}{column_suffix}" for c in requested] if column_suffix else requested
+        for src, dst in zip(requested, out_cols):
+            self.df[dst] = pd.to_numeric(aligned[src], errors="coerce").to_numpy(dtype=float)
+        if append_columns:
+            self._fundamental_feature_columns = tuple(self._fundamental_feature_columns) + tuple(out_cols)
+        else:
+            self._fundamental_feature_columns = tuple(out_cols)
+        self._invalidate_context_ohlcv_tensor_cache()
+
+    def _attach_fundamentals_daily(
+        self,
+        provider: FundamentalDailyDataProvider,
+        *,
+        fields: Optional[Sequence[str]] = None,
+    ) -> None:
+        if not isinstance(self.df, pd.DataFrame) or self.df.empty:
+            return
+        requested = list(validate_daily_fundamental_fields(fields))
+        daily = provider.fetch(
+            self.ticker_list,
+            self.start_date,
+            self.end_date,
+            fields=requested,
+            bar_spec=self.bar_spec,
+        )
+        if not isinstance(daily, pd.DataFrame):
+            raise TypeError(
+                f"fundamental_daily_data.fetch(...) must return pandas.DataFrame, got {type(daily)!r}"
+            )
+        if daily.empty:
+            aligned = pd.DataFrame(index=self.df.index, columns=requested, dtype=float)
+        else:
+            aligned = align_daily_fundamental_panel_to_panel_index(daily, self.df.index)
+        aligned = aligned.reindex(self.df.index)
         for col in requested:
+            if col not in aligned.columns:
+                aligned[col] = np.nan
             self.df[col] = pd.to_numeric(aligned[col], errors="coerce").to_numpy(dtype=float)
-        self._fundamental_feature_columns = tuple(requested)
+        self._fundamental_feature_columns = tuple(self._fundamental_feature_columns) + tuple(requested)
         self._invalidate_context_ohlcv_tensor_cache()
 
     def _require_nonempty_df(self) -> None:

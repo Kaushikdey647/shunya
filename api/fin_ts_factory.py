@@ -53,6 +53,14 @@ def build_fin_ts(req: FinTsRequest) -> finTs:
     if md is not None and not req.attach_yfinance_classifications and req.ticker_list:
         classifications = load_classifications_for_tickers(list(req.ticker_list))
 
+    if req.attach_fundamentals_daily and not (
+        os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL")
+    ):
+        raise FinTsConfigurationError(
+            "attach_fundamentals_daily requires DATABASE_URL or SHUNYA_DATABASE_URL.",
+            status_code=503,
+        )
+
     kwargs: dict = {
         "start_date": req.start_date,
         "end_date": req.end_date,
@@ -61,6 +69,8 @@ def build_fin_ts(req: FinTsRequest) -> finTs:
         "classifications": classifications,
         "attach_yfinance_classifications": req.attach_yfinance_classifications,
         "attach_fundamentals": req.attach_fundamentals,
+        "attach_fundamentals_annual": req.attach_fundamentals_annual,
+        "attach_fundamentals_daily": req.attach_fundamentals_daily,
         "bar_spec": bar_spec,
         "strict_provider_universe": req.strict_provider_universe,
         "strict_ohlcv": req.strict_ohlcv,

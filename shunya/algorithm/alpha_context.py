@@ -8,6 +8,8 @@ import jax.numpy as jnp
 
 from . import cross_section, time_series
 
+from ..data.fundamentals import DAILY_FUNDAMENTAL_FIELDS, FUNDAMENTAL_FIELDS
+
 
 def _as_2d_float32(x: Any, *, name: str) -> jnp.ndarray:
     arr = jnp.asarray(x, dtype=jnp.float32)
@@ -182,12 +184,57 @@ class CrossSectionOps:
         return cross_section.neutralize_groups(self._latest(x), group_ids)
 
 
+class FunNamespace:
+    """
+    Fundamental columns as attributes: ``ctx.fun.Revenue`` is equivalent to
+    ``ctx.feature('Revenue')``.
+
+    Statement and daily field names from :data:`~shunya.data.fundamentals.FUNDAMENTAL_FIELDS`
+    and :data:`~shunya.data.fundamentals.DAILY_FUNDAMENTAL_FIELDS` are installed as properties for
+    editor completion; any other attached name (e.g. ``Revenue_Annual``) is resolved via
+    ``__getattr__``.
+    """
+
+    __slots__ = ("_ctx",)
+
+    def __init__(self, ctx: AlphaContext) -> None:
+        object.__setattr__(self, "_ctx", ctx)
+
+    def __getattr__(self, name: str) -> AlphaSeries:
+        return self._ctx.feature(name)
+
+    def __dir__(self) -> list[str]:
+        names: set[str] = set()
+        for key in dir(type(self)):
+            if not key.startswith("_"):
+                names.add(key)
+        names.update(self._ctx.feature_names)
+        return sorted(names)
+
+
+def _install_fun_namespace_properties() -> None:
+    for fname in (*FUNDAMENTAL_FIELDS, *DAILY_FUNDAMENTAL_FIELDS):
+        if not fname.isidentifier():
+            continue
+
+        def _make_getter(field: str) -> property:
+            def _get(self: FunNamespace) -> AlphaSeries:
+                return self._ctx.feature(field)
+
+            return property(_get)
+
+        setattr(FunNamespace, fname, _make_getter(fname))
+
+
 class AlphaContext:
     """
     User-facing alpha context.
 
     Exposes base fields as ``AlphaSeries`` and operator namespaces as ``ctx.ts`` and
     ``ctx.cs`` so alphas can stay declarative and JAX internals remain hidden.
+
+    Extra tensors from fundamentals (and similar) live in ``ctx.feature(name)`` and as
+    attributes on ``ctx.fun`` (e.g. ``ctx.fun.Revenue``) for editor-friendly access.
     """
 
     def __init__(
@@ -206,12 +253,15 @@ class AlphaContext:
         self.close = AlphaSeries(close)
         self.adj_volume = AlphaSeries(adj_volume)
         raw_features = dict(features or {})
-        overlap = sorted(set(raw_features).intersection({"open", "high", "low", "close", "adj_volume"}))
+        overlap = sorted(
+            set(raw_features).intersection({"open", "high", "low", "close", "adj_volume", "ts", "cs", "fun"})
+        )
         if overlap:
             raise ValueError(f"feature names collide with built-in AlphaContext fields: {overlap}")
         self.features = {str(name): AlphaSeries(value) for name, value in raw_features.items()}
         self.ts = TimeSeriesOps()
         self.cs = CrossSectionOps()
+        self.fun = FunNamespace(self)
 
     @property
     def n_tickers(self) -> int:
@@ -226,3 +276,5 @@ class AlphaContext:
             raise KeyError(f"AlphaContext feature {name!r} is not available")
         return self.features[name]
 
+
+_install_fun_namespace_properties()

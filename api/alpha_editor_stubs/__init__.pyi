@@ -1,0 +1,135 @@
+"""Typing-only stubs for Pyright analysis of alpha modules (lint overlay).
+
+Runtime alphas use ``shunya.algorithm.alpha_context``; these declarations exist so
+``alpha_lint`` can type-check a temporary file that imports this package.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Literal
+
+# --- jax.numpy (minimal; reportUnknownMemberType relaxed in pyrightconfig) ---
+
+
+class ndarray:
+    shape: tuple[int, ...]
+
+
+class _JnpModule:
+    def array(self, a: Any, dtype: Any | None = None) -> ndarray: ...
+    def zeros(self, shape: Any, dtype: Any | None = None) -> ndarray: ...
+    def ones(self, shape: Any, dtype: Any | None = None) -> ndarray: ...
+    def sqrt(self, x: Any) -> ndarray: ...
+    def log(self, x: Any) -> ndarray: ...
+    def exp(self, x: Any) -> ndarray: ...
+    def where(self, cond: Any, x: Any, y: Any) -> ndarray: ...
+    def abs(self, x: Any) -> ndarray: ...
+    def mean(self, x: Any, axis: Any | None = None) -> ndarray: ...
+    def std(self, x: Any, axis: Any | None = None) -> ndarray: ...
+
+
+class AlphaSeries:
+    data: ndarray
+    @property
+    def latest(self) -> ndarray: ...
+    @property
+    def shape(self) -> tuple[int, ...]: ...
+    def __add__(self, other: Any) -> AlphaSeries: ...
+    def __sub__(self, other: Any) -> AlphaSeries: ...
+    def __mul__(self, other: Any) -> AlphaSeries: ...
+    def __truediv__(self, other: Any) -> AlphaSeries: ...
+    def __pow__(self, other: Any) -> AlphaSeries: ...
+    def __neg__(self) -> AlphaSeries: ...
+    def __abs__(self) -> AlphaSeries: ...
+    def __getitem__(self, item: Any) -> ndarray: ...
+
+
+class TimeSeriesOps:
+    @staticmethod
+    def delay(x: AlphaSeries | ndarray, lag: int) -> AlphaSeries: ...
+    @staticmethod
+    def delta(x: AlphaSeries | ndarray, lag: int) -> AlphaSeries: ...
+    @staticmethod
+    def sum(x: AlphaSeries | ndarray, window: int) -> AlphaSeries: ...
+    @staticmethod
+    def mean(x: AlphaSeries | ndarray, window: int) -> AlphaSeries: ...
+    @staticmethod
+    def std(x: AlphaSeries | ndarray, window: int) -> AlphaSeries: ...
+    @staticmethod
+    def zscore(x: AlphaSeries | ndarray, window: int) -> AlphaSeries: ...
+    @staticmethod
+    def rank(x: AlphaSeries | ndarray, window: int) -> AlphaSeries: ...
+    @staticmethod
+    def regression(
+        y: AlphaSeries | ndarray,
+        x: AlphaSeries | ndarray,
+        window: int,
+        lag: int = 0,
+        retval: Literal["b", "a", "r", "t"] = "b",
+    ) -> AlphaSeries: ...
+    @staticmethod
+    def humpdecay(x: AlphaSeries | ndarray, hump: float) -> AlphaSeries: ...
+
+
+class CrossSectionOps:
+    @staticmethod
+    def rank(x: AlphaSeries | ndarray) -> Any: ...
+    @staticmethod
+    def zscore(x: AlphaSeries | ndarray) -> Any: ...
+    @staticmethod
+    def scale(x: AlphaSeries | ndarray, *, target: float = 1.0) -> Any: ...
+    @staticmethod
+    def sign(x: AlphaSeries | ndarray) -> Any: ...
+    @staticmethod
+    def winsorize(x: AlphaSeries | ndarray, tail: float) -> Any: ...
+    @staticmethod
+    def neutralize_market(x: AlphaSeries | ndarray) -> Any: ...
+    @staticmethod
+    def neutralize_groups(x: AlphaSeries | ndarray, group_ids: ndarray) -> Any: ...
+
+
+class FunNamespace:
+    Revenue: AlphaSeries
+    Net_Income: AlphaSeries
+    EPS_Diluted: AlphaSeries
+    Operating_Cash_Flow: AlphaSeries
+    Free_Cash_Flow: AlphaSeries
+    Total_Assets: AlphaSeries
+    Total_Equity: AlphaSeries
+    Total_Debt: AlphaSeries
+    Current_Ratio: AlphaSeries
+    Gross_Margin: AlphaSeries
+    Operating_Margin: AlphaSeries
+    Return_On_Assets: AlphaSeries
+    Return_On_Equity: AlphaSeries
+    Debt_To_Equity: AlphaSeries
+    Free_Cash_Flow_Yield: AlphaSeries
+    Price_To_Earnings: AlphaSeries
+    Market_Cap: AlphaSeries
+    Enterprise_Value: AlphaSeries
+    Trailing_PE: AlphaSeries
+    Forward_PE: AlphaSeries
+    PEG_Ratio: AlphaSeries
+    Price_To_Book: AlphaSeries
+    Dividend_Yield: AlphaSeries
+    Beta: AlphaSeries
+    Shares_Outstanding: AlphaSeries
+
+    def __getattr__(self, name: str) -> AlphaSeries: ...
+
+
+class AlphaContext:
+    open: AlphaSeries
+    high: AlphaSeries
+    low: AlphaSeries
+    close: AlphaSeries
+    adj_volume: AlphaSeries
+    ts: TimeSeriesOps
+    cs: CrossSectionOps
+    fun: FunNamespace
+
+    @property
+    def n_tickers(self) -> int: ...
+    @property
+    def feature_names(self) -> tuple[str, ...]: ...
+    def feature(self, name: str) -> AlphaSeries: ...

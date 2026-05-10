@@ -134,7 +134,7 @@ def test_context_exposes_fundamental_features_and_respects_signal_delay() -> Non
     fts.align_universe(("Close", "Volume", "Revenue"), on_bad_ticker="drop")
 
     def alpha(ctx) -> jnp.ndarray:
-        return ctx.feature("Revenue").latest.astype(jnp.float32)
+        return ctx.fun.Revenue.latest.astype(jnp.float32)
 
     fs = FinStrat(
         fts,
@@ -147,3 +147,4 @@ def test_context_exposes_fundamental_features_and_respects_signal_delay() -> Non
     assert ctx.feature_names == ("Revenue",)
     assert ctx.features["Revenue"].shape == (1, 2)
     np.testing.assert_allclose(np.asarray(ctx.feature("Revenue").latest), np.array([100.0, 200.0]))
+    assert ctx.fun.Revenue is ctx.feature("Revenue")

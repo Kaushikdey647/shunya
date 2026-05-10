@@ -8,11 +8,11 @@ def alpha(ctx) -> jnp.ndarray:
     Cross-sectional quality tilt from statement-backed fundamentals (e.g. yfinance):
     high ROE / operating margin / ROA / FCF, low debt-to-equity.
     """
-    roe = ctx.feature("Return_On_Equity")
-    opm = ctx.feature("Operating_Margin")
-    roa = ctx.feature("Return_On_Assets")
-    fcf = ctx.feature("Free_Cash_Flow")
-    de = ctx.feature("Debt_To_Equity")
+    roe = ctx.fun.Return_On_Equity
+    opm = ctx.fun.Operating_Margin
+    roa = ctx.fun.Return_On_Assets
+    fcf = ctx.fun.Free_Cash_Flow
+    de = ctx.fun.Debt_To_Equity
     z_roe = ctx.cs.zscore(roe)
     z_opm = ctx.cs.zscore(opm)
     z_roa = ctx.cs.zscore(roa)

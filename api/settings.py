@@ -15,6 +15,15 @@ class Settings(BaseSettings):
     database_url: str | None = None
     """If unset, falls back to DATABASE_URL / SHUNYA_DATABASE_URL via dbutil."""
 
+    ollama_host: str | None = None
+    """Base URL for Ollama (e.g. ``http://127.0.0.1:11434``). When unset, alpha assist returns no markers."""
+
+    ollama_model: str = "llama3.2"
+    """Model id for ``/api/chat``."""
+
+    ollama_timeout_seconds: float = 120.0
+    """HTTP timeout for Ollama assist requests."""
+
     worker_poll_interval_seconds: float = 1.0
     """How often the background worker polls for queued backtest jobs."""
 

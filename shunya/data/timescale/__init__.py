@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .market_provider import TimescaleMarketDataProvider
-    from .fundamental_provider import TimescaleFundamentalDataProvider
+    from .fundamental_provider import TimescaleDailyFundamentalDataProvider, TimescaleFundamentalDataProvider
 
 __all__ = [
     "TimescaleMarketDataProvider",
     "TimescaleFundamentalDataProvider",
+    "TimescaleDailyFundamentalDataProvider",
     "bar_spec_to_interval_key",
 ]
 
@@ -24,6 +25,10 @@ def __getattr__(name: str) -> Any:
         from .fundamental_provider import TimescaleFundamentalDataProvider
 
         return TimescaleFundamentalDataProvider
+    if name == "TimescaleDailyFundamentalDataProvider":
+        from .fundamental_provider import TimescaleDailyFundamentalDataProvider
+
+        return TimescaleDailyFundamentalDataProvider
     if name == "bar_spec_to_interval_key":
         from .intervals import bar_spec_to_interval_key
 
