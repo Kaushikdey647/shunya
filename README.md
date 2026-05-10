@@ -238,6 +238,15 @@ shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 202
 # optional: shunya-timescale ingest-fundamentals … , ingest-classifications …
 ```
 
+**Bootstrap S&P 100 (`SP100`) for local backtests:** from a **clone** of this repo (the fundamentals step imports `examples/yfinance_fundamental_provider`), with `DATABASE_URL` set and `uv sync --extra timescale`, run migrations plus membership sync, roughly five years of daily OHLCV for SP100 constituents and benchmark **`^OEX`**, fundamentals over a longer window (so quarterly fields forward-fill at attach time), and yfinance classifications:
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
+uv run python scripts/bootstrap_sp100_timescale.py
+```
+
+HTTP index backtests use `index_code: "SP100"` and require **`^OEX`** OHLCV in the backtest window alongside constituent bars (see [`api/backtest_resolve.py`](api/backtest_resolve.py)). Use `--dry-run` to print windows and (if the DB is reachable) current membership counts without writing; `--strict` fails the script if any constituent lacks bars in the OHLCV window.
+
 **Tiingo EOD ingest:** set **`SHUNYA_TIINGO_API_KEY`** or **`TIINGO_API_KEY`**, then load daily bars into `ohlcv_bars` (same upsert path as Yahoo/Alpha Vantage). `--end` is **exclusive**; use `--tiingo-delay-seconds` to pace requests under account quotas; `--db-limit` / `--db-offset` chunk `--symbols-from-db` runs.
 
 ```bash

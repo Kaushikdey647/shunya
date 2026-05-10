@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from typing import List, Sequence
 
@@ -32,6 +33,34 @@ from .ingest_lib import (
 )
 from .intervals import bar_spec_to_interval_key
 from .market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
+
+
+def _extract_database_url_from_argv(argv: Sequence[str]) -> tuple[list[str], str | None]:
+    """
+    Pull ``--database-url`` / ``--database-url=`` out of argv so it works before or after the
+    subcommand (the root parser only sees options that appear *before* the subcommand name).
+    """
+    out: list[str] = []
+    found: str | None = None
+    i = 0
+    seq = list(argv)
+    while i < len(seq):
+        a = seq[i]
+        if a == "--database-url":
+            if i + 1 >= len(seq):
+                raise SystemExit("error: --database-url expects a value")
+            found = str(seq[i + 1])
+            i += 2
+            continue
+        if a.startswith("--database-url="):
+            found = a.split("=", 1)[1]
+            if not found:
+                raise SystemExit("error: --database-url= expects a non-empty value")
+            i += 1
+            continue
+        out.append(a)
+        i += 1
+    return out, found
 
 
 def _parse_symbols(s: str) -> List[str]:
@@ -449,11 +478,14 @@ def cmd_ingest_classifications(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="python -m shunya.data.timescale.cli")
-    p.add_argument(
-        "--database-url",
-        default=None,
-        help="Postgres URL (default: DATABASE_URL or SHUNYA_DATABASE_URL)",
+    p = argparse.ArgumentParser(
+        prog="python -m shunya.data.timescale.cli",
+        epilog=(
+            "Database URL: set DATABASE_URL or SHUNYA_DATABASE_URL, or pass --database-url "
+            "anywhere on the command line (before or after the subcommand), e.g. "
+            "`shunya-timescale migrate --database-url postgresql://postgres:postgres@localhost:5432/shunya`."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -547,11 +579,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    argv, argv_durl = _extract_database_url_from_argv(argv)
     parser = build_parser()
     args = parser.parse_args(argv)
-    durl = args.database_url or os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL")
+    durl = (
+        argv_durl
+        or os.environ.get("DATABASE_URL")
+        or os.environ.get("SHUNYA_DATABASE_URL")
+    )
     if not durl:
-        print("Set DATABASE_URL or pass --database-url", file=sys.stderr)
+        print(
+            "No database URL: set DATABASE_URL (or SHUNYA_DATABASE_URL), or pass "
+            "--database-url anywhere on the command line, e.g.\n"
+            "  export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya\n"
+            "  shunya-timescale migrate\n"
+            "or (local Docker Compose Timescale service):\n"
+            "  shunya-timescale migrate --database-url "
+            "postgresql://postgres:postgres@localhost:5432/shunya",
+            file=sys.stderr,
+        )
         return 2
     os.environ["DATABASE_URL"] = durl
 

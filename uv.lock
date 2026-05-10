@@ -2401,6 +2401,7 @@ notebook = [
 ]
 timescale = [
     { name = "psycopg", extra = ["binary"] },
+    { name = "rich" },
 ]
 
 [package.dev-dependencies]
@@ -2437,6 +2438,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytickersymbols", specifier = ">=1.17.10" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "rich", marker = "extra == 'timescale'", specifier = ">=13.9" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "testcontainers", extras = ["postgres"], marker = "extra == 'dev'", specifier = ">=4.7.0" },

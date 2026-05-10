@@ -14,7 +14,8 @@ def _json_scalar(x: Any) -> Any:
     if isinstance(x, (bool, str)):
         return x
     if isinstance(x, (datetime, date, pd.Timestamp)):
-        return pd.Timestamp(x).isoformat()
+        ts = pd.Timestamp(x)
+        return None if pd.isna(ts) else ts.isoformat()
     if isinstance(x, (np.floating, float)):
         v = float(x)
         return v if math.isfinite(v) else None
@@ -26,6 +27,11 @@ def _json_scalar(x: Any) -> Any:
         return {str(k): _json_scalar(v) for k, v in x.items()}
     if isinstance(x, (list, tuple)):
         return [_json_scalar(v) for v in x]
+    try:
+        if pd.api.types.is_scalar(x) and bool(pd.isna(x)):
+            return None
+    except (TypeError, ValueError):
+        pass
     return str(x)
 
 

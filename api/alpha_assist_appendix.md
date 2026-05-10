@@ -8,4 +8,6 @@ Alphas implement a function body (saved inside a module template) that returns *
 - **Fundamentals (`fun`)** are sparse vs daily prices; mixing statement-period fields with daily fields without alignment awareness can leak lookahead bias if you combine them naively with price signals.
 - **JAX**: prefer vectorized ops; avoid Python loops over tickers.
 
+When reviewing or assisting on an alpha, apply fundamental-alignment and vectorization advice **only** if the body actually uses `fun` or an explicit loop over tickers; otherwise those points are not relevant.
+
 This appendix is static product context; combine it with the alpha name/description supplied by the user.

@@ -5,6 +5,16 @@ import pandas as pd
 from api.serializer import equity_curve_to_records, result_summary_from_metrics, serialize_backtest_result
 
 
+def test_equity_curve_nat_equity_serializes_as_null() -> None:
+    idx = pd.DatetimeIndex([pd.Timestamp("2024-01-02"), pd.Timestamp("2024-01-03")])
+    df = pd.DataFrame({"Equity": [100.0, pd.NaT]}, index=idx)
+    df.index.name = "Date"
+    recs = equity_curve_to_records(df)
+    assert len(recs) == 2
+    assert recs[0]["Equity"] == 100.0
+    assert recs[1]["Equity"] is None
+
+
 def test_equity_curve_to_records() -> None:
     idx = pd.DatetimeIndex([pd.Timestamp("2024-01-02"), pd.Timestamp("2024-01-03")])
     df = pd.DataFrame({"Equity": [100.0, 101.0], "Peak": [100.0, 101.0], "DrawdownPct": [0.0, 0.0]}, index=idx)

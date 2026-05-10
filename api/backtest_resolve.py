@@ -60,7 +60,9 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
                 "Populate from PyTickerSymbols (no OHLCV required): "
                 "`uv run python -m shunya.data.timescale.cli sync-index-memberships` "
                 "with DATABASE_URL set (after migrations). "
-                "For OHLCV + memberships together use `uv run python scripts/bootstrap_sp500_ohlcv.py`."
+                "For SP100 plus benchmark OHLCV, fundamentals, and memberships in one step use "
+                "`uv run python scripts/bootstrap_sp100_timescale.py` (repo clone); for the full "
+                "multi-index union use `uv run python scripts/bootstrap_ts_data.py`."
             ),
         )
 

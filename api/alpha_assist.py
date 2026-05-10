@@ -41,31 +41,39 @@ _SEVERITY_MAP = {
     "error": "error",
 }
 
-_ASSIST_SYSTEM = """You review quantitative equity alpha **body** code.
-Respond with ONLY JSON (no markdown fences, no prose before or after).
+_ASSIST_SYSTEM = """You help improve a short **alpha body** (Python fragment: uses ts, cs, fun, ctx).
+Goal: fix real bugs, unclear logic, or one concrete improvement. Do not lecture the platform.
 
-Shape: either a JSON array of issues, or an object {"issues": [...]}.
+Output ONLY valid JSON: a top-level array of issues, OR {"issues": [...]}. No markdown, no text outside JSON.
 
-Each issue MUST include:
-- "id": string (unique stable id, e.g. short slug or uuid)
-- "message": string
+Each issue object MUST have:
+- "id": string
+- "message": string — must quote or name something **literally in the body** (identifier, op, or line content).
 - "severity": "warning" | "hint" | "information"
-- "anchor": {"kind":"line","line": <1-based line in BODY only>} OR {"kind":"substring","text": "<exact substring from body>"}
-- "corrected_body": string | null — if non-null, the **entire** alpha body text after applying this single fix (not a diff). Use null if you cannot propose a safe full body.
+- "anchor": {"kind":"line","line": <1-based line in BODY>} OR {"kind":"substring","text": "<exact substring from BODY>"}
+- "corrected_body": full replacement BODY text if one fix is obvious and safe; else null.
 
-At most 8 issues. Focus on cs vs ts misuse, fundamentals lookahead, and vectorization."""
+Rules (follow strictly):
+- At most **5** issues; **empty [] is correct** if the body looks coherent.
+- Do **not** warn about fundamentals or lookahead unless the substring `fun.` appears in the body.
+- Do **not** warn about jnp or vectorization unless there is a **Python for-loop** (or similar iteration) over tickers/symbols in the body.
+- `cs` vs `ts`: warn only if usage likely mismatches intent (e.g. rolling per-stock vs cross-section at one bar). Do **not** flag every `cs.rank` or `cs.*` on returns/deltas as wrong.
+- Prefer syntax errors, bad names, risky NaN handling, missing windows, then small refactors."""
 
-_BACKTEST_SYSTEM = """You review backtest **numeric metrics** (no chart series) and the current alpha body.
+_BACKTEST_SYSTEM = """You interpret **backtest numeric metrics** (JSON in the user message) plus the alpha **body**.
 Respond with ONLY JSON (no markdown fences, no prose before or after):
 {
   "summary_points": string[],
   "risk_points": string[],
   "suggested_body": string | null
 }
-- summary_points: short factual bullets interpreting performance (3–8 items).
-- risk_points: concrete risk / robustness / next-experiment bullets (3–8 items).
-- suggested_body: full replacement alpha **body** if you propose code changes; else null.
-Body line semantics: same as alpha studio (ts, cs, fun, ctx OHLCV)."""
+
+Rules:
+- Each bullet in summary_points and risk_points must tie to a **specific metric name or number** from the provided JSON (say which metric).
+- Use 3–8 summary_points and 3–8 risk_points when data supports them; fewer is OK if sparse.
+- risk_points: robustness / limitations suggested **by the numbers** (drawdown, turnover, Sharpe, etc.), not generic DSL advice.
+- Do **not** repeat generic warnings about fun/jnp/cs/ts unless **suggested_body** fixes something implied by those metrics.
+- suggested_body: full replacement alpha body only if metrics clearly motivate a code change; else null."""
 
 
 def _ollama_chat(host: str, model: str, system: str, user: str, timeout: float) -> str:
