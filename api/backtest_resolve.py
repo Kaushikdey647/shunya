@@ -134,7 +134,6 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
             "ticker_list": tickers,
             "market_data_provider": "timescale",
             "attach_yfinance_classifications": False,
-            "attach_fundamentals": False,
         }
     )
     return body.model_copy(

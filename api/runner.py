@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import numpy as np
@@ -20,6 +21,26 @@ from api.serializer import (
 )
 from api.settings import get_settings
 from shunya.schemas import merge_finstrat_runtime_dict
+
+_FUN_IN_ALPHA_SOURCE = re.compile(r"\b(?:ctx\.)?fun\.")
+
+
+def _backtest_fin_ts_auto_fundamentals(body: BacktestCreate, source_code: str | None) -> BacktestCreate:
+    """
+    When inline alpha references ``fun.*`` / ``ctx.fun.*`` but the request left fundamentals
+    off, attach quarterly/statement fundamentals so :class:`~shunya.algorithm.alpha_context.AlphaContext`
+    exposes those columns.
+    """
+    if not (source_code or "").strip():
+        return body
+    if _FUN_IN_ALPHA_SOURCE.search(source_code) is None:
+        return body
+    ft = body.fin_ts
+    if ft.attach_fundamentals or ft.attach_fundamentals_daily or ft.attach_fundamentals_annual:
+        return body
+    return body.model_copy(
+        update={"fin_ts": ft.model_copy(update={"attach_fundamentals": True})}
+    )
 
 
 def _merge_finstrat(stored: dict[str, Any], override: Optional[FinStratConfig]) -> dict[str, Any]:
@@ -107,6 +128,7 @@ def run_backtest_job(
     body: BacktestCreate,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     settings = get_settings()
+    body = _backtest_fin_ts_auto_fundamentals(body, source_code)
     algo = resolve_alpha_for_backtest(alpha_import_ref, source_code)
     fts = build_fin_ts(body.fin_ts)
     fs_kw = _merge_finstrat(finstrat_stored, body.finstrat_override)

@@ -148,3 +148,26 @@ def test_context_exposes_fundamental_features_and_respects_signal_delay() -> Non
     assert ctx.features["Revenue"].shape == (1, 2)
     np.testing.assert_allclose(np.asarray(ctx.feature("Revenue").latest), np.array([100.0, 200.0]))
     assert ctx.fun.Revenue is ctx.feature("Revenue")
+
+
+def test_feature_and_fun_accept_fundamental_name_aliases() -> None:
+    tickers = ["AAA", "BBB"]
+    dates = ["2020-01-02", "2020-01-03"]
+    fts = make_stub_fints(tickers, dates, base_price=10.0)
+    fts.df["Revenue"] = [100.0, 150.0, 200.0, 250.0]
+    fts._fundamental_feature_columns = ("Revenue",)
+    fts.align_universe(("Close", "Volume", "Revenue"), on_bad_ticker="drop")
+
+    def alpha(ctx) -> jnp.ndarray:
+        return ctx.feature("revenue").latest.astype(jnp.float32)
+
+    fs = FinStrat(fts, alpha, signal_delay=1, neutralization="none")
+    ctx = fs.context_at("2020-01-03", tickers=fs.tickers_at("2020-01-03"))
+    np.testing.assert_allclose(np.asarray(ctx.fun.revenue.latest), np.array([100.0, 200.0]))
+
+
+def test_validate_fundamental_fields_accepts_aliases() -> None:
+    from shunya.data.fundamentals import validate_fundamental_fields
+
+    specs = validate_fundamental_fields(["revenue", "DEBT_TO_EQUITY"])
+    assert [s.column for s in specs] == ["Revenue", "Debt_To_Equity"]

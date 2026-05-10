@@ -8,7 +8,11 @@ import jax.numpy as jnp
 
 from . import cross_section, time_series
 
-from ..data.fundamentals import DAILY_FUNDAMENTAL_FIELDS, FUNDAMENTAL_FIELDS
+from ..data.fundamentals import (
+    DAILY_FUNDAMENTAL_FIELDS,
+    FUNDAMENTAL_FIELDS,
+    resolve_fundamental_feature_alias,
+)
 
 
 def _as_2d_float32(x: Any, *, name: str) -> jnp.ndarray:
@@ -201,7 +205,7 @@ class FunNamespace:
         object.__setattr__(self, "_ctx", ctx)
 
     def __getattr__(self, name: str) -> AlphaSeries:
-        return self._ctx.feature(name)
+        return self._ctx.feature(resolve_fundamental_feature_alias(name))
 
     def __dir__(self) -> list[str]:
         names: set[str] = set()
@@ -219,7 +223,7 @@ def _install_fun_namespace_properties() -> None:
 
         def _make_getter(field: str) -> property:
             def _get(self: FunNamespace) -> AlphaSeries:
-                return self._ctx.feature(field)
+                return self._ctx.feature(resolve_fundamental_feature_alias(field))
 
             return property(_get)
 
@@ -272,9 +276,10 @@ class AlphaContext:
         return tuple(self.features.keys())
 
     def feature(self, name: str) -> AlphaSeries:
-        if name not in self.features:
+        key = resolve_fundamental_feature_alias(str(name))
+        if key not in self.features:
             raise KeyError(f"AlphaContext feature {name!r} is not available")
-        return self.features[name]
+        return self.features[key]
 
 
 _install_fun_namespace_properties()

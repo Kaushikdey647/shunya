@@ -81,4 +81,11 @@ def build_fin_ts(req: FinTsRequest) -> finTs:
     }
     if req.require_history_bars is not None:
         kwargs["require_history_bars"] = req.require_history_bars
+    if req.attach_fundamentals and md is not None:
+        from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
+
+        if isinstance(md, TimescaleMarketDataProvider):
+            from shunya.data.timescale.fundamental_provider import TimescaleFundamentalDataProvider
+
+            kwargs["fundamental_data"] = TimescaleFundamentalDataProvider()
     return finTs(**kwargs)

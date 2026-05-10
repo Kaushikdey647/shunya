@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import os
 import re
 from dataclasses import dataclass
@@ -109,6 +110,45 @@ DAILY_FUNDAMENTAL_FIELDS: tuple[str, ...] = (
     "Shares_Outstanding",
 )
 
+_DAILY_FUNDAMENTAL_FIELD_SET: frozenset[str] = frozenset(DAILY_FUNDAMENTAL_FIELDS)
+
+
+@functools.lru_cache
+def _fundamental_feature_alias_to_canonical() -> dict[str, str]:
+    """
+    Map alternate spellings (camelCase, lower_snake, UPPER_SNAKE) to canonical column names.
+
+    Canonical names stay ``Pascal_Case_With_Underscores`` as stored on panels and in
+    :data:`FUNDAMENTAL_FIELDS` / :data:`DAILY_FUNDAMENTAL_FIELDS`.
+    """
+    out: dict[str, str] = {}
+    for canonical in (*FUNDAMENTAL_FIELDS, *DAILY_FUNDAMENTAL_FIELDS):
+        parts = canonical.split("_")
+        camel = parts[0].lower() + "".join(p.title() for p in parts[1:])
+        snake_lo = "_".join(p.lower() for p in parts)
+        upper_snake = "_".join(p.upper() for p in parts)
+        for alias in (camel, snake_lo, upper_snake):
+            if alias == canonical:
+                continue
+            prev = out.get(alias)
+            if prev is not None and prev != canonical:
+                raise RuntimeError(
+                    f"Fundamental alias collision: {alias!r} maps to both {prev!r} and {canonical!r}"
+                )
+            out[alias] = canonical
+    return out
+
+
+def resolve_fundamental_feature_alias(name: str) -> str:
+    """
+    If ``name`` is a known fundamental (or alias), return the canonical column name; else
+    return ``name`` unchanged (for custom non-fundamental feature keys).
+    """
+    raw = str(name).strip()
+    if raw in FUNDAMENTAL_FIELD_MAP or raw in _DAILY_FUNDAMENTAL_FIELD_SET:
+        return raw
+    return _fundamental_feature_alias_to_canonical().get(raw, raw)
+
 
 def default_fundamental_fields() -> tuple[str, ...]:
     """Curated first-pass field set exposed by default."""
@@ -122,11 +162,11 @@ def validate_daily_fundamental_fields(fields: Sequence[str] | None) -> tuple[str
     out: list[str] = []
     missing: list[str] = []
     for f in fields:
-        s = str(f)
+        s = resolve_fundamental_feature_alias(str(f))
         if s in allowed:
             out.append(s)
         else:
-            missing.append(s)
+            missing.append(str(f))
     if missing:
         raise KeyError(f"Unknown daily fundamental fields: {missing}")
     return tuple(out)
@@ -139,7 +179,8 @@ def validate_fundamental_fields(fields: Optional[Sequence[str]]) -> tuple[Fundam
     resolved: list[FundamentalFieldSpec] = []
     missing: list[str] = []
     for field in fields:
-        spec = FUNDAMENTAL_FIELD_MAP.get(str(field))
+        key = resolve_fundamental_feature_alias(str(field))
+        spec = FUNDAMENTAL_FIELD_MAP.get(key)
         if spec is None:
             missing.append(str(field))
         else:

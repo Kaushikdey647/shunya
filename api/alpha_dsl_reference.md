@@ -34,7 +34,7 @@ Operates on **latest bar** snapshot.
 
 ## Fundamentals (`fun`)
 
-`fun.Revenue`, `fun.Net_Income`, … (statement fields) and `fun.Market_Cap`, … (daily fields). Same as `ctx.feature("ColumnName")`.
+`fun.Revenue`, `fun.Net_Income`, … (statement fields) and `fun.Market_Cap`, … (daily fields). Same as `ctx.feature("ColumnName")`. Aliases work too: camelCase (`fun.revenue`, `fun.debtToEquity`), lower_snake (`fun.net_income`), or UPPER_SNAKE — all resolve to the canonical panel column names.
 
 ## JAX (`jnp`)
 

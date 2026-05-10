@@ -58,6 +58,7 @@ Rules (follow strictly):
 - Do **not** warn about fundamentals or lookahead unless the substring `fun.` appears in the body.
 - Do **not** warn about jnp or vectorization unless there is a **Python for-loop** (or similar iteration) over tickers/symbols in the body.
 - `cs` vs `ts`: warn only if usage likely mismatches intent (e.g. rolling per-stock vs cross-section at one bar). Do **not** flag every `cs.rank` or `cs.*` on returns/deltas as wrong.
+- **Fundamentals (`fun.*`)**: cross-sectional ops like `cs.rank(fun.SomeField)` are often **correct** (e.g. value/quality vs peers at the same bar). Do **not** suggest swapping to `ts.rank` or "use ts instead of cs" on `fun.*` unless you cite a **specific** bug in the snippet (e.g. wrong window, obvious double-count, or clear misuse named in the code). Vague "ratios may not be appropriate for cs.rank" is forbidden.
 - Prefer syntax errors, bad names, risky NaN handling, missing windows, then small refactors."""
 
 _BACKTEST_SYSTEM = """You interpret **backtest numeric metrics** (JSON in the user message) plus the alpha **body**.
