@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     max_group_exposure_history_points: int = 500
     """Cap serialized group_exposure_history rows per job result."""
 
+    max_exposure_history_points: int = 500
+    """Cap serialized exposure_history rows per job result."""
+
+    max_trade_events: int = 2000
+    """Cap serialized trade_events per job result."""
+
     index_ohlcv_backfill_batch_size: int = 40
     """Tickers per yfinance download when backfilling OHLCV for failed index backtests."""
 

@@ -16,6 +16,7 @@ from api.services.ohlcv_yfinance_backfill import (
     tickers_for_ohlcv_backfill,
 )
 from api.settings import get_settings
+from shunya.errors import ErrorCode
 
 
 def _recoverable_fin_ts_data_error(exc: BaseException) -> bool:
@@ -43,18 +44,19 @@ def _truncate(msg: str, limit: int) -> str:
 
 def execute_claimed_backtest_job(
     job_id: str, payload: dict[str, Any]
-) -> tuple[Optional[str], Optional[dict[str, Any]], Optional[dict[str, Any]]]:
+) -> tuple[Optional[str], Optional[str], Optional[dict[str, Any]], Optional[dict[str, Any]]]:
     """
     Run backtest; for index jobs and recoverable OHLCV errors, yfinance-backfill then retry once.
 
-    Returns ``(error_message, serialized_result, summary)`` — on success ``error_message`` is
-    ``None`` and the other two are set; on failure ``error_message`` is set.
+    Returns ``(error_message, error_code, serialized_result, summary)`` — on success the first
+    two are ``None`` and the latter two are set; on failure ``error_message`` is set and
+    ``error_code`` may be a stable :class:`~shunya.errors.ErrorCode` string.
     """
     jobs_repo.append_job_log(job_id, "Worker started; resolving alpha and universe.")
     alpha_id = str(payload["alpha_id"])
     ar = alphas_repo.get_alpha_raw(alpha_id)
     if ar is None:
-        return "Alpha not found.", None, None
+        return "Alpha not found.", str(ErrorCode.ALPHA_NOT_FOUND), None, None
     ir = ar.get("import_ref")
     sc = ar.get("source_code")
     finstrat = dict(ar["finstrat_config"])
@@ -69,12 +71,17 @@ def execute_claimed_backtest_job(
 
     try:
         serialized, summary = run_once()
-        return None, serialized, summary
+        return None, None, serialized, summary
     except FinTsConfigurationError as exc:
-        return _truncate(exc.message, 8000), None, None
+        return _truncate(exc.message, 8000), exc.code, None, None
     except Exception as exc1:  # noqa: BLE001
         if not (payload_has_index_code(payload) and _recoverable_fin_ts_data_error(exc1)):
-            return _truncate(_format_exc(exc1), 8000), None, None
+            return (
+                _truncate(_format_exc(exc1), 8000),
+                str(ErrorCode.BACKTEST_JOB_EXECUTION_ERROR),
+                None,
+                None,
+            )
 
         settings = get_settings()
         tickers = tickers_for_ohlcv_backfill(payload)
@@ -87,7 +94,7 @@ def execute_claimed_backtest_job(
 
         try:
             serialized, summary = run_once()
-            return None, serialized, summary
+            return None, None, serialized, summary
         except FinTsConfigurationError as exc2:
             original = _truncate(_format_exc(exc1), 3200)
             retry = _truncate(exc2.message, 3500)
@@ -96,7 +103,7 @@ def execute_claimed_backtest_job(
                 2000,
             )
             chained = f"Original:\n{original}\n\n--- Backfill:\n{bf_block}\n\n--- Retry:\n{retry}"
-            return _truncate(chained, 8000), None, None
+            return _truncate(chained, 8000), str(ErrorCode.BACKTEST_JOB_EXECUTION_ERROR), None, None
         except Exception as exc2:  # noqa: BLE001
             original = _truncate(_format_exc(exc1), 2800)
             retry = _truncate(_format_exc(exc2), 2800)
@@ -105,4 +112,4 @@ def execute_claimed_backtest_job(
                 2000,
             )
             chained = f"Original:\n{original}\n\n--- Backfill:\n{bf_block}\n\n--- Retry:\n{retry}"
-            return _truncate(chained, 8000), None, None
+            return _truncate(chained, 8000), str(ErrorCode.BACKTEST_JOB_EXECUTION_ERROR), None, None

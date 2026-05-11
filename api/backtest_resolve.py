@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException, status
-
 from api.index_catalog import benchmark_for_index
 from api.index_universe import (
     constituent_tickers,
@@ -15,6 +13,7 @@ from api.index_universe import (
 )
 from api.schemas.models import BacktestCreate, BarSpecModel
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_spec
+from shunya.errors import ErrorCode, ShunyaError
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
 
 _LOG = logging.getLogger(__name__)
@@ -40,22 +39,23 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
     try:
         bench = benchmark_for_index(code)
     except KeyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown index_code for benchmark mapping: {code}",
+        raise ShunyaError(
+            f"Unknown index_code for benchmark mapping: {code}",
+            code=ErrorCode.BACKTEST_INDEX_UNKNOWN,
+            http_status=400,
         ) from exc
 
     if not index_exists(code):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Index {code!r} not found in equity_indexes.",
+        raise ShunyaError(
+            f"Index {code!r} not found in equity_indexes.",
+            code=ErrorCode.BACKTEST_INDEX_NOT_FOUND,
+            http_status=404,
         )
 
     tickers = constituent_tickers(code)
     if not tickers:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
+        raise ShunyaError(
+            (
                 f"No symbol_index_membership rows for index {code!r}. "
                 "Populate from PyTickerSymbols (no OHLCV required): "
                 "`uv run python -m shunya.data.timescale.cli sync-index-memberships` "
@@ -64,6 +64,8 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
                 "`uv run python scripts/bootstrap_sp100_timescale.py` (repo clone); for the full "
                 "multi-index union use `uv run python scripts/bootstrap_ts_data.py`."
             ),
+            code=ErrorCode.BACKTEST_INDEX_NO_MEMBERS,
+            http_status=400,
         )
 
     interval = _interval_key_from_fin_ts_bar_spec(body.fin_ts.bar_spec)
@@ -78,14 +80,15 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
             interval=interval,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
+        raise ShunyaError(
+            (
                 f"Benchmark {bench!r} has no OHLCV in the backtest window ({start_d!r} .. {end_d!r}, "
                 f"interval={interval!r}). Ingest it, e.g. "
                 f"`uv run python -m shunya.data.timescale.cli ingest-ohlcv --symbols {bench!r} "
                 f"--start {start_d} --end {end_d}`. Original error: {exc}"
             ),
+            code=ErrorCode.BACKTEST_INDEX_OHLCV,
+            http_status=400,
         ) from exc
 
     if body.omit_index_members_missing_ohlcv:
@@ -97,12 +100,13 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
         )
         dropped = len(tickers) - len(covered)
         if not covered:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
+            raise ShunyaError(
+                (
                     "No index constituents have OHLCV in the backtest window after filtering; "
                     "ingest bars or disable omit_index_members_missing_ohlcv to see the strict error."
                 ),
+                code=ErrorCode.BACKTEST_INDEX_OHLCV,
+                http_status=400,
             )
         if dropped:
             _LOG.info(
@@ -124,9 +128,10 @@ def resolve_index_backtest_if_needed(body: BacktestCreate) -> BacktestCreate:
                 interval=interval,
             )
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
+            raise ShunyaError(
+                str(exc),
+                code=ErrorCode.BACKTEST_INDEX_OHLCV,
+                http_status=400,
             ) from exc
 
     ft = body.fin_ts.model_copy(

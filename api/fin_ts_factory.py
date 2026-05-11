@@ -8,7 +8,7 @@ from shunya.data.providers import MarketDataProvider
 
 from shunya.schemas import FinTsRequest, bar_spec_model_to_bar_spec
 
-from api.errors import FinTsConfigurationError
+from shunya.errors import ErrorCode, FinTsConfigurationError
 from api.timescale_classifications import load_classifications_for_tickers
 
 
@@ -22,6 +22,7 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
         except ImportError as exc:
             raise FinTsConfigurationError(
                 "Timescale provider requires: pip install 'shunya-py[timescale]'",
+                code=ErrorCode.FIN_TS_TIMESCALE_DEPENDENCY,
                 status_code=503,
             ) from exc
         try:
@@ -29,6 +30,7 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
         except ValueError as exc:
             raise FinTsConfigurationError(
                 "Timescale provider requires DATABASE_URL or SHUNYA_DATABASE_URL.",
+                code=ErrorCode.FIN_TS_TIMESCALE_DSN_REQUIRED,
                 status_code=503,
             ) from exc
     if os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL"):
@@ -47,6 +49,7 @@ def build_fin_ts(req: FinTsRequest) -> finTs:
     if req.market_data_provider == "timescale" and md is None:
         raise FinTsConfigurationError(
             "market_data_provider=timescale but Timescale is not available (DSN or psycopg).",
+            code=ErrorCode.FIN_TS_TIMESCALE_UNAVAILABLE,
             status_code=503,
         )
     classifications = None
@@ -58,6 +61,7 @@ def build_fin_ts(req: FinTsRequest) -> finTs:
     ):
         raise FinTsConfigurationError(
             "attach_fundamentals_daily requires DATABASE_URL or SHUNYA_DATABASE_URL.",
+            code=ErrorCode.FIN_TS_FUNDAMENTALS_DSN_REQUIRED,
             status_code=503,
         )
 

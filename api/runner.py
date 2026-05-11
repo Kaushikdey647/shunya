@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 from pydantic import ValidationError
 
-from shunya.algorithm.finbt import FinBT
+from shunya.adapters.backtrader_engine import BacktraderBacktestEngine
 from shunya.algorithm.finstrat import FinStrat
+from shunya.ports.backtest_engine import BacktestEngine
 
 from api.fin_ts_factory import build_fin_ts
 from api.resolver import resolve_alpha_for_backtest
@@ -23,6 +24,8 @@ from api.settings import get_settings
 from shunya.schemas import merge_finstrat_runtime_dict
 
 _FUN_IN_ALPHA_SOURCE = re.compile(r"\b(?:ctx\.)?fun\.")
+
+_default_backtest_engine: BacktestEngine = BacktraderBacktestEngine()
 
 
 def _backtest_fin_ts_auto_fundamentals(body: BacktestCreate, source_code: str | None) -> BacktestCreate:
@@ -126,6 +129,8 @@ def run_backtest_job(
     source_code: str | None,
     finstrat_stored: dict[str, Any],
     body: BacktestCreate,
+    *,
+    engine: BacktestEngine | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     settings = get_settings()
     body = _backtest_fin_ts_auto_fundamentals(body, source_code)
@@ -134,8 +139,8 @@ def run_backtest_job(
     fs_kw = _merge_finstrat(finstrat_stored, body.finstrat_override)
     fs = FinStrat(fts, algo, **fs_kw)
     bt_kw = body.finbt.model_dump(mode="json", exclude_none=True)
-    bt = FinBT(fs, fts, **bt_kw).run()
-    out = bt.results(show=False)
+    eng = engine or _default_backtest_engine
+    out = eng.run_backtest(fs, fts, finbt_kwargs=bt_kw)
     out = apply_tune_only_to_finbt_results(
         out, include_test=body.include_test_period_in_results
     )
@@ -143,6 +148,8 @@ def run_backtest_job(
         out,
         max_target_history=settings.max_target_history_points,
         max_group_exposure_history=settings.max_group_exposure_history_points,
+        max_exposure_history=settings.max_exposure_history_points,
+        max_trade_events=settings.max_trade_events,
     )
     if body.benchmark_ticker:
         try:

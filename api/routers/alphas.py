@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 
 from api.alpha_assist import run_alpha_assist, run_alpha_backtest_review
 from api.alpha_lint import run_pyright_on_wrapped
@@ -21,6 +21,7 @@ from api.schemas.models import (
     AlphaPatch,
 )
 from shunya.algorithm.alpha_source_wrap import wrap_alpha_body
+from shunya.errors import ErrorCode, ShunyaError
 
 router = APIRouter(prefix="/alphas", tags=["alphas"])
 
@@ -73,10 +74,14 @@ def create_alpha(body: AlphaCreate) -> AlphaOut:
         return repo.insert_alpha(body)
     except RuntimeError as exc:
         if str(exc) == "duplicate_alpha_name":
-            raise HTTPException(status_code=409, detail="Alpha name already exists.") from exc
+            raise ShunyaError(
+                "Alpha name already exists.",
+                code=ErrorCode.ALPHA_NAME_CONFLICT,
+                http_status=409,
+            ) from exc
         raise
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ShunyaError(str(exc), code=ErrorCode.VALIDATION_ERROR, http_status=400) from exc
 
 
 @router.get("", response_model=list[AlphaOut])
@@ -91,7 +96,7 @@ def list_alphas(
 def get_alpha(alpha_id: str) -> AlphaOut:
     row = repo.get_alpha(alpha_id)
     if row is None:
-        raise HTTPException(status_code=404, detail="Alpha not found.")
+        raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
     return row
 
 
@@ -101,10 +106,10 @@ def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
         try:
             validate_import_ref(body.import_ref)
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise ShunyaError(str(exc), code=ErrorCode.VALIDATION_ERROR, http_status=400) from exc
     row = repo.update_alpha(alpha_id, body)
     if row is None:
-        raise HTTPException(status_code=404, detail="Alpha not found.")
+        raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
     return row
 
 
@@ -112,4 +117,4 @@ def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
 def delete_alpha(alpha_id: str) -> None:
     ok = repo.delete_alpha(alpha_id)
     if not ok:
-        raise HTTPException(status_code=404, detail="Alpha not found.")
+        raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)

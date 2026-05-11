@@ -8,6 +8,12 @@ import numpy as np
 import pandas as pd
 
 from api.backtest_windows import BACKTEST_TEST_START
+from shunya.algorithm.backtest_analytics import (
+    build_turnover_pct_history,
+    compute_ff_single_factor,
+    compute_return_quantiles,
+    compute_tearsheet_summary,
+)
 from shunya.algorithm.equity_metrics import cagr_pct_from_equity_df, win_rate_pct_from_equity_returns
 
 
@@ -179,6 +185,29 @@ def apply_tune_only_to_finbt_results(raw: dict[str, Any], *, include_test: bool)
     gh: list = list(raw.get("group_exposure_history") or [])
     out["group_exposure_history"] = [(dt, ge) for dt, ge in gh if pd.Timestamp(dt) < cutoff]
 
+    exp = raw.get("exposure_history")
+    if isinstance(exp, pd.DataFrame) and not exp.empty:
+        out["exposure_history"] = exp.loc[exp.index < cutoff].copy()
+    elif isinstance(exp, pd.DataFrame):
+        out["exposure_history"] = exp.copy()
+    else:
+        out["exposure_history"] = pd.DataFrame()
+
+    te_raw = raw.get("trade_events") or []
+    if isinstance(te_raw, list):
+        trimmed_te: list[Any] = []
+        for ev in te_raw:
+            if not isinstance(ev, dict):
+                continue
+            ts = ev.get("ts")
+            if ts is None:
+                continue
+            if pd.Timestamp(ts) < cutoff:
+                trimmed_te.append(ev)
+        out["trade_events"] = trimmed_te
+    else:
+        out["trade_events"] = []
+
     pm: dict[str, Any] = dict(raw.get("metrics") or {})
     cash = float(pm.get("start_value", 100_000.0))
     bar_unit = str(pm.get("bar_unit", "DAYS"))
@@ -195,6 +224,36 @@ def apply_tune_only_to_finbt_results(raw: dict[str, Any], *, include_test: bool)
         cash=cash,
         prior_metrics=pm,
     )
+
+    eq2 = out["equity_curve"]
+    to2 = out["turnover_history"] if isinstance(out["turnover_history"], pd.DataFrame) else pd.DataFrame()
+    out["turnover_pct_history"] = (
+        build_turnover_pct_history(to2, eq2) if isinstance(eq2, pd.DataFrame) and not eq2.empty else pd.DataFrame()
+    )
+
+    if isinstance(eq2, pd.DataFrame) and not eq2.empty and "Equity" in eq2.columns:
+        eq_ret = eq2["Equity"].astype(float).pct_change().dropna()
+        out["return_quantiles"] = compute_return_quantiles(eq_ret)
+        pm2 = out["metrics"]
+        ppy = _periods_per_year(str(pm2.get("bar_unit", "DAYS")), int(pm2.get("bar_step", 1)))
+        out["tearsheet_summary"] = compute_tearsheet_summary(
+            eq2,
+            periods_per_year=ppy,
+            max_drawdown_len=int(pm2.get("max_drawdown_len", 0)),
+        )
+        out["ff_single_factor"] = compute_ff_single_factor(eq2)
+    else:
+        out["return_quantiles"] = {"count": 0}
+        out["tearsheet_summary"] = {
+            "ann_mean_return_pct": None,
+            "ann_volatility_pct": None,
+            "skew": None,
+            "kurtosis": None,
+            "worst_bar_returns_pct": [],
+            "max_drawdown_len_bars": 0,
+        }
+        out["ff_single_factor"] = {"factors": {}, "error": "empty_equity"}
+
     out["returns_analysis"] = None
     out["drawdown_analysis"] = None
     out["sharpe_analysis"] = None

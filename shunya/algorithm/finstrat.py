@@ -13,7 +13,8 @@ from ..data.fints import ContextOhlcvTensorBundle, finTs
 from ..data.timeframes import bar_spec_is_intraday, normalize_bar_timestamp
 from ..utils import indicators
 from .alpha_context import AlphaContext, AlphaSeries
-from . import cross_section
+from shunya.adapters.jax_cross_section_ops import JaxCrossSectionOps
+from shunya.ports.cross_section_ops import CrossSectionOps
 
 Neutralization = Literal["none", "market", "group", "sector", "industry"]
 DecayMode = Literal["ema", "linear"]
@@ -50,7 +51,8 @@ class FinStrat:
     Typical BRAIN order: decay (smooth alpha through time) → truncate tails →
     neutralize → scale gross notional to ``capital``. Truncation, neutralization
     (except label encoding for groups), and gross scaling use JAX JIT via
-    :mod:`shunya.algorithm.cross_section` and module helpers here.
+    :mod:`shunya.algorithm.cross_section` (default) or a pluggable
+    :class:`~shunya.ports.cross_section_ops.CrossSectionOps` implementation.
     """
 
     def __init__(
@@ -70,6 +72,7 @@ class FinStrat:
         max_single_weight: Optional[float] = None,
         jit_algorithm: bool = False,
         panel_columns: Optional[Sequence[str]] = None,
+        cross_section_ops: Optional[CrossSectionOps] = None,
     ) -> None:
         """
         Args:
@@ -94,6 +97,7 @@ class FinStrat:
             max_single_weight: Optional per-name gross cap as fraction of ``capital``.
             jit_algorithm: Deprecated for context-based API; must be ``False``.
             panel_columns: Optional column subset for :meth:`panel_at`.
+            cross_section_ops: Pluggable winsorize / neutralization backend (default JAX).
         """
         if decay_mode not in ("ema", "linear"):
             raise ValueError(f"decay_mode must be 'ema' or 'linear', got {decay_mode!r}")
@@ -148,6 +152,8 @@ class FinStrat:
         )
         if self._panel_columns is not None and not self._panel_columns:
             raise ValueError("panel_columns must be non-empty when provided")
+
+        self._cs_ops: CrossSectionOps = cross_section_ops or JaxCrossSectionOps()
 
     @property
     def decay(self) -> float:
@@ -650,10 +656,10 @@ class FinStrat:
             s = raw
 
         if self._truncation > 0.0:
-            s = cross_section.winsorize(s, self._truncation)
+            s = self._cs_ops.winsorize(s, self._truncation)
 
         if self._neutralization == "market":
-            s = cross_section.neutralize_market(s)
+            s = self._cs_ops.neutralize_market(s)
         elif self._neutralization in ("group", "sector", "industry"):
             if self._neutralization == "group":
                 if group_ids is None:
@@ -664,7 +670,7 @@ class FinStrat:
                 gid = np.asarray(self.group_labels_at(execution_date, tickers, col))
             if gid.shape[0] != s.shape[0]:
                 raise ValueError("group_ids must have same length as scores")
-            s = cross_section.neutralize_groups(s, gid)
+            s = self._cs_ops.neutralize_groups(s, gid)
         # else: none
 
         cap = jnp.asarray(capital, dtype=s.dtype)

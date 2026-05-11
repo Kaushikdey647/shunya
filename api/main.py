@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.exception_handlers import register_exception_handlers
 from api.health_checks import collect_health
 from api.repositories import backtests as jobs_repo
 from api.routers import alphas, backtests, data, indices, instruments, market
@@ -63,6 +64,8 @@ def create_app() -> FastAPI:
     app.include_router(data.router)
     app.include_router(market.router)
     app.include_router(instruments.router)
+
+    register_exception_handlers(app)
 
     @app.get("/health", response_model=HealthResponseModel)
     def health() -> HealthResponseModel:

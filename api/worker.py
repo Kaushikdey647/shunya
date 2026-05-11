@@ -22,12 +22,12 @@ async def backtest_worker_loop(stop: asyncio.Event) -> None:
                 pass
             continue
         job_id, payload = row
-        err, serialized, summary = await asyncio.to_thread(
+        err, err_code, serialized, summary = await asyncio.to_thread(
             execute_claimed_backtest_job, job_id, payload
         )
         if err is not None:
             _log.error("backtest job %s failed", job_id)
-            await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, err)
+            await asyncio.to_thread(jobs_repo.mark_job_failed, job_id, err, err_code)
         else:
             assert serialized is not None and summary is not None
             await asyncio.to_thread(jobs_repo.mark_job_succeeded, job_id, serialized, summary)

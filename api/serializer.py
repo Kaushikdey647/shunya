@@ -92,11 +92,46 @@ def _serialize_group_exposure_history(
     return out
 
 
+def _serialize_exposure_history(df: Any, *, max_points: int) -> list[dict[str, Any]]:
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return []
+    tail = df.tail(max_points) if len(df) > max_points else df
+    return turnover_to_records(tail)
+
+
+def _serialize_trade_events(raw_events: Any, *, max_events: int) -> list[dict[str, Any]]:
+    if not isinstance(raw_events, list) or not raw_events:
+        return []
+    tail = raw_events[-max_events:] if len(raw_events) > max_events else raw_events
+    out: list[dict[str, Any]] = []
+    for ev in tail:
+        if not isinstance(ev, dict):
+            continue
+        ts = ev.get("ts")
+        if isinstance(ts, pd.Timestamp):
+            ts_iso = None if pd.isna(ts) else ts.isoformat()
+        else:
+            ts_iso = _json_scalar(ts)
+        out.append(
+            {
+                "ts": ts_iso,
+                "ticker": _json_scalar(ev.get("ticker")),
+                "side": _json_scalar(ev.get("side")),
+                "size": _json_scalar(ev.get("size")),
+                "price": _json_scalar(ev.get("price")),
+                "value": _json_scalar(ev.get("value")),
+            }
+        )
+    return out
+
+
 def serialize_backtest_result(
     raw: dict[str, Any],
     *,
     max_target_history: int = 500,
     max_group_exposure_history: int = 500,
+    max_exposure_history: int = 500,
+    max_trade_events: int = 2000,
 ) -> dict[str, Any]:
     metrics = {k: _json_scalar(v) for k, v in raw["metrics"].items()}
     eq = raw["equity_curve"]
@@ -123,15 +158,31 @@ def serialize_backtest_result(
         max_points=max_group_exposure_history,
     )
 
+    tpct = raw.get("turnover_pct_history")
+    turnover_pct_records = turnover_to_records(tpct) if isinstance(tpct, pd.DataFrame) else []
+
+    exposure_records = _serialize_exposure_history(
+        raw.get("exposure_history"),
+        max_points=max_exposure_history,
+    )
+
+    trade_ser = _serialize_trade_events(raw.get("trade_events"), max_events=max_trade_events)
+
     return {
         "metrics": metrics,
         "equity_curve": equity_records,
         "turnover_history": turnover_records,
+        "turnover_pct_history": turnover_pct_records,
         "returns_analysis": _json_scalar(raw.get("returns_analysis")),
         "drawdown_analysis": _json_scalar(raw.get("drawdown_analysis")),
         "sharpe_analysis": _json_scalar(raw.get("sharpe_analysis")),
         "target_history": target_ser,
         "group_exposure_history": group_exp,
+        "exposure_history": exposure_records,
+        "trade_events": trade_ser,
+        "return_quantiles": _json_scalar(raw.get("return_quantiles")),
+        "tearsheet_summary": _json_scalar(raw.get("tearsheet_summary")),
+        "ff_single_factor": _json_scalar(raw.get("ff_single_factor")),
     }
 
 

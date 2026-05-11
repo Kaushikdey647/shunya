@@ -10,6 +10,12 @@ import pandas as pd
 
 from ..data.fints import finTs
 from ..data.timeframes import bar_spec_is_intraday
+from .backtest_analytics import (
+    build_turnover_pct_history,
+    compute_ff_single_factor,
+    compute_return_quantiles,
+    compute_tearsheet_summary,
+)
 from .equity_metrics import cagr_pct_from_equity_df, win_rate_pct_from_equity_returns
 from .finstrat import FinStrat
 from .targets import (
@@ -47,11 +53,37 @@ class _FinBTStrategy(bt.Strategy):
         self.target_history: List[Tuple[pd.Timestamp, Dict[str, float]]] = []
         self.turnover_history: List[Tuple[pd.Timestamp, float]] = []
         self.group_exposure_history: List[Tuple[pd.Timestamp, Dict[str, Dict[str, float]]]] = []
+        self.exposure_history: List[Tuple[pd.Timestamp, float, float, float]] = []
+        self.trade_events: List[Dict[str, Any]] = []
         self._prev_targets: Dict[str, float] = {}
         self._prev_exec_dt: Optional[pd.Timestamp] = None
 
     def _current_dt(self) -> pd.Timestamp:
         return pd.Timestamp(bt.num2date(self.datas[0].datetime[0]))
+
+    def notify_order(self, order: Any) -> None:
+        if order.status != order.Completed:
+            return
+        ex = order.executed
+        if ex.size == 0:
+            return
+        name = getattr(order.data, "_name", None) or ""
+        dt_raw = getattr(ex, "dt", None)
+        if dt_raw is not None:
+            dt = pd.Timestamp(bt.num2date(dt_raw))
+        else:
+            dt = self._current_dt()
+        side = "buy" if order.isbuy() else "sell"
+        self.trade_events.append(
+            {
+                "ts": dt,
+                "ticker": str(name),
+                "side": side,
+                "size": float(abs(ex.size)),
+                "price": float(ex.price) if ex.price else None,
+                "value": float(abs(ex.value)) if ex.value else None,
+            }
+        )
 
     def next(self) -> None:
         dt = self._current_dt()
@@ -144,6 +176,13 @@ class _FinBTStrategy(bt.Strategy):
                     if not np.isfinite(v):
                         raise ValueError(f"non-finite portfolio target for {t!r}: {v!r}")
             self.target_history.append((dt, full_targets))
+            gross_n = sum(abs(v) for v in full_targets.values())
+            long_n = sum(max(v, 0.0) for v in full_targets.values())
+            short_n = sum(max(-v, 0.0) for v in full_targets.values())
+            gl = gross_n / capital if capital > 0 else 0.0
+            le = long_n / capital if capital > 0 else 0.0
+            se = short_n / capital if capital > 0 else 0.0
+            self.exposure_history.append((dt, float(gl), float(le), float(se)))
             if self._prev_targets:
                 turnover = sum(
                     abs(full_targets.get(t, 0.0) - self._prev_targets.get(t, 0.0))
@@ -554,6 +593,48 @@ class FinBT:
                 (dt, ge) for dt, ge in group_history if pd.Timestamp(dt) >= execution_start
             ]
 
+        exposure_rows = list(strat.exposure_history)
+        if not include_pre_execution and execution_start is not None:
+            exposure_rows = [
+                (d, gl, le, se)
+                for d, gl, le, se in exposure_rows
+                if pd.Timestamp(d) >= execution_start
+            ]
+        exposure_df = (
+            pd.DataFrame(
+                exposure_rows,
+                columns=["Date", "GrossLeverage", "LongExposure", "ShortExposure"],
+            ).set_index("Date")
+            if exposure_rows
+            else pd.DataFrame(columns=["GrossLeverage", "LongExposure", "ShortExposure"])
+        )
+
+        turnover_pct_df = build_turnover_pct_history(turnover_df, equity)
+
+        trade_out: List[Dict[str, Any]] = []
+        for ev in strat.trade_events:
+            ts = pd.Timestamp(ev["ts"])
+            if not include_pre_execution and execution_start is not None and ts < execution_start:
+                continue
+            trade_out.append(
+                {
+                    "ts": ts,
+                    "ticker": ev.get("ticker", ""),
+                    "side": ev.get("side", ""),
+                    "size": ev.get("size"),
+                    "price": ev.get("price"),
+                    "value": ev.get("value"),
+                }
+            )
+
+        rq = compute_return_quantiles(eq_ret)
+        tsheet = compute_tearsheet_summary(
+            equity,
+            periods_per_year=float(periods_per_year),
+            max_drawdown_len=int(metrics["max_drawdown_len"]),
+        )
+        ff_sf = compute_ff_single_factor(equity)
+
         return {
             "figure": fig,
             "metrics": metrics,
@@ -563,6 +644,12 @@ class FinBT:
             "drawdown_analysis": dd_a,
             "sharpe_analysis": sh_a,
             "turnover_history": turnover_df,
+            "turnover_pct_history": turnover_pct_df,
             "target_history": target_history,
             "group_exposure_history": group_history,
+            "exposure_history": exposure_df,
+            "trade_events": trade_out,
+            "return_quantiles": rq,
+            "tearsheet_summary": tsheet,
+            "ff_single_factor": ff_sf,
         }

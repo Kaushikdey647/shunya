@@ -33,6 +33,7 @@ def _job_row_to_out(row: dict[str, Any]) -> BacktestJobOut:
         include_test_period_in_results=include_test,
         status=row["status"],
         error_message=row.get("error_message"),
+        error_code=row.get("error_code"),
         result_summary=row.get("result_summary") if row.get("result_summary") is not None else None,
         created_at=row["created_at"],
         started_at=row.get("started_at"),
@@ -88,7 +89,7 @@ def list_jobs(
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 f"""
-                SELECT j.id, j.alpha_id, j.status, j.error_message, j.result_summary,
+                SELECT j.id, j.alpha_id, j.status, j.error_message, j.error_code, j.result_summary,
                        j.created_at, j.started_at, j.finished_at,
                        a.name AS alpha_name,
                        NULLIF(j.request_payload->>'index_code', '') AS index_code,
@@ -117,7 +118,7 @@ def get_job(job_id: str) -> Optional[BacktestJobOut]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT j.id, j.alpha_id, j.status, j.error_message, j.result_summary,
+                SELECT j.id, j.alpha_id, j.status, j.error_message, j.error_code, j.result_summary,
                        j.created_at, j.started_at, j.finished_at,
                        a.name AS alpha_name,
                        NULLIF(j.request_payload->>'index_code', '') AS index_code,
@@ -175,7 +176,7 @@ def mark_job_succeeded(job_id: str, result: dict[str, Any], summary: dict[str, A
                 """
                 UPDATE api_backtest_jobs
                 SET status = 'succeeded', result_payload = %s::jsonb, result_summary = %s::jsonb,
-                    error_message = NULL, finished_at = now()
+                    error_message = NULL, error_code = NULL, finished_at = now()
                 WHERE id = %s
                 """,
                 (json.dumps(result), json.dumps(summary), job_id),
@@ -183,7 +184,7 @@ def mark_job_succeeded(job_id: str, result: dict[str, Any], summary: dict[str, A
         conn.commit()
 
 
-def mark_job_failed(job_id: str, message: str) -> None:
+def mark_job_failed(job_id: str, message: str, error_code: Optional[str] = None) -> None:
     import psycopg
 
     append_job_log(job_id, "FAILED: " + message[:1200])
@@ -192,10 +193,10 @@ def mark_job_failed(job_id: str, message: str) -> None:
             cur.execute(
                 """
                 UPDATE api_backtest_jobs
-                SET status = 'failed', error_message = %s, finished_at = now()
+                SET status = 'failed', error_message = %s, error_code = %s, finished_at = now()
                 WHERE id = %s
                 """,
-                (message[:8000], job_id),
+                (message[:8000], error_code, job_id),
             )
         conn.commit()
 
@@ -331,6 +332,7 @@ def reconcile_stale_running_jobs() -> None:
                 UPDATE api_backtest_jobs
                 SET status = 'failed',
                     error_message = 'Server restarted while job was running.',
+                    error_code = 'BACKTEST_JOB_SERVER_RESTART',
                     finished_at = now()
                 WHERE status = 'running'
                 """

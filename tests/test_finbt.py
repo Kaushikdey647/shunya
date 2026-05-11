@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import jax.numpy as jnp
+import pandas as pd
 
 from shunya.algorithm.finbt import FinBT
 from shunya.algorithm.finstrat import FinStrat
@@ -30,6 +31,13 @@ def test_finbt_runs_and_returns_metrics():
     assert "equity_curve" in out
     assert "turnover_history" in out
     assert "avg_turnover_pct" in out["metrics"]
+    assert "exposure_history" in out
+    assert isinstance(out["exposure_history"], pd.DataFrame)
+    assert "trade_events" in out
+    assert isinstance(out["trade_events"], list)
+    assert "return_quantiles" in out
+    assert "tearsheet_summary" in out
+    assert "ff_single_factor" in out
 
 
 def test_finbt_sector_neutralization_uses_sector_column():

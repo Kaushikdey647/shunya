@@ -124,6 +124,7 @@ class BacktestJobOut(BaseModel):
     include_test_period_in_results: bool = False
     status: Literal["queued", "running", "succeeded", "failed"]
     error_message: Optional[str] = None
+    error_code: Optional[str] = None
     result_summary: Optional[dict[str, Any]] = None
     created_at: datetime
     started_at: Optional[datetime] = None

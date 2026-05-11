@@ -3,10 +3,9 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from api.data_service import compute_data_summary
-from api.errors import FinTsConfigurationError
 from api.db_dashboard import compute_data_dashboard
 from api.schemas.models import (
     DashboardBucketParamLiteral,
@@ -14,6 +13,7 @@ from api.schemas.models import (
     DataSummaryRequest,
     DataSummaryResponse,
 )
+from shunya.errors import ErrorCode, ShunyaError
 
 _log = logging.getLogger(__name__)
 
@@ -68,9 +68,17 @@ async def get_data_dashboard(
     ),
 ) -> DataDashboardResponse:
     if interval not in DASHBOARD_INTERVALS:
-        raise HTTPException(status_code=400, detail="invalid interval")
+        raise ShunyaError(
+            "invalid interval",
+            code=ErrorCode.DATA_INVALID_INTERVAL,
+            http_status=400,
+        )
     if not source or len(source) > 64:
-        raise HTTPException(status_code=400, detail="invalid source")
+        raise ShunyaError(
+            "invalid source",
+            code=ErrorCode.DATA_INVALID_SOURCE,
+            http_status=400,
+        )
     try:
         return await asyncio.to_thread(
             compute_data_dashboard,
@@ -79,23 +87,47 @@ async def get_data_dashboard(
             bucket=bucket,
             max_buckets=max_buckets,
         )
+    except ShunyaError:
+        raise
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ShunyaError(
+            str(exc),
+            code=ErrorCode.VALIDATION_ERROR,
+            http_status=400,
+        ) from exc
     except RuntimeError as exc:
         _log.warning("dashboard unavailable: %s", exc)
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise ShunyaError(
+            str(exc),
+            code=ErrorCode.FIN_TS_TIMESCALE_UNAVAILABLE,
+            http_status=503,
+        ) from exc
+    except ShunyaError:
+        raise
     except Exception as exc:  # noqa: BLE001
         _log.exception("dashboard failed")
-        raise HTTPException(status_code=500, detail="dashboard computation failed") from exc
+        raise ShunyaError(
+            "dashboard computation failed",
+            code=ErrorCode.DATA_DASHBOARD_FAILED,
+            http_status=500,
+        ) from exc
 
 
 @router.post("", response_model=DataSummaryResponse)
 async def post_data_summary(body: DataSummaryRequest) -> DataSummaryResponse:
     try:
         return await asyncio.to_thread(compute_data_summary, body)
-    except FinTsConfigurationError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+    except ShunyaError:
+        raise
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ShunyaError(
+            str(exc),
+            code=ErrorCode.VALIDATION_ERROR,
+            http_status=400,
+        ) from exc
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ShunyaError(
+            str(exc),
+            code=ErrorCode.VALIDATION_ERROR,
+            http_status=400,
+        ) from exc

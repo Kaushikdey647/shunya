@@ -52,14 +52,13 @@ def test_run_backtest_from_payload_success(monkeypatch: pytest.MonkeyPatch) -> N
         "target_history": [],
         "group_exposure_history": [],
     }
-    mock_bt = MagicMock()
-    mock_bt.run.return_value = mock_bt
-    mock_bt.results.return_value = fake_out
+    mock_engine = MagicMock()
+    mock_engine.run_backtest.return_value = fake_out
 
     monkeypatch.setattr("api.runner.build_fin_ts", MagicMock(return_value=MagicMock()))
     monkeypatch.setattr("api.runner.resolve_alpha_for_backtest", lambda *_a, **_k: (lambda ctx: 0.0))
     monkeypatch.setattr("api.runner.FinStrat", MagicMock(return_value=MagicMock()))
-    monkeypatch.setattr("api.runner.FinBT", lambda *_a, **_k: mock_bt)
+    monkeypatch.setattr("api.runner._default_backtest_engine", mock_engine)
 
     payload = {
         "alpha_id": "00000000-0000-0000-0000-000000000001",
