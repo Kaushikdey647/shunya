@@ -10,20 +10,22 @@
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
 [![Web UI](https://img.shields.io/badge/UI-shunya--ui-646CFF?logo=react&logoColor=white)](https://github.com/Kaushikdey647/shunya-ui)
 
-**Shunya** is a Python stack for **systematic equity research**: multi-ticker **OHLCV panels** (`finTs`), **JAX** alpha pipelines (**FinStrat** / `cross_section`), **backtrader** execution (**FinBT**), a decoupled **portfolio** layer (`PortfolioConstructionService` with `TargetBlendConfig` / `AlphaBlendConfig`, plus legacy `PortfolioManager` / `AlphaBlendPortfolioManager` facades, `RollingSharpeTracker`), optional **Alpaca** execution primitives (`AlpacaExecutionAdapter`, `OrderManager`), optional **TimescaleDB** for durable bars and fundamentals, and a repo-local **FastAPI** service for **alphas, async backtests, instruments, market dashboards, and data coverage APIs**. A separate **React** app (**[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**) provides Alpha Studio (Monaco + lint/assist), backtest management, and charts against this API.
+**Shunya** is a Python stack for **systematic equity research**: multi-ticker **OHLCV panels** (`finTs`), **JAX** alpha pipelines (**FinStrat** / `cross_section`), **backtrader** execution (**FinBT**), a decoupled **portfolio** layer (`PortfolioConstructionService` with `TargetBlendConfig` / `AlphaBlendConfig`, plus legacy `PortfolioManager` / `AlphaBlendPortfolioManager` facades, `RollingSharpeTracker`), optional **pre-trade risk** (`PortfolioRiskEngine`, `RiskVetConfig` / `RiskVetResult`, optional **`[risk]`** extra for CVX-backed checks), an institutional **OMS** (`shunya.oms` — parent FSM, share reconciliation, Alpaca trade stream bridge, optional SQLAlchemy persistence + **Alembic** migrations under `alembic/`) and **EMS** (`shunya.ems` — broker gateway, TWAP/VWAP slices, micro-price limits, async parent runner), optional **Alpaca** execution primitives (`AlpacaExecutionAdapter`, `OrderManager`), optional **TimescaleDB** for durable bars and fundamentals, and a repo-local **FastAPI** service for **alphas, async backtests, instruments, market dashboards, and data coverage APIs**. A separate **React** app (**[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**) provides Alpha Studio (Monaco + lint/assist), backtest management, a **Trade** desk (portfolios, live, execution, risk) with mock client state until OMS/EMS HTTP APIs land, and charts against this API.
 
 Historical data is provider-driven: **`yfinance`** by default, optional **Alpaca** bars, **Tiingo** EOD for ingest, and **Timescale**-backed reads when `DATABASE_URL` is configured. Technicals attach via **`finta`**.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture, extension patterns, and coding guidelines.
 
-**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Service and UI setup](#service-and-ui-setup) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Portfolio management](#portfolio-management) · [Development tests](#development-tests) · [Documentation](#documentation)
+**Navigate:** [Layout](#layout) · [Core ideas](#core-ideas) · [Quick start](#quick-start) · [Service and UI setup](#service-and-ui-setup) · [Local TimescaleDB](#local-timescaledb-optional) · [HTTP / dashboard API](#http-api-and-dashboard-api) · [Portfolio management](#portfolio-management) · [OMS and EMS](#oms-and-ems-institutional-execution) · [Development tests](#development-tests) · [Documentation](#documentation)
 
 ## Layout
 
 | Package | Role |
 |--------|------|
 | `shunya.data` | `finTs` — download OHLCV, build MultiIndex `(Ticker, Date)` frame, attach engineered columns; optional **TimescaleDB** persistence and read providers (see [Local TimescaleDB](#local-timescaledb-optional)) |
-| `shunya.algorithm` | `FinStrat`, `FinBT`, `PortfolioConstructionService`, `PortfolioManager` (target blend), `AlphaBlendPortfolioManager` / `StrategyRegistry` (alpha blend), `RollingSharpeTracker`, `AlpacaExecutionAdapter` / `OrderManager`, `cross_section`, … |
+| `shunya.algorithm` | `FinStrat`, `FinBT`, `PortfolioConstructionService`, `PortfolioManager` / `AlphaBlendPortfolioManager` / `StrategyRegistry`, `RollingSharpeTracker`, `PortfolioRiskEngine` / `RiskVetConfig` (optional **`[risk]`**), `AlpacaExecutionAdapter` / `OrderManager`, `cross_section`, … |
+| `shunya.oms` | Institutional OMS: parent-order FSM, in-memory ledger, share reconciliation vs USD targets, Alpaca stream + REST helpers, optional **Postgres** persistence via `shunya/oms/db` and repo-root **Alembic** (`alembic/versions/`) |
+| `shunya.ems` | EMS: `BrokerGateway` / `AlpacaBrokerGateway`, TWAP/VWAP schedulers, micro-price limit helpers, `EMSParentRunner` for child lifecycle |
 | `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
 | `api` | **FastAPI** service (alphas, backtest jobs, worker queue, data dashboard, instruments, market routes, optional **Ollama**-backed alpha assist / backtest review); requires `--extra api` (+ `--extra timescale` for Postgres). Consumed by **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**. See [HTTP API and dashboard](#http-api-and-dashboard-api). |
 
@@ -43,7 +45,7 @@ from shunya import (
 )
 ```
 
-The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (for example `PanelQADiagnostics`, `YFinanceMarketDataProvider`, `TimescaleMarketDataProvider`, `TimescaleFundamentalDataProvider`, `apply_migrations`, `get_database_url`, `PortfolioConstructionService`, `PortfolioManager`, `AlphaBlendPortfolioManager`, `StrategyRegistry`, `OrderManager`, target helpers, `logical`, `time_series`, and timestamp helpers). [`shunya.data`](shunya/data/__init__.py) also exports `TiingoMarketDataProvider` for Tiingo-backed OHLCV loading and CLI ingest.
+The canonical set of symbols re-exported at the package root is `__all__` in [`shunya/__init__.py`](shunya/__init__.py) (for example OMS/EMS types such as `InstitutionalOMS`, `EMSParentRunner`, `PortfolioRiskEngine`, `PanelQADiagnostics`, `YFinanceMarketDataProvider`, `TimescaleMarketDataProvider`, `TimescaleFundamentalDataProvider`, `apply_migrations`, `get_database_url`, `PortfolioConstructionService`, `PortfolioManager`, `AlphaBlendPortfolioManager`, `StrategyRegistry`, `OrderManager`, target helpers, `logical`, `time_series`, and timestamp helpers). [`shunya.data`](shunya/data/__init__.py) also exports `TiingoMarketDataProvider` for Tiingo-backed OHLCV loading and CLI ingest.
 
 ## Core ideas
 
@@ -358,6 +360,15 @@ ab.record_strategy_return("momentum", 0.0012)
 ab.record_portfolio_return(0.0009)
 ```
 
+## OMS and EMS (institutional execution)
+
+These modules are **library building blocks** for a split OMS/EMS architecture (parent intent vs child broker orders). They do not replace your own scheduling, auth, or hosting.
+
+- **`shunya.oms`** — Convert risk-vetted **USD** targets into share deltas (`required_delta_shares`, `usd_targets_to_share_targets`), track parents with `ParentOrder` + `InMemoryLedger`, optional **SQLAlchemy** repositories under [`shunya/oms/db`](shunya/oms/db/schema.py), and Alpaca-oriented adapters (`AlpacaOMSTradeStream`, REST snapshot helpers). Apply **OMS schema** migrations from a clone with `alembic upgrade head` (see `alembic.ini`); use **`--extra dev`** for Alembic + `psycopg` in local workflows.
+- **`shunya.ems`** — Route parent intents through `BrokerGateway` (Alpaca implementation included), schedule **TWAP/VWAP** child slices, derive limit prices from microstructure hints (`limit_price_for_child`), and run **`EMSParentRunner`** for submit / timeout / cancel / escalation loops.
+
+Wire **`PortfolioRiskEngine`** / `RiskVetResult` into OMS ingest via `shunya.oms.risk_bridge` helpers when you want the same vet outputs in Python that the UI may eventually mirror over HTTP.
+
 ## Notebooks
 
 - [`vwap_close_rank_backtest_yfinance.ipynb`](vwap_close_rank_backtest_yfinance.ipynb) — `finTs` (default `YFinanceMarketDataProvider`) → `FinStrat` (`rank(VWAP/Close)`) → `FinBT`.
@@ -367,6 +378,7 @@ ab.record_portfolio_return(0.0009)
 
 - Python **≥ 3.12**
 - Main libraries: `jax`, `pandas`, `yfinance`, `tiingo`, `backtrader`, `finta`, `matplotlib`, … (see `pyproject.toml`)
+- Optional **`[risk]`** extra (`cvxpy`, `osqp`, `scikit-learn`) for full **`PortfolioRiskEngine`** covariance / optimization paths — `uv sync --extra risk` or `pip install "shunya-py[risk]"`.
 
 Install from [PyPI](https://pypi.org/project/shunya-py/) (import the **`shunya`** package):
 
@@ -421,7 +433,7 @@ uv sync
 ## What Is Not There Yet
 
 - No first-party market-data **websocket** client in this repository; ingest or poll prices in your own process and refresh `finTs` / marks on whatever schedule you choose.
-- No bundled live **orchestrator** daemon: `PortfolioManager` + `AlpacaExecutionAdapter` are libraries for you to schedule (cron, worker, etc.).
+- No bundled live **orchestrator** daemon: `PortfolioManager`, `AlpacaExecutionAdapter`, `InstitutionalOMS`, and `EMSParentRunner` are libraries for you to schedule (cron, worker, or a service you own). Persisted OMS rows require you to configure `DATABASE_URL` and run Alembic; there is no multi-tenant hosted OMS product in this repo.
 
 ## Development tests
 
@@ -445,11 +457,13 @@ Build with `uv build` (wheel and sdist). Upload with [Twine](https://twine.readt
 - P1 completed: decision/session guards, panel QA diagnostics, richer backtest diagnostics.
 - P2 completed: reconciliation loop + remediation hooks, net/turnover/ADV constraints, integration tests.
 - P3 superseded: tick-to-trade streaming (`shunya.streaming`, `StreamingRunner`) and the `FinTrade` orchestrator were removed in favor of a decoupled `PortfolioManager` plus explicit adapter usage.
+- P4 in progress: **OMS/EMS** Python modules (`shunya.oms`, `shunya.ems`) and **`PortfolioRiskEngine`** for pre-trade checks; HTTP surface in `api/` for live trade desk TBD — **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** currently uses client-side mock state for Trade routes.
 
 ## Documentation
 
 - Main usage and behavior: [`README.md`](README.md)
-- **Web UI (Alpha Studio, dashboards):** **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** — [`README.md`](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)
+- **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
+- **Web UI (Alpha Studio, dashboards, Trade mock):** **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** — [`README.md`](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)
 - Contributor and architecture guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - Local Timescale market store (compose, migrate, ingest, `finTs`): [`docs/data_timescale.md`](docs/data_timescale.md)
 - **Backtest + instrument HTTP API** (alphas, jobs, data dashboard, instruments, **market** overview): [`api/README.md`](api/README.md)

@@ -17,6 +17,8 @@ All notable changes to this project are documented in this file.
   - `shunya/oms` — share-based reconciliation (`required_delta_shares`), `ParentOrder` FSM via `transitions`, `InMemoryLedger`, `InstitutionalOMS`, Alpaca trade stream bridge (`AlpacaOMSTradeStream`), REST position snapshot (`rest_snapshot`), SQLAlchemy persistence (`shunya/oms/db`), Alembic migration `001_oms_tables`, and `risk_bridge` helpers for `PortfolioRiskEngine` outputs.
   - `shunya/ems` — `BrokerGateway` / `AlpacaBrokerGateway`, TWAP/VWAP schedulers (`twap_slice_quantities`, `vwap_slice_quantities`, optional `smooth_volume_profile_jax`), micro-pricing (`limit_price_for_child`), child `client_order_id` scheme (`child_client_order_id`), and async `EMSParentRunner` (limit submit, timeout, cancel, urgency escalation).
   - Tests: `tests/test_oms.py`, `tests/test_ems.py`, optional Docker `tests/test_oms_db.py`.
+- **Pre-trade risk:** `shunya/algorithm/risk_engine.py` — `PortfolioRiskEngine`, `RiskVetConfig` / `RiskVetResult`, `RiskEngineState`, `DrawdownSentinel`, `ShortabilityMode`, optional Ledoit–Wolf / CVXPY integration when the **`[risk]`** extra is installed (`pip install "shunya-py[risk]"` or `uv sync --extra risk`).
+- Repo-root **Alembic** layout (`alembic.ini`, `alembic/env.py`, `alembic/versions/001_oms_tables.py`) for OMS SQL migrations alongside existing Timescale CLI migrations.
 - Dependencies: `transitions`, `sqlalchemy`; dev: `alembic`, `psycopg[binary]`.
 - `PortfolioConstructionService`, `PortfolioConstructionResult`, `TargetBlendConfig`, `AlphaBlendConfig`, `BlendModeKind`, `TickerUniversePolicy`, `StrategyReturnFeed`, and `mark_to_market_strategy_pnl_usd` in `shunya/algorithm/portfolio_manager.py`. Alpha-blend **correlation dampening** applies a **capital haircut** to the master (`active_capital`) instead of renormalizing convictions (previous `z` scaling was a no-op). `PortfolioManager` / `AlphaBlendPortfolioManager` delegate to the shared service; they join `RollingSharpeTracker`, `combine_weighted_targets`, `sum_target_maps`, and `PORTFOLIO_PERF_KEY` in the same module.
 - `tests/test_portfolio_manager.py`.
@@ -108,6 +110,7 @@ All notable changes to this project are documented in this file.
 ### Testing
 
 - Added tests:
+  - `tests/test_risk_engine.py`
   - `tests/test_portfolio_manager.py`
   - `tests/test_fints_classification.py`
   - `tests/test_data_qa.py`
@@ -135,4 +138,4 @@ All notable changes to this project are documented in this file.
 ### Not Yet Implemented
 
 - No in-repo websocket market-data client; refresh panels or marks on your own schedule.
-- No persisted OMS event journal; `OrderManager` remains an in-memory helper unless you back it externally.
+- `OrderManager` remains an in-memory helper for open-order snapshots unless you mirror it externally; OMS **parent/child** rows are optional via SQLAlchemy + Alembic when you provide `DATABASE_URL` and run migrations — there is still no turnkey multi-process event bus or hosted OMS service in this repository.
