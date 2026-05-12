@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "shunya-py"
 version = "0.2.0"
-description = "Multi-ticker equity panels, JAX alphas, and backtrader backtests with yfinance or Alpaca data."
+description = "Multi-ticker equity panels, JAX alphas, portfolio combination, backtrader backtests, and optional Alpaca execution helpers."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
@@ -54,9 +54,12 @@ dependencies = [
     "tqdm>=4.67.3",
     "yfinance>=1.2.0",
     "tiingo>=0.16.1",
+    "transitions>=0.9.3",
+    "sqlalchemy>=2.0.49",
 ]
 
 [project.optional-dependencies]
+risk = ["cvxpy>=1.4.0", "osqp>=0.6.3", "scikit-learn>=1.3.0"]
 notebook = ["curl-cffi>=0.6.0", "ipykernel>=7.2.0"]
 kite = ["kiteconnect>=5.0"]
 timescale = ["psycopg[binary]>=3.2", "rich>=13.9"]
@@ -92,5 +95,7 @@ markers = [
 
 [dependency-groups]
 dev = [
+    "alembic>=1.18.4",
     "ipykernel>=7.2.0",
+    "psycopg[binary]>=3.2",
 ]

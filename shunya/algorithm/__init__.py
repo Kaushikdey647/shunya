@@ -7,8 +7,17 @@ from .decision import DataSource, DecisionContext, resolve_panel_timestamp, vali
 from .execution import AlpacaExecutionAdapter, ExecutionReport, OrderAttempt
 from .finbt import FinBT
 from .finstrat import FinStrat
-from .fintrade import FinTrade
 from .order_manager import ManagedOrderBatch, OrderManager
+from .risk_engine import (
+    DrawdownSentinel,
+    PortfolioRiskEngine,
+    RiskEngineState,
+    RiskVetConfig,
+    RiskVetResult,
+    ShortabilityMode,
+    cvxpy_available,
+    ledoit_wolf_available,
+)
 from .orders import (
     ExecutionAdapter,
     OpenOrderView,
@@ -19,8 +28,27 @@ from .orders import (
     OrderVariety,
     RiskPolicy,
 )
-from .streaming_context import StreamingContextBuilder
-from .streaming_runner import StreamingDecision, StreamingRunner
+from .portfolio_manager import (
+    PORTFOLIO_PERF_KEY,
+    AlphaBlendConfig,
+    AlphaBlendPortfolioManager,
+    BlendModeKind,
+    PortfolioConstructionResult,
+    PortfolioConstructionService,
+    PortfolioManager,
+    RollingSharpeTracker,
+    StrategyRegistry,
+    StrategyReturnFeed,
+    StrategySpec,
+    TargetBlendConfig,
+    TickerUniversePolicy,
+    VirtualLedger,
+    allocate_proportional_by_request,
+    combine_weighted_targets,
+    inverse_vol_weights,
+    mark_to_market_strategy_pnl_usd,
+    sum_target_maps,
+)
 from .targets import (
     apply_group_gross_cap,
     apply_group_net_cap,
@@ -46,7 +74,6 @@ __all__ = [
     "ExecutionReport",
     "FinBT",
     "FinStrat",
-    "FinTrade",
     "FunNamespace",
     "KiteExecutionAdapter",
     "ManagedOrderBatch",
@@ -59,9 +86,33 @@ __all__ = [
     "OrderType",
     "OrderVariety",
     "RiskPolicy",
-    "StreamingContextBuilder",
-    "StreamingDecision",
-    "StreamingRunner",
+    "DrawdownSentinel",
+    "PortfolioRiskEngine",
+    "RiskEngineState",
+    "RiskVetConfig",
+    "RiskVetResult",
+    "ShortabilityMode",
+    "cvxpy_available",
+    "ledoit_wolf_available",
+    "PORTFOLIO_PERF_KEY",
+    "AlphaBlendConfig",
+    "AlphaBlendPortfolioManager",
+    "BlendModeKind",
+    "PortfolioConstructionResult",
+    "PortfolioConstructionService",
+    "PortfolioManager",
+    "RollingSharpeTracker",
+    "StrategyRegistry",
+    "StrategyReturnFeed",
+    "StrategySpec",
+    "TargetBlendConfig",
+    "TickerUniversePolicy",
+    "VirtualLedger",
+    "allocate_proportional_by_request",
+    "combine_weighted_targets",
+    "inverse_vol_weights",
+    "mark_to_market_strategy_pnl_usd",
+    "sum_target_maps",
     "apply_group_gross_cap",
     "apply_group_net_cap",
     "apply_slippage_to_fill_price",

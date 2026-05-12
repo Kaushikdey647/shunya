@@ -4,19 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Removed
+
+- `shunya.streaming` (Alpaca-oriented websocket helpers, micro-bars, rectangular snapshots).
+- `StreamingRunner`, `StreamingContextBuilder`, and `StreamingDecision`.
+- `FinTrade` (`shunya/algorithm/fintrade.py`).
+- `tests/test_streaming_pipeline.py` and `tests/test_fintrade.py`.
+
 ### Added
 
-- Tick-to-trade streaming foundation under `shunya.streaming`:
-  - `MarketEvent`, `trade_event(...)`, `quote_event(...)`
-  - `SymbolRingBuffer` and `StreamingState` for per-symbol FIFO event storage
-  - `MicroBarAggregator`, `SnapshotBuilder`, and `StreamingSnapshot` for asynchronous event aggregation into rectangular alpha inputs
-  - `SubscriptionManager` and `UniverseSelector` for bounded active-universe handling
-  - `StreamingMetrics` for lightweight in-memory telemetry
-  - `AlpacaStreamClient` plus Alpaca trade/quote normalizers
-- New streaming orchestration / OMS types in `shunya.algorithm`:
-  - `StreamingContextBuilder`
-  - `StreamingRunner` and `StreamingDecision`
-  - `OrderManager` and `ManagedOrderBatch`
+- **OMS / EMS (institutional execution split):**
+  - `shunya/oms` — share-based reconciliation (`required_delta_shares`), `ParentOrder` FSM via `transitions`, `InMemoryLedger`, `InstitutionalOMS`, Alpaca trade stream bridge (`AlpacaOMSTradeStream`), REST position snapshot (`rest_snapshot`), SQLAlchemy persistence (`shunya/oms/db`), Alembic migration `001_oms_tables`, and `risk_bridge` helpers for `PortfolioRiskEngine` outputs.
+  - `shunya/ems` — `BrokerGateway` / `AlpacaBrokerGateway`, TWAP/VWAP schedulers (`twap_slice_quantities`, `vwap_slice_quantities`, optional `smooth_volume_profile_jax`), micro-pricing (`limit_price_for_child`), child `client_order_id` scheme (`child_client_order_id`), and async `EMSParentRunner` (limit submit, timeout, cancel, urgency escalation).
+  - Tests: `tests/test_oms.py`, `tests/test_ems.py`, optional Docker `tests/test_oms_db.py`.
+- Dependencies: `transitions`, `sqlalchemy`; dev: `alembic`, `psycopg[binary]`.
+- `PortfolioConstructionService`, `PortfolioConstructionResult`, `TargetBlendConfig`, `AlphaBlendConfig`, `BlendModeKind`, `TickerUniversePolicy`, `StrategyReturnFeed`, and `mark_to_market_strategy_pnl_usd` in `shunya/algorithm/portfolio_manager.py`. Alpha-blend **correlation dampening** applies a **capital haircut** to the master (`active_capital`) instead of renormalizing convictions (previous `z` scaling was a no-op). `PortfolioManager` / `AlphaBlendPortfolioManager` delegate to the shared service; they join `RollingSharpeTracker`, `combine_weighted_targets`, `sum_target_maps`, and `PORTFOLIO_PERF_KEY` in the same module.
+- `tests/test_portfolio_manager.py`.
 - Broker-neutral open-order snapshot surface:
   - `OpenOrderView`
   - `ExecutionAdapter.list_open_orders()`
@@ -54,7 +57,7 @@ All notable changes to this project are documented in this file.
   - initial/final status
   - fill quantity and average fill price
   - status polling errors
-- Optional sector gross cap enforcement in shared target helpers and integration in `FinBT`/`FinTrade`.
+- Optional sector gross cap enforcement in shared target helpers and integration in `FinBT`.
 - Session-aware decision-time guardrails:
   - weekend and future-date checks
   - strict same-session option
@@ -85,28 +88,27 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Breaking:** removed `FinTrade`, the entire `shunya.streaming` package, `StreamingRunner`, and related public exports; use `PortfolioManager` plus `AlpacaExecutionAdapter` / `OrderManager` from your own scheduler.
 - `FinStrat` now exposes reusable seams for non-`finTs` runners:
   - `scores_from_context(ctx)`
   - `process_raw_scores(raw_scores, capital, ...)`
-- `README.md` now documents the streaming foundation and explicitly calls out what is not implemented yet.
+- `README.md` documents portfolio construction and explicitly calls out removed streaming / `FinTrade` orchestration.
 - **Breaking:** `FinStrat` now executes context-style alpha callables (`algorithm(ctx)`), replacing legacy panel-index authoring (`algorithm(panel)` / `IX_*` flow).
-- `FinBT` / `FinTrade` now route signal execution through context-based alpha evaluation while preserving downstream sizing/neutralization controls.
+- `FinBT` routes signal execution through context-based alpha evaluation while preserving downstream sizing/neutralization controls.
 - **Breaking:** `normalize_history_index` and bundled providers align Yahoo/Alpaca timestamps to `BarIndexPolicy` (default **America/New_York**), not forced UTC-naive. Use `BarIndexPolicy(timezone="UTC")` and `daily_anchor="utc"` to recover older daily-like alignment.
 - `validate_core_ohlcv_coverage(..., bar_index_policy=...)` interprets coverage windows in the policy timezone for intraday and daily-like bars.
 - **Breaking:** The installable Python package is published on PyPI as **`shunya-py`** (the name `shunya` was already registered by another project). Import the library as **`shunya`** (`from shunya import finTs`, etc.), not `src`.
 - `FinStrat.__init__` includes `decay_mode`, `decay_window`, `signal_delay`, `nan_policy`; temporal smoothing requires `tickers` in `pass_` when EMA or multi-day linear decay is active.
 - `FinStrat` adds `temporal_mode` (`"bar_step"` or `"elapsed_trading_time"`). Elapsed mode advances decay by trading-time gaps rather than one-step-per-observed-bar.
-- `FinStrat.pass_` accepts optional `execution_date`; `FinBT`/`FinTrade` now pass execution timestamps for trading-time-aware decay.
+- `FinStrat.pass_` accepts optional `execution_date`; `FinBT` passes execution timestamps for trading-time-aware decay.
 - `FinStrat.panel_at` / `group_labels_at` respect `signal_delay` (execution date → lagged panel date on `get_trading_calendar()`).
 - `FinBT._ohlcv_frames` uses `finTs._aligned_calendar` or the intersection of per-ticker indices.
-- `FinTrade.run(...)` interface extended with additional risk, decision-time, and reconciliation knobs.
-- `FinBT` / `FinTrade`: richer constraint controls, finite target validation (backtest), enhanced diagnostics output.
 - Public exports updated in `shunya/__init__.py` and `shunya/algorithm/__init__.py` (`PanelAlignReport`, helpers, diagnostics types).
 
 ### Testing
 
 - Added tests:
-  - `tests/test_streaming_pipeline.py`
+  - `tests/test_portfolio_manager.py`
   - `tests/test_fints_classification.py`
   - `tests/test_data_qa.py`
   - `tests/test_execution_adapter.py`
@@ -120,7 +122,6 @@ All notable changes to this project are documented in this file.
 - Expanded tests:
   - `tests/test_decision.py`
   - `tests/test_finbt.py`
-  - `tests/test_fintrade.py`
   - `tests/test_finstrat.py`
   - `tests/test_targets.py`
   - `tests/test_execution_adapter.py`
@@ -130,19 +131,8 @@ All notable changes to this project are documented in this file.
   - strict trading-grid validation on off-grid timestamps
   - elapsed-trading-time decay weighting vs bar-step mode
   - intraday lag parity checks across minute/hour bars
-- Added streaming coverage:
-  - micro-bar snapshot construction
-  - `FinStrat.process_raw_scores(...)` parity with `pass_()`
-  - open-order-aware order suppression in `OrderManager`
-  - adapter open-order snapshots for Alpaca and Kite
-- Current status: full suite passing (`175 passed`).
 
 ### Not Yet Implemented
 
-- No Kite/Zerodha websocket streaming client in `shunya.streaming`; the new live event feed wrapper is Alpaca-only.
-- `StreamingRunner` does not yet replicate the full `FinTrade.run(...)` feature surface:
-  - `DecisionContext`
-  - decision/session guards
-  - reconciliation/remediation loop
-  - sector/net/turnover/ADV controls
-- No built-in streaming daemon, persistence layer, or replay CLI yet.
+- No in-repo websocket market-data client; refresh panels or marks on your own schedule.
+- No persisted OMS event journal; `OrderManager` remains an in-memory helper unless you back it externally.

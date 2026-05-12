@@ -40,7 +40,7 @@ def test_compute_return_quantiles_basic() -> None:
 
 def test_compute_tearsheet_summary_skew() -> None:
     idx = pd.date_range("2024-01-02", periods=30, freq="D")
-    rng = pd.Series([0.02 * ((-1) ** i) for i in range(30)], dtype=float)
+    rng = pd.Series([0.02 * ((-1) ** i) for i in range(30)], dtype=float, index=idx)
     eq = pd.DataFrame({"Equity": 100_000.0 * (1.0 + rng).cumprod()}, index=idx)
     ts = compute_tearsheet_summary(eq, periods_per_year=252.0, max_drawdown_len=3)
     assert ts["ann_volatility_pct"] is not None

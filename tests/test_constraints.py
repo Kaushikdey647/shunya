@@ -1,45 +1,23 @@
-"""Constraint integration tests on FinTrade/FinBT paths."""
+"""Constraint integration tests on FinBT and shared target helpers."""
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import jax.numpy as jnp
+import numpy as np
 import pandas as pd
 
 from shunya.algorithm.finbt import FinBT
 from shunya.algorithm.finstrat import FinStrat
-from shunya.algorithm.fintrade import FinTrade
+from shunya.algorithm.targets import (
+    apply_group_net_cap,
+    cap_deltas_by_adv,
+    enforce_turnover_budget,
+    target_usd_universe,
+)
 from tests.conftest import make_stub_fints
 
 
-def _mock_client():
-    clock = MagicMock()
-    clock.is_open = True
-    client = MagicMock()
-    client.get_clock.return_value = clock
-    acct = MagicMock()
-    acct.buying_power = "100000"
-    client.get_account.return_value = acct
-    client.get_all_positions.return_value = []
-    asset = MagicMock()
-    asset.tradable = True
-    asset.fractionable = True
-    asset.shortable = True
-    client.get_asset.return_value = asset
-    order = MagicMock()
-    order.id = "oid1"
-    order.status = "new"
-    client.submit_order.return_value = order
-    obs = MagicMock()
-    obs.status = "filled"
-    obs.filled_qty = "1"
-    obs.filled_avg_price = "100"
-    client.get_order_by_id.return_value = obs
-    return client
-
-
-def test_fintrade_constraints_emit_warnings():
+def test_constraint_helpers_emit_warnings_style_flags():
     tickers = ["AAA", "BBB"]
     dates = ["2020-01-02", "2020-01-03"]
     fts = make_stub_fints(tickers, dates, base_price=100.0)
@@ -54,22 +32,32 @@ def test_fintrade_constraints_emit_warnings():
         lambda ctx: ctx.close.latest.astype(jnp.float32),
         neutralization="none",
     )
-    ft = FinTrade(fs, trading_client=_mock_client(), paper=True)
-    rep = ft.run(
-        20_000.0,
-        fts,
-        as_of=d,
-        dry_run=True,
-        cap_to_buying_power=False,
-        group_net_cap_fraction=0.1,
-        turnover_budget_fraction=0.1,
-        adv_participation_fraction=0.01,
-        constraints_mode="rescale",
+    names = fs.tickers_at(d)
+    vec = np.asarray(fs.pass_(None, 20_000.0, execution_date=d, tickers=names), dtype=float)
+    targets = target_usd_universe(names, vec, fts.ticker_list)
+    group_map = {t: "Tech" for t in fts.ticker_list}
+    targets, breached_net = apply_group_net_cap(
+        targets,
+        group_map,
+        max_group_net_fraction=0.1,
+        on_breach="rescale",
     )
-    assert any(
-        ("group_net_cap_applied" in w) or ("adv_cap_applied" in w) or ("turnover_budget_applied" in w)
-        for w in rep.warnings
+    current = {t: 0.0 for t in fts.ticker_list}
+    targets, obs_turnover, turn_limit = enforce_turnover_budget(
+        targets,
+        current,
+        max_turnover_fraction=0.1,
+        on_breach="rescale",
     )
+    deltas = {t: float(targets.get(t, 0.0)) - float(current.get(t, 0.0)) for t in fts.ticker_list}
+    adv_usd = {"AAA": 200.0 * 1e6, "BBB": 50.0 * 1e6}
+    deltas, breached_adv = cap_deltas_by_adv(
+        deltas,
+        adv_usd,
+        max_adv_fraction=0.01,
+        on_breach="rescale",
+    )
+    assert breached_net or obs_turnover > turn_limit + 1e-9 or breached_adv
 
 
 def test_finbt_accepts_full_constraint_parameters():

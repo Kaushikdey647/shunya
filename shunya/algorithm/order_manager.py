@@ -29,10 +29,13 @@ class ManagedOrderBatch:
 
 class OrderManager:
     """
-    Stateful OMS helper for streaming target updates.
+    Stateful OMS helper for target-to-order cycles.
+
+    For institutional parent/child flows (FSM ledger, EMS slicing), prefer
+    :class:`shunya.oms.service.InstitutionalOMS` plus :class:`shunya.ems.runner.EMSParentRunner`.
 
     The manager keeps a small cache of positions and open orders so that repeated
-    streaming recomputes can suppress duplicate submits while orders are still working.
+    target submissions can suppress duplicate submits while orders are still working.
     """
 
     def __init__(

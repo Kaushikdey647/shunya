@@ -15,7 +15,7 @@ from shunya.data.yfinance_session import build_yfinance_session
 
 _log = logging.getLogger(__name__)
 
-_SPARKLINE_MAX_BARS = 7
+_SPARKLINE_MAX_BARS = 14
 
 
 def build_snapshot(symbols: list[str], *, session: Any | None = None) -> list[MarketSnapshotRow]:
@@ -31,7 +31,7 @@ def build_snapshot(symbols: list[str], *, session: Any | None = None) -> list[Ma
     try:
         raw = yf.download(
             tickers=list(symbols),
-            period="7d",
+            period="1mo",
             interval="1d",
             group_by="ticker",
             auto_adjust=False,

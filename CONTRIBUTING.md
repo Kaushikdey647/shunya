@@ -11,10 +11,11 @@ flowchart LR
     dataProviders[shunya.data.providers] --> finTsObj[shunya.data.fints.finTs]
     finTsObj --> finStratObj[shunya.algorithm.finstrat.FinStrat]
     finStratObj --> finBtObj[shunya.algorithm.finbt.FinBT]
-    finStratObj --> finTradeObj[shunya.algorithm.fintrade.FinTrade]
-    finTradeObj --> execAdapter[shunya.algorithm.execution.AlpacaExecutionAdapter]
-    finStratObj --> targetsMod[shunya.algorithm.targets]
+    finStratObj --> portfolioSvc[shunya.algorithm.portfolio_manager.PortfolioConstructionService]
+    portfolioSvc --> targetsMod[shunya.algorithm.targets]
+    finStratObj --> targetsMod
     finBtObj --> targetsMod
+    portfolioSvc --> execAdapter[shunya.algorithm.execution.AlpacaExecutionAdapter]
 ```
 
 ### Module responsibilities
@@ -31,12 +32,13 @@ flowchart LR
   - Alpha authoring interface (`ctx.open/high/low/close/adj_volume`, `ctx.ts.*`, `ctx.cs.*`).
 - `shunya/algorithm/finbt.py`
   - Backtrader wrapper for paper/research simulation.
-- `shunya/algorithm/fintrade.py`
-  - Live/paper order orchestration with broker deltas.
+- `shunya/algorithm/portfolio_manager.py`
+  - **`PortfolioConstructionService`**: canonical target vs alpha blend construction and `PortfolioConstructionResult` diagnostics; legacy `PortfolioManager` / `AlphaBlendPortfolioManager` facades.
+  - Rolling Sharpe bookkeeping from caller-supplied returns (optional `StrategyReturnFeed`).
 - `shunya/algorithm/execution.py`
   - Broker-side guardrails, order submission, bounded status observation, and order cancellation hook.
 - `shunya/algorithm/targets.py`
-  - Shared target/delta/cap helpers used in both backtest and trade paths (gross/net caps, turnover budgets, ADV caps).
+  - Shared target/delta/cap helpers used in backtest and live-style paths (gross/net caps, turnover budgets, ADV caps).
 - `shunya/utils/indicators.py`
   - Dataframe feature names and compatibility constants.
 
@@ -63,16 +65,16 @@ flowchart LR
 Use this sequence to avoid regressions:
 
 1. Define scope and API
-   - Decide whether this is data-layer, signal-layer, target-layer, or execution-layer.
+   - Decide whether this is data-layer, signal-layer, target-layer, portfolio-layer, or execution-layer.
    - Add parameters with conservative defaults.
 2. Implement in shared modules first
-   - If both `FinBT` and `FinTrade` need behavior, add helper(s) in `targets.py` or a shared module.
+   - If both `FinBT` and portfolio/OMS paths need behavior, add helper(s) in `targets.py` or a shared module.
 3. Wire into orchestrators
-   - Add to `FinBT` and/or `FinTrade` interfaces.
+   - Add to `FinBT` and/or `PortfolioConstructionService` / your service-layer submit loop.
    - Surface decisions/warnings in reports.
 4. Add tests
    - Unit tests for helper functions.
-   - Behavioral tests for `FinBT`/`FinTrade`.
+   - Behavioral tests for `FinBT` and execution adapters as appropriate.
 5. Update docs
    - Add usage snippet and caveats in [`README.md`](README.md).
 
@@ -105,19 +107,18 @@ Use this sequence to avoid regressions:
 ### 3) Add broker/execution safeguards
 
 - Put broker-facing behavior in `execution.py`.
-- Keep `FinTrade` orchestration thin and report-centric.
-- Ensure failures are reflected in `ExecutionReport.warnings` and attempt fields.
+- Keep application orchestration (scheduling, reconciliation policy) in your own service code; use `ExecutionReport`-shaped summaries when helpful.
 
 ### 4) Add risk constraints
 
 - Implement reusable math in `targets.py`.
-- Wire constraint knobs in both `FinBT` and `FinTrade`.
+- Wire constraint knobs into `FinBT` and/or your live pipeline after `PortfolioConstructionService.construct` / `net_targets`.
 - Prefer deterministic `rescale` defaults; support `raise` for strict workflows.
 
 ### 5) Add decision/session rules
 
 - Keep timestamp resolution in `decision.py`.
-- Keep orchestration warnings in `FinTrade.run`.
+- Surface warnings from your orchestration layer when resolving `as_of`.
 - Add tests for weekend/future/staleness/same-session behavior.
 
 ### 6) Trading-time axis changes
@@ -133,7 +134,7 @@ Use this sequence to avoid regressions:
 - For strategy decay semantics:
   - `FinStrat(..., temporal_mode="bar_step")` = one-step-per-bar.
   - `FinStrat(..., temporal_mode="elapsed_trading_time")` = advance decay by trading-time distance.
-  - Ensure execution orchestrators pass `execution_date` into `FinStrat.pass_` (already wired in `FinBT` and `FinTrade`).
+  - Ensure execution orchestrators pass `execution_date` into `FinStrat.pass_` (already wired in `FinBT`).
 
 ## Testing expectations
 
@@ -155,15 +156,16 @@ When changing critical paths, add tests in relevant files:
 - Operator libraries: `tests/test_time_series.py`, `tests/test_logical_ops.py`, `tests/test_group_ops.py`
 - Backtest behavior: `tests/test_finbt.py`
 - Target/risk helpers: `tests/test_targets.py`, `tests/test_constraints.py`
-- Trading/execution: `tests/test_fintrade.py`, `tests/test_execution_adapter.py`
-- End-to-end rebalance flow: `tests/test_integration_rebalance.py`
+- Portfolio: `tests/test_portfolio_manager.py`
+- Trading/execution: `tests/test_execution_adapter.py`
+- End-to-end adapter flow: `tests/test_integration_rebalance.py`
 
 ## PR checklist
 
 - [ ] Inputs validated and errors are actionable.
-- [ ] Shared logic reused across `FinBT` and `FinTrade`.
+- [ ] Shared logic reused across `FinBT` and portfolio/OMS call sites where applicable.
 - [ ] Warnings/reporting updated for new risk/execution behavior.
-- [ ] Reconciliation behavior tested for residual and remediation paths.
+- [ ] Reconciliation behavior tested for residual and remediation paths when you change execution code.
 - [ ] Tests added/updated and passing.
 - [ ] [`README.md`](README.md) updated for user-facing changes.
 

@@ -1,31 +1,24 @@
-"""End-to-end mocked rebalance integration tests."""
+"""End-to-end mocked rebalance integration tests (adapter layer, no FinTrade)."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import jax.numpy as jnp
-import pandas as pd
-
-from shunya.algorithm.finstrat import FinStrat
-from shunya.algorithm.fintrade import FinTrade
-from tests.conftest import make_stub_fints
+from shunya.algorithm.execution import AlpacaExecutionAdapter
 
 
-def _client_with_status(status: str):
-    clock = MagicMock()
-    clock.is_open = True
+def _mock_client():
     client = MagicMock()
-    client.get_clock.return_value = clock
-    acct = MagicMock()
-    acct.buying_power = "100000"
-    client.get_account.return_value = acct
-    client.get_all_positions.side_effect = [[], []]
     asset = MagicMock()
     asset.tradable = True
     asset.fractionable = True
     asset.shortable = True
     client.get_asset.return_value = asset
+    return client
+
+
+def _client_with_status(status: str):
+    client = _mock_client()
     order = MagicMock()
     order.id = "oid-x"
     order.status = "new"
@@ -38,45 +31,27 @@ def _client_with_status(status: str):
     return client
 
 
-def _build_fintrade(client):
-    tickers = ["AAA", "BBB"]
-    dates = ["2020-01-02", "2020-01-03"]
-    fts = make_stub_fints(tickers, dates, base_price=100.0)
-    d3 = pd.Timestamp("2020-01-03").normalize()
-    fts.df.loc[("AAA", d3), "Close"] = 200.0
-    fts.df.loc[("BBB", d3), "Close"] = 50.0
-    fs = FinStrat(
-        fts,
-        lambda ctx: ctx.close.latest.astype(jnp.float32),
-        neutralization="market",
-    )
-    return FinTrade(fs, trading_client=client, paper=True), fts, d3
-
-
-def test_integration_partial_fill_flow_emits_warning():
+def test_integration_partial_fill_flow_surfaces_status():
     client = _client_with_status("partially_filled")
-    ft, fts, d3 = _build_fintrade(client)
-    rep = ft.run(
-        20_000.0,
-        fts,
-        as_of=d3,
-        dry_run=False,
+    adapter = AlpacaExecutionAdapter(client)
+    attempts = adapter.submit_delta_orders(
+        {"AAA": 1000.0},
         min_order_notional=1.0,
-        cap_to_buying_power=False,
+        dry_run=False,
+        correlation_id="cid",
     )
-    assert any("partially_filled_orders" in w for w in rep.warnings)
+    out = adapter.observe_submitted_orders(attempts, max_polls=1, poll_interval_seconds=0.0)
+    assert out[0].final_status == "partially_filled"
 
 
-def test_integration_rejected_flow_keeps_attempt_error_surface():
+def test_integration_rejected_flow_surfaces_status():
     client = _client_with_status("rejected")
-    ft, fts, d3 = _build_fintrade(client)
-    rep = ft.run(
-        20_000.0,
-        fts,
-        as_of=d3,
-        dry_run=False,
+    adapter = AlpacaExecutionAdapter(client)
+    attempts = adapter.submit_delta_orders(
+        {"AAA": 1000.0},
         min_order_notional=1.0,
-        cap_to_buying_power=False,
-        reconciliation_policy="warn_only",
+        dry_run=False,
+        correlation_id="cid",
     )
-    assert all(a.final_status == "rejected" for a in rep.order_attempts)
+    out = adapter.observe_submitted_orders(attempts, max_polls=1, poll_interval_seconds=0.0)
+    assert all(a.final_status == "rejected" for a in out)

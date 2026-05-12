@@ -608,8 +608,8 @@ class FinStrat:
         """
         Apply the post-alpha pipeline to precomputed raw cross-sectional scores.
 
-        This is the reusable seam for non-`finTs` runners such as streaming or replay
-        engines that can already materialize an :class:`AlphaContext`.
+        This is the reusable seam for callers that already materialize an
+        :class:`AlphaContext` (for example custom panel engines or research tools).
         """
         raw = jnp.asarray(raw_scores, dtype=jnp.float32)
         if raw.ndim == 2:

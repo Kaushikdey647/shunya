@@ -23,5 +23,5 @@ def merge_finstrat_runtime_dict(
     """Merge stored alpha FinStrat JSON with an optional backtest override (validated round-trip)."""
     base = FinStratConfig.model_validate(stored).model_dump(mode="json", exclude_none=True)
     if override is not None:
-        base.update(override.model_dump(mode="json", exclude_none=True))
+        base.update(override.model_dump(mode="json", exclude_none=True, exclude_unset=True))
     return FinStratConfig.model_validate(base).model_dump(mode="json", exclude_none=True)
