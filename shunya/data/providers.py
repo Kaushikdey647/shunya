@@ -16,9 +16,14 @@ from typing import Any, Dict, List, Literal, Optional, Protocol, Union, runtime_
 import pandas as pd
 import requests
 import yfinance as yf
-from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+
+from shunya.integration.alpaca_settings import (
+    AlpacaRuntimeSettings,
+    build_stock_historical_data_client,
+    load_alpaca_settings_from_env,
+)
 
 from .timeframes import (
     BarIndexPolicy,
@@ -233,16 +238,13 @@ class AlpacaHistoricalMarketDataProvider:
         secret_key: Optional[str] = None,
         paper: bool = True,
     ) -> None:
-        key = api_key or os.environ.get("APCA_API_KEY_ID")
-        sec = secret_key or os.environ.get("APCA_API_SECRET_KEY")
-        if not key or not sec:
-            raise ValueError(
-                "Alpaca credentials are required for AlpacaHistoricalMarketDataProvider. "
-                "Set APCA_API_KEY_ID/APCA_API_SECRET_KEY or pass api_key/secret_key."
-            )
-        self._client = StockHistoricalDataClient(
-            api_key=key, secret_key=sec, sandbox=paper
-        )
+        if (api_key or secret_key) and not (api_key and secret_key):
+            raise ValueError("Pass both api_key and secret_key, or omit both to load from the environment.")
+        if api_key and secret_key:
+            settings = AlpacaRuntimeSettings(api_key_id=api_key, secret_key=secret_key, paper=paper)
+        else:
+            settings = load_alpaca_settings_from_env(default_paper=paper)
+        self._client = build_stock_historical_data_client(settings)
 
     def download(
         self,

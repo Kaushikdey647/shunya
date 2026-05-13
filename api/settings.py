@@ -1,16 +1,34 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from shunya.data.providers import env_yfinance_repair_default
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_DOTENV_PATH = _REPO_ROOT / ".env"
+# Load before Settings() so DATABASE_URL / APCA_* / SHUNYA_CORS_* etc. are visible to os.environ readers.
+load_dotenv(_DOTENV_PATH, override=False)
 
 __all__ = ["Settings", "get_settings", "env_yfinance_repair_default"]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SHUNYA_API_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="SHUNYA_API_",
+        extra="ignore",
+        env_file=str(_DOTENV_PATH) if _DOTENV_PATH.is_file() else None,
+        env_file_encoding="utf-8",
+    )
+
+    alpaca_enabled: bool = False
+    """When true, the API process builds shared Alpaca clients at startup (requires APCA_* keys)."""
+
+    trade_desk_token: str | None = None
+    """Shared secret for ``X-Shunya-Trade-Desk-Token`` on :http:post:`/trade/paper/cycle`."""
 
     database_url: str | None = None
     """If unset, falls back to DATABASE_URL / SHUNYA_DATABASE_URL via dbutil."""

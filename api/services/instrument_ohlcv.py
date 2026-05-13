@@ -10,7 +10,7 @@ import pandas as pd
 from fastapi import HTTPException
 
 from api.schemas.models import InstrumentOhlcvResponse, OhlcvBar
-from api.settings import get_settings
+from api.tunable_config import get_effective_tunables
 from shunya.data.providers import YFinanceMarketDataProvider, env_yfinance_repair_default
 from shunya.data.timeframes import bar_spec_is_intraday, default_bar_index_policy
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
@@ -162,7 +162,7 @@ def resolve_instrument_ohlcv_sync(
     policy = default_bar_index_policy()
     intraday = bar_spec_is_intraday(bar_spec)
     val_start, val_end = _validation_window(start_inclusive, end_exclusive, intraday=intraday)
-    cache_ttl_days = get_settings().market_data_cache_ttl_days
+    cache_ttl_days = get_effective_tunables().market_data_cache_ttl_days
 
     session = build_yfinance_session()
 

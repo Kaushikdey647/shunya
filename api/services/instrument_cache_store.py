@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, TypeVar
 
-from api.settings import get_settings
+from api.tunable_config import get_effective_tunables
 from shunya.data.timescale.market_cache_lib import (
     FINSTRUMENT_DOC_SOURCE_YFINANCE,
     get_instrument_document_payload_if_fresh,
@@ -28,7 +28,7 @@ def instrument_yfinance_document_get(
     dsn = try_market_cache_dsn()
     if not dsn:
         return None
-    ttl = get_settings().market_data_cache_ttl_days
+    ttl = get_effective_tunables().market_data_cache_ttl_days
     raw = get_instrument_document_payload_if_fresh(
         dsn,
         ticker=symbol,

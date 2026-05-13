@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal, Optional, Self
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from api.alpha_validation import validate_import_ref
 from shunya.schemas import (
@@ -686,3 +686,145 @@ class AlphaAssistBacktestReviewResponse(BaseModel):
     risk_points: list[str] = Field(default_factory=list)
     summary_markdown: str = ""
     suggested_body: Optional[str] = None
+
+
+class PaperCycleRequest(BaseModel):
+    """One paper desk cycle: either vetted-target path or built-in demo PCS."""
+
+    capital: float = Field(gt=0, le=1e12)
+    execution_date: str = Field(min_length=8, max_length=32, description="ISO calendar date YYYY-MM-DD")
+    correlation_id: Optional[str] = Field(default=None, max_length=128)
+    use_demo_pcs: bool = False
+    targets_usd: Optional[dict[str, float]] = None
+    universe: Optional[list[str]] = None
+    prices: Optional[dict[str, float]] = None
+    twap_bins: int = Field(default=4, ge=1, le=48)
+
+    @model_validator(mode="after")
+    def _mode(self) -> Self:
+        if self.use_demo_pcs:
+            if self.targets_usd is not None or self.universe is not None or self.prices is not None:
+                raise ValueError("When use_demo_pcs is true, omit targets_usd, universe, and prices.")
+            return self
+        if not self.targets_usd or not self.universe or not self.prices:
+            raise ValueError("Provide targets_usd, universe, and prices, or set use_demo_pcs=true.")
+        return self
+
+
+class PaperCycleResponse(BaseModel):
+    correlation_id: str
+    blend_mode: Optional[str] = None
+    tickers: list[str] = Field(default_factory=list)
+    targets_constructed: dict[str, float] = Field(default_factory=dict)
+    targets_vetted: dict[str, float] = Field(default_factory=dict)
+    parent_intents: list[dict[str, Any]] = Field(default_factory=list)
+    ems_parent_ids: list[str] = Field(default_factory=list)
+    messages: list[str] = Field(default_factory=list)
+
+
+# --- Trade desk: Alpaca account (equity-focused) --------------------------------
+
+
+class AlpacaEquityAccountOut(BaseModel):
+    """Subset of Alpaca ``/v2/account`` for equities; excludes crypto/options-only fields."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: Optional[str] = None
+    account_number: Optional[str] = None
+    status: Optional[str] = None
+    currency: Optional[str] = None
+    buying_power: Optional[str] = None
+    regt_buying_power: Optional[str] = None
+    daytrading_buying_power: Optional[str] = None
+    effective_buying_power: Optional[str] = None
+    non_marginable_buying_power: Optional[str] = None
+    bod_dtbp: Optional[str] = None
+    cash: Optional[str] = None
+    accrued_fees: Optional[str] = None
+    pending_transfer_out: Optional[str] = None
+    pending_transfer_in: Optional[str] = None
+    portfolio_value: Optional[str] = None
+    pattern_day_trader: Optional[bool] = None
+    trading_blocked: Optional[bool] = None
+    transfers_blocked: Optional[bool] = None
+    account_blocked: Optional[bool] = None
+    created_at: Optional[str] = None
+    trade_suspended_by_user: Optional[bool] = None
+    multiplier: Optional[str] = None
+    shorting_enabled: Optional[bool] = None
+    equity: Optional[str] = None
+    last_equity: Optional[str] = None
+    long_market_value: Optional[str] = None
+    short_market_value: Optional[str] = None
+    position_market_value: Optional[str] = None
+    initial_margin: Optional[str] = None
+    maintenance_margin: Optional[str] = None
+    last_maintenance_margin: Optional[str] = None
+    sma: Optional[str] = None
+    daytrade_count: Optional[int] = None
+    balance_asof: Optional[str] = None
+    intraday_adjustments: Optional[str] = None
+    pending_reg_taf_fees: Optional[str] = None
+
+
+class AlpacaAccountActivityOut(BaseModel):
+    """Normalized row for account activity (trade and non-trade)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str
+    activity_type: str
+    transaction_time: Optional[str] = None
+    date: Optional[str] = None
+    symbol: Optional[str] = None
+    qty: Optional[float] = None
+    price: Optional[float] = None
+    side: Optional[str] = None
+    net_amount: Optional[float] = None
+    description: Optional[str] = None
+    order_id: Optional[str] = None
+    trade_activity_type: Optional[str] = None
+
+
+class AlpacaAccountActivitiesResponse(BaseModel):
+    activities: list[AlpacaAccountActivityOut] = Field(default_factory=list)
+    next_page_token: Optional[str] = None
+
+
+class AlpacaPortfolioHistoryOut(BaseModel):
+    timestamp: list[int] = Field(default_factory=list)
+    equity: list[float] = Field(default_factory=list)
+    profit_loss: list[float] = Field(default_factory=list)
+    profit_loss_pct: list[Optional[float]] = Field(default_factory=list)
+    base_value: Optional[float] = None
+    timeframe: str = ""
+    cashflow: dict[str, list[float]] = Field(default_factory=dict)
+
+
+class AlpacaAccountConfigurationsOut(BaseModel):
+    dtbp_check: str
+    fractional_trading: bool
+    max_margin_multiplier: str
+    no_shorting: bool
+    pdt_check: str
+    suspend_trade: bool
+    trade_confirm_email: str
+    ptp_no_exception_entry: bool
+    max_options_trading_level: Optional[int] = None
+
+
+class AlpacaAccountConfigurationsPatch(BaseModel):
+    """Partial update; unspecified fields are left unchanged on the broker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dtbp_check: Optional[str] = None
+    fractional_trading: Optional[bool] = None
+    max_margin_multiplier: Optional[str] = None
+    no_shorting: Optional[bool] = None
+    pdt_check: Optional[str] = None
+    suspend_trade: Optional[bool] = None
+    trade_confirm_email: Optional[str] = None
+    ptp_no_exception_entry: Optional[bool] = None
+    max_options_trading_level: Optional[int] = None

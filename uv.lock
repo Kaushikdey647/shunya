@@ -2615,6 +2615,7 @@ api = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyright" },
+    { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 dev = [
@@ -2677,6 +2678,7 @@ requires-dist = [
     { name = "pyright", marker = "extra == 'api'", specifier = ">=1.1.350" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.350" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "python-dotenv", marker = "extra == 'api'", specifier = ">=1.0.0" },
     { name = "pytickersymbols", specifier = ">=1.17.10" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich", marker = "extra == 'timescale'", specifier = ">=13.9" },

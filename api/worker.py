@@ -4,16 +4,15 @@ import asyncio
 import logging
 
 from api.repositories import backtests as jobs_repo
-from api.settings import get_settings
+from api.tunable_config import get_effective_tunables
 from api.worker_job import execute_claimed_backtest_job
 
 _log = logging.getLogger(__name__)
 
 
 async def backtest_worker_loop(stop: asyncio.Event) -> None:
-    settings = get_settings()
-    interval = max(0.2, float(settings.worker_poll_interval_seconds))
     while not stop.is_set():
+        interval = max(0.2, float(get_effective_tunables().worker_poll_interval_seconds))
         row = await asyncio.to_thread(jobs_repo.claim_next_queued_job)
         if row is None:
             try:

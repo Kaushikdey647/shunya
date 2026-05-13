@@ -74,6 +74,23 @@ from .ems import (
     twap_slice_quantities,
     vwap_slice_quantities,
 )
+from .integration import (
+    AlpacaRuntimeSettings,
+    build_stock_historical_data_client,
+    build_trading_client,
+    build_trading_stream,
+    load_alpaca_settings_from_env,
+    try_load_alpaca_settings_from_env,
+)
+from .live import (
+    InstitutionalPaperDesk,
+    PaperCycleResult,
+    build_demo_target_blend_pcs,
+    close_prices_at,
+    fin_ts_from_portfolio_construction,
+    make_minimal_fints,
+    new_correlation_id,
+)
 from .oms import (
     AlpacaOMSTradeStream,
     ExecutionFill,
@@ -141,6 +158,19 @@ __all__ = [
     "ManagedOrderBatch",
     "KiteHistoricalMarketDataProvider",
     "AlpacaHistoricalMarketDataProvider",
+    "AlpacaRuntimeSettings",
+    "build_stock_historical_data_client",
+    "build_trading_client",
+    "build_trading_stream",
+    "load_alpaca_settings_from_env",
+    "try_load_alpaca_settings_from_env",
+    "InstitutionalPaperDesk",
+    "PaperCycleResult",
+    "build_demo_target_blend_pcs",
+    "close_prices_at",
+    "fin_ts_from_portfolio_construction",
+    "make_minimal_fints",
+    "new_correlation_id",
     "FinanceToolkitFundamentalDataProvider",
     "FundamentalDataProvider",
     "FundamentalFieldSpec",

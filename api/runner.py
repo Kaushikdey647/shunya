@@ -20,7 +20,7 @@ from api.serializer import (
     result_summary_from_metrics,
     serialize_backtest_result,
 )
-from api.settings import get_settings
+from api.tunable_config import get_effective_tunables
 from shunya.schemas import merge_finstrat_runtime_dict
 
 _FUN_IN_ALPHA_SOURCE = re.compile(r"\b(?:ctx\.)?fun\.")
@@ -132,7 +132,7 @@ def run_backtest_job(
     *,
     engine: BacktestEngine | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    settings = get_settings()
+    tun = get_effective_tunables()
     body = _backtest_fin_ts_auto_fundamentals(body, source_code)
     algo = resolve_alpha_for_backtest(alpha_import_ref, source_code)
     fts = build_fin_ts(body.fin_ts)
@@ -146,10 +146,10 @@ def run_backtest_job(
     )
     serialized = serialize_backtest_result(
         out,
-        max_target_history=settings.max_target_history_points,
-        max_group_exposure_history=settings.max_group_exposure_history_points,
-        max_exposure_history=settings.max_exposure_history_points,
-        max_trade_events=settings.max_trade_events,
+        max_target_history=tun.max_target_history_points,
+        max_group_exposure_history=tun.max_group_exposure_history_points,
+        max_exposure_history=tun.max_exposure_history_points,
+        max_trade_events=tun.max_trade_events,
     )
     if body.benchmark_ticker:
         try:

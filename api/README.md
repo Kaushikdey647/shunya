@@ -9,6 +9,9 @@ Repo-local **FastAPI** service (not part of the published `shunya-py` wheel) for
 - **`GET /data/dashboard`** — Database-wide analytics for a stored `interval` / `source`: reference window `[MIN(ts), MAX(ts)]` over `ohlcv_bars`, per-ticker completeness vs that window (heatmap buckets), aggregated risk/return metrics from stored closes, and completeness histogram bins. Bucket granularity defaults to **`auto`** (chooses day, week, or month so the heatmap stays within `max_buckets`, default **200**); adjacent periods may be merged (logical OR). Optional **`SHUNYA_DASHBOARD_MAX_TICKERS`** caps symbols (alphabetical order).
 - **`/instruments/...`** — Search and OHLCV: prefers Timescale when the DB is reachable and coverage is complete; otherwise yfinance (with optional write-back to Timescale).
 - **`/market/...`** — Dashboard-oriented market data: **`POST /market/snapshot`** (batched daily OHLCV-derived quotes for macro strip / watchlists), **`GET /market/movers`** (`kind=gainers|losers|active`, Yahoo predefined screeners), **`GET /market/headlines`** (general financial headlines via Yahoo Search). Implemented in `api/services/market_*.py`.
+- **`POST /trade/paper/cycle`** — One **paper** cycle: `PortfolioRiskEngine` → `InstitutionalOMS` → `EMSParentRunner` + Alpaca trade stream. Requires **`SHUNYA_API_ALPACA_ENABLED=1`**, Alpaca keys in the environment (`APCA_*` or `SHUNYA_ALPACA_*`), and **`SHUNYA_API_TRADE_DESK_TOKEN`**; send header **`X-Shunya-Trade-Desk-Token`** with that same value. Body: `capital`, `execution_date` (YYYY-MM-DD), either **`use_demo_pcs: true`** (built-in SPY/QQQ stub book) or **`targets_usd` + `universe` + `prices`** for a fixed-target run. See [`api/routers/trade_desk.py`](routers/trade_desk.py).
+- **`GET /settings/app`** — Read-only **environment** flags (no secrets) plus **effective runtime tunables** (env defaults merged with the optional DB overlay in `api_runtime_config`) and per-field **`sources`** (`database` vs `environment`). Does not require the trade-desk token.
+- **`PATCH /settings/app`** — Merge **non-secret operator tunables** into `api_runtime_config` (same keys as `SHUNYA_API_*` caps such as worker poll interval, serialization caps, Ollama model/timeout, cache TTL). Requires **`DATABASE_URL`** (or equivalent) and migration **`013_api_runtime_config.sql`**. **Auth:** same **`X-Shunya-Trade-Desk-Token`** as **`POST /trade/paper/cycle`** when **`SHUNYA_API_TRADE_DESK_TOKEN`** is set; if that token is unset, returns **503** (writes disabled). Secrets (DB URL, Alpaca keys, `SHUNYA_API_OLLAMA_HOST`, CORS, trade-desk token) are **never** stored in the overlay.
 
 ## Install
 
@@ -18,7 +21,7 @@ From the repo root:
 uv sync --extra api --extra timescale
 ```
 
-Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrations, then start the app:
+Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrations (including **`013_api_runtime_config.sql`** for `GET`/`PATCH /settings/app`), then start the app:
 
 ```bash
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
@@ -50,6 +53,8 @@ Alternatively, use Docker Compose in this repo (`api` service mounts the repo an
 
 ## Environment
 
+At process start the API loads a **repo-root `.env`** (if present) via `python-dotenv`, then **pydantic-settings** with prefix **`SHUNYA_API_`** (see [`api/settings.py`](settings.py)). Changing `.env` still requires an **API restart**; values that must update live without restart belong in the **`api_runtime_config`** overlay (via **`PATCH /settings/app`**), not in `.env` edits from clients.
+
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` / `SHUNYA_DATABASE_URL` | Postgres for API tables + Timescale OHLCV reads |
@@ -58,6 +63,11 @@ Alternatively, use Docker Compose in this repo (`api` service mounts the repo an
 | `SHUNYA_API_INTEGRATION_DATABASE_URL` | Optional **dedicated** Postgres URL for queue-based API integration tests (`test_alphas_crud_and_backtest_job`). Use when you cannot run Docker testcontainers but must not share the job queue with another process (e.g. a running `uvicorn` on the same `DATABASE_URL`). |
 | `SHUNYA_TRUST_SHARED_DATABASE_FOR_QUEUE_TESTS` | Set to `1` only with `DATABASE_URL` / `SHUNYA_DATABASE_URL` when **no** other API worker process uses that database; otherwise job-queue tests can flake or fail. Prefer testcontainers or `SHUNYA_API_INTEGRATION_DATABASE_URL`. |
 | `SHUNYA_DASHBOARD_MAX_TICKERS` | Optional cap for `GET /data/dashboard` symbol list (positive integer); omit for no cap |
+| `SHUNYA_API_ALPACA_ENABLED` | When `true` / `1`, the API builds shared Alpaca clients at startup (requires `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY` or `SHUNYA_ALPACA_*` aliases). |
+| `SHUNYA_API_TRADE_DESK_TOKEN` | Shared secret for `POST /trade/paper/cycle` and **`PATCH /settings/app`**; required header `X-Shunya-Trade-Desk-Token` must match exactly. |
+| `SHUNYA_API_OLLAMA_HOST` | Base URL for Ollama (alpha assist); not stored in DB overlay. |
+| `SHUNYA_API_OLLAMA_MODEL` | Default Ollama model id; may be overridden by **`api_runtime_config`** when set via **`PATCH /settings/app`**. |
+| `SHUNYA_API_OLLAMA_TIMEOUT_SECONDS` | Default HTTP timeout for Ollama; may be overridden by the DB overlay. |
 | `SHUNYA_API_DATABASE_URL` | Optional override (via `pydantic-settings`) |
 | `SHUNYA_API_WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval (default `1.0`) |
 | `SHUNYA_API_INDEX_OHLCV_BACKFILL_BATCH_SIZE` | Tickers per Yahoo batch when the worker backfills OHLCV after a recoverable index backtest data error (default `40`). |

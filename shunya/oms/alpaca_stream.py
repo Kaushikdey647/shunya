@@ -6,6 +6,11 @@ import asyncio
 import logging
 from typing import Optional
 
+from shunya.integration.alpaca_settings import (
+    AlpacaRuntimeSettings,
+    build_trading_stream,
+    load_alpaca_settings_from_env,
+)
 from shunya.oms.service import InstitutionalOMS
 
 logger = logging.getLogger(__name__)
@@ -21,16 +26,21 @@ class AlpacaOMSTradeStream:
 
     def __init__(
         self,
-        api_key: str,
-        secret_key: str,
+        api_key: Optional[str] = None,
+        secret_key: Optional[str] = None,
         *,
         paper: bool = True,
         oms: Optional[InstitutionalOMS] = None,
+        settings: Optional[AlpacaRuntimeSettings] = None,
     ) -> None:
-        from alpaca.trading.stream import TradingStream
-
+        if settings is not None:
+            rt = settings
+        elif api_key and secret_key:
+            rt = AlpacaRuntimeSettings(api_key_id=api_key, secret_key=secret_key, paper=paper)
+        else:
+            rt = load_alpaca_settings_from_env(default_paper=paper)
         self._oms = oms
-        self._stream = TradingStream(api_key, secret_key, paper=paper)
+        self._stream = build_trading_stream(rt)
         self._task: Optional[asyncio.Task[None]] = None
 
     @property

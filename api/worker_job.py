@@ -15,7 +15,7 @@ from api.services.ohlcv_yfinance_backfill import (
     payload_has_index_code,
     tickers_for_ohlcv_backfill,
 )
-from api.settings import get_settings
+from api.tunable_config import get_effective_tunables
 from shunya.errors import ErrorCode
 
 
@@ -83,13 +83,13 @@ def execute_claimed_backtest_job(
                 None,
             )
 
-        settings = get_settings()
+        tun = get_effective_tunables()
         tickers = tickers_for_ohlcv_backfill(payload)
         n_upsert, bf_err = backfill_ohlcv_from_yfinance(
             tickers,
             start_date=BACKTEST_SIM_START,
             end_date_exclusive=BACKTEST_SIM_END_EXCLUSIVE,
-            batch_size=int(settings.index_ohlcv_backfill_batch_size),
+            batch_size=int(tun.index_ohlcv_backfill_batch_size),
         )
 
         try:

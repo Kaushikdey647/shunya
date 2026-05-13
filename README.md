@@ -22,12 +22,14 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture, extension patterns, a
 
 | Package | Role |
 |--------|------|
+| `shunya.integration` | Alpaca-py **env + client factories** (`AlpacaRuntimeSettings`, `build_trading_client`, …) |
+| `shunya.live` | **Paper / live desk** orchestration (`InstitutionalPaperDesk`, demo PCS helper, `shunya-paper` CLI) |
 | `shunya.data` | `finTs` — download OHLCV, build MultiIndex `(Ticker, Date)` frame, attach engineered columns; optional **TimescaleDB** persistence and read providers (see [Local TimescaleDB](#local-timescaledb-optional)) |
 | `shunya.algorithm` | `FinStrat`, `FinBT`, `PortfolioConstructionService`, `PortfolioManager` / `AlphaBlendPortfolioManager` / `StrategyRegistry`, `RollingSharpeTracker`, `PortfolioRiskEngine` / `RiskVetConfig` (optional **`[risk]`**), `AlpacaExecutionAdapter` / `OrderManager`, `cross_section`, … |
 | `shunya.oms` | Institutional OMS: parent-order FSM, in-memory ledger, share reconciliation vs USD targets, Alpaca stream + REST helpers, optional **Postgres** persistence via `shunya/oms/db` and repo-root **Alembic** (`alembic/versions/`) |
 | `shunya.ems` | EMS: `BrokerGateway` / `AlpacaBrokerGateway`, TWAP/VWAP schedulers, micro-price limit helpers, `EMSParentRunner` for child lifecycle |
 | `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
-| `api` | **FastAPI** service (alphas, backtest jobs, worker queue, data dashboard, instruments, market routes, optional **Ollama**-backed alpha assist / backtest review); requires `--extra api` (+ `--extra timescale` for Postgres). Consumed by **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**. See [HTTP API and dashboard](#http-api-and-dashboard-api). |
+| `api` | **FastAPI** service (alphas, backtest jobs, worker queue, data dashboard, instruments, market routes, secured **`POST /trade/paper/cycle`** when Alpaca is enabled, optional **Ollama**-backed alpha assist / backtest review); requires `--extra api` (+ `--extra timescale` for Postgres). Consumed by **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**. See [HTTP API and dashboard](#http-api-and-dashboard-api). |
 
 Common imports from `shunya` (illustrative):
 
@@ -67,6 +69,8 @@ The canonical set of symbols re-exported at the package root is `__all__` in [`s
 4. **`PortfolioConstructionService`** (`shunya.algorithm.portfolio_manager`): single entry point wrapping **`TargetBlendConfig`** (same semantics as `PortfolioManager`) or **`AlphaBlendConfig`** (same as `AlphaBlendPortfolioManager`). Use **`construct(...)`** for a [`PortfolioConstructionResult`](shunya/algorithm/portfolio_manager.py) (`targets`, `requested_capital`, `active_capital`, correlation flags, ticker list) for risk / OMS logging; **`net_targets`** remains a thin wrapper over `construct(...).targets`. **`PortfolioManager`** / **`AlphaBlendPortfolioManager`** are legacy facades over the same engines. Rolling Sharpe uses **caller-supplied** simple returns, or an optional **`StrategyReturnFeed`** when `record_returns_from_feed_on_construct=True`. Portfolio math is decoupled from market-data transports and from order routing.
 
 5. **`AlpacaExecutionAdapter` / `OrderManager`** — low-level Alpaca helpers for translating signed USD deltas into orders and for caching open-order state across **your** rebalance loop. There is no bundled tick-to-trade runner; wire these behind your own scheduler or service.
+
+   **Alpaca-py env and clients:** use [`shunya.integration.alpaca_settings`](shunya/integration/alpaca_settings.py) (`AlpacaRuntimeSettings`, `load_alpaca_settings_from_env`, `build_trading_client`, `build_stock_historical_data_client`, `build_trading_stream`) so credentials and paper mode stay consistent. Keys: `APCA_API_KEY_ID` / `APCA_API_SECRET_KEY`, optional `SHUNYA_ALPACA_API_KEY_ID` / `SHUNYA_ALPACA_API_SECRET_KEY`, and `SHUNYA_ALPACA_PAPER` (defaults to paper). **`InstitutionalPaperDesk`** ([`shunya.live.desk`](shunya/live/desk.py)) wires `PortfolioConstructionService` (or fixed USD targets) → `PortfolioRiskEngine` → `InstitutionalOMS` → `EMSParentRunner` with `AlpacaOMSTradeStream`. **CLI:** `uv run shunya-paper paper-cycle --date YYYY-MM-DD [--capital N] [--demo | --pcs-factory module:fn]`.
 
 6. **`DecisionContext`** (`shunya.algorithm.decision`) pins **signal time** and **data provenance** (`yfinance_research` vs `alpaca_bars`) so research and live workflows do not silently mix data sources. Use it wherever you resolve an `as_of` timestamp against a panel.
 
@@ -143,16 +147,18 @@ See [`docker-compose.yml`](docker-compose.yml): the `api` service runs `uvicorn 
 git clone https://github.com/Kaushikdey647/shunya.git
 cd shunya
 uv sync --extra dev --extra api --extra timescale
+# Optional: copy .env.example to .env at repo root and fill DATABASE_URL, SHUNYA_API_*, etc.
+# (pydantic-settings loads .env on startup; restart the API after edits.)
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya   # omit only if you accept limited routes
 shunya-timescale migrate
 uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 # equivalent: uv run python -m api
 ```
 
-- **Without `DATABASE_URL`:** many **yfinance**-backed routes still work; **alphas, backtest job queue, `/data/dashboard`**, and similar features expect Postgres — use Docker Compose or point `DATABASE_URL` at a local Timescale instance ([Local TimescaleDB](#local-timescaledb-optional)).
+- **Without `DATABASE_URL`:** many **yfinance**-backed routes still work; **alphas, backtest job queue, `/data/dashboard`**, **`PATCH /settings/app`**, and similar features expect Postgres — use Docker Compose or point `DATABASE_URL` at a local Timescale instance ([Local TimescaleDB](#local-timescaledb-optional)). After pulling new migrations, run **`shunya-timescale migrate`** (e.g. **`013_api_runtime_config.sql`** enables DB-backed runtime tunables for **`GET`/`PATCH /settings/app`**).
 - **Smoke test:** `curl -sSf http://127.0.0.1:8000/healthz` (fast liveness). Interactive docs: **http://127.0.0.1:8000/docs**.
 - **Browser from another origin** (e.g. UI on port 5173): set **`SHUNYA_CORS_ORIGINS`** to the exact UI origin(s), comma-separated, no path or trailing slash — example: `SHUNYA_CORS_ORIGINS=http://localhost:5173`.
-- **Alpha Studio AI** (lint/assist/backtest review): optional **`SHUNYA_API_OLLAMA_HOST`** (e.g. `http://127.0.0.1:11434`) and **`SHUNYA_API_OLLAMA_MODEL`** on the API process ([HTTP API and dashboard](#http-api-and-dashboard-api)).
+- **Alpha Studio AI** (lint/assist/backtest review): optional **`SHUNYA_API_OLLAMA_HOST`** (e.g. `http://127.0.0.1:11434`) and **`SHUNYA_API_OLLAMA_MODEL`** on the API process; model and timeout can also be tuned live via **`PATCH /settings/app`** when the trade-desk token and database are configured ([`api/README.md`](api/README.md)).
 
 More env vars, Railway, and route-level detail: [`api/README.md`](api/README.md).
 

@@ -5,7 +5,7 @@ Environment (see ``api.settings`` / ``get_settings``):
   ``/alphas/assist-body`` returns empty ``issues``/``markers``; ``/alphas/assist-backtest-review``
   returns a single-item ``summary_points`` list, empty ``risk_points``, a short ``summary_markdown`` stub,
   and ``suggested_body`` null.
-- ``SHUNYA_API_OLLAMA_MODEL``: model id for chat completions.
+- ``SHUNYA_API_OLLAMA_MODEL`` / ``SHUNYA_API_OLLAMA_TIMEOUT_SECONDS``: defaults for chat completions; effective values may come from the ``api_runtime_config`` overlay (``PATCH /settings/app``) when set.
 
 HTTP response shapes (Pydantic in ``api.schemas.models``):
 - ``POST /alphas/assist-body`` → ``AlphaAssistBodyResponse``: ``issues`` (``id``, ``severity``,
@@ -27,6 +27,7 @@ import httpx
 
 from api.alpha_assist_context import build_shared_user_context
 from api.settings import get_settings
+from api.tunable_config import get_effective_tunables
 from shunya.algorithm.alpha_source_wrap import wrap_alpha_body
 
 _log = logging.getLogger(__name__)
@@ -238,10 +239,11 @@ def run_alpha_assist(
 ) -> list[dict[str, Any]]:
     """Return assist **issues** (coords + optional corrected_body)."""
     settings = get_settings()
+    tun = get_effective_tunables()
     host = (settings.ollama_host or "").strip().rstrip("/")
     if not host:
         return []
-    model = (settings.ollama_model or "llama3.2").strip()
+    model = (tun.ollama_model or "llama3.2").strip()
     wrapped = wrap_alpha_body(source_body)
     user = build_shared_user_context(
         alpha_name=alpha_name,
@@ -256,7 +258,7 @@ def run_alpha_assist(
             model,
             _ASSIST_SYSTEM,
             user,
-            float(settings.ollama_timeout_seconds),
+            float(tun.ollama_timeout_seconds),
         )
     except (httpx.HTTPError, OSError, ValueError, TypeError) as exc:
         _log.warning("ollama assist failed: %s", exc)
@@ -412,6 +414,7 @@ def run_alpha_backtest_review(
 ) -> dict[str, Any]:
     """Return summary_points, risk_points, summary_markdown, suggested_body."""
     settings = get_settings()
+    tun = get_effective_tunables()
     host = (settings.ollama_host or "").strip().rstrip("/")
     if not host:
         msg = "Ollama is not configured (`SHUNYA_API_OLLAMA_HOST`)."
@@ -421,7 +424,7 @@ def run_alpha_backtest_review(
             "summary_markdown": f"_{msg}_",
             "suggested_body": None,
         }
-    model = (settings.ollama_model or "llama3.2").strip()
+    model = (tun.ollama_model or "llama3.2").strip()
     wrapped = wrap_alpha_body(source_body)
     metrics_block = sanitize_metrics_blob(metrics, result_summary)
     user = build_shared_user_context(
@@ -438,7 +441,7 @@ def run_alpha_backtest_review(
             model,
             _BACKTEST_SYSTEM,
             user,
-            float(settings.ollama_timeout_seconds),
+            float(tun.ollama_timeout_seconds),
         )
     except (httpx.HTTPError, OSError, ValueError, TypeError) as exc:
         _log.warning("ollama backtest review failed: %s", exc)

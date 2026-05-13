@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.exception_handlers import register_exception_handlers
 from api.health_checks import collect_health
 from api.repositories import backtests as jobs_repo
-from api.routers import alphas, backtests, data, indices, instruments, market
+from api.routers import alphas, app_settings, backtests, data, indices, instruments, market, trade_desk
 from api.schemas.models import HealthResponseModel
 
 _log = logging.getLogger(__name__)
@@ -33,6 +33,24 @@ async def lifespan(app: FastAPI):
         jobs_repo.reconcile_stale_running_jobs()
     except Exception as exc:  # noqa: BLE001
         _log.warning("reconcile stale jobs skipped: %s", exc)
+
+    from api.settings import get_settings
+    from api.trade_desk_runtime import build_trade_desk_runtime
+    from shunya.integration.alpaca_settings import try_load_alpaca_settings_from_env
+
+    api_settings = get_settings()
+    if api_settings.alpaca_enabled:
+        alp = try_load_alpaca_settings_from_env()
+        if alp is None:
+            raise RuntimeError(
+                "SHUNYA_API_ALPACA_ENABLED is set but Alpaca keys are missing. "
+                "Set APCA_API_KEY_ID and APCA_API_SECRET_KEY (or SHUNYA_ALPACA_* aliases)."
+            )
+        app.state.trade_desk_runtime = build_trade_desk_runtime(alp)
+        _log.info("Trade desk runtime initialized (paper=%s)", alp.paper)
+    else:
+        app.state.trade_desk_runtime = None
+
     # Resolve at startup so tests can monkeypatch ``api.main.backtest_worker_loop``.
     _main = importlib.import_module("api.main")
     task = asyncio.create_task(_main.backtest_worker_loop(stop))
@@ -59,11 +77,13 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(alphas.router)
+    app.include_router(app_settings.router)
     app.include_router(indices.router)
     app.include_router(backtests.router)
     app.include_router(data.router)
     app.include_router(market.router)
     app.include_router(instruments.router)
+    app.include_router(trade_desk.router)
 
     register_exception_handlers(app)
 
