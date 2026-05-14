@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- MkDocs math: load **MathJax** via `extra_javascript` and `docs/javascripts/mathjax.js` so **Arithmatex** `\(…\)` / `\[…\]` renders (previously only the extension was enabled).
+
 ### Removed
 
 - `shunya.streaming` (Alpaca-oriented websocket helpers, micro-bars, rectangular snapshots).

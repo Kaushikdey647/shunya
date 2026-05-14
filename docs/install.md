@@ -66,6 +66,8 @@ Use `--group docs` only if you only need MkDocs (for example in CI). Then open t
 
 MkDocs **Mermaid** diagrams use a vendored copy at **`docs/javascripts/mermaid.min.js`** (for `mkdocs build --strict` without relying on outbound URL checks). If that file is missing, download the same path from [cdn.jsdelivr](https://cdn.jsdelivr.net/npm/mermaid@10.4.0/dist/mermaid.min.js) before building.
 
+**Math** (Arithmatex): **`docs/javascripts/mathjax.js`** plus the MathJax script in **`mkdocs.yml` → `extra_javascript`** are required for `\(...\)` and `\[...\]` to render in the browser.
+
 ## Related documentation
 
 - [Glossary](glossary.md) — terminology
