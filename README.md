@@ -3,14 +3,15 @@
 ![Shunya](docs/banner.png)
 
 [![PyPI](https://img.shields.io/pypi/v/shunya-py.svg)](https://pypi.org/project/shunya-py/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-526F9A?logo=githubpages&logoColor=white)](https://kaushikdey647.github.io/shunya/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![Package Manager](https://img.shields.io/badge/package_manager-uv-6f42c1.svg)](https://docs.astral.sh/uv/)
 [![Tests](https://img.shields.io/badge/tests-pytest-green.svg)](https://docs.pytest.org/)
 [![Data](https://img.shields.io/badge/data-yfinance-informational.svg)](https://pypi.org/project/yfinance/)
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
-[![Web UI](https://img.shields.io/badge/UI-shunya--ui-646CFF?logo=react&logoColor=white)](https://github.com/Kaushikdey647/shunya-ui)
+[![Web UI](https://img.shields.io/badge/UI-repo%20ui%2F-646CFF?logo=react&logoColor=white)](https://github.com/Kaushikdey647/shunya/tree/main/ui)
 
-**Shunya** is a Python stack for **systematic equity research**: multi-ticker **OHLCV panels** (`finTs`), **JAX** alpha pipelines (**FinStrat** / `cross_section`), **backtrader** execution (**FinBT**), a decoupled **portfolio** layer (`PortfolioConstructionService` with `TargetBlendConfig` / `AlphaBlendConfig`, plus legacy `PortfolioManager` / `AlphaBlendPortfolioManager` facades, `RollingSharpeTracker`), optional **pre-trade risk** (`PortfolioRiskEngine`, `RiskVetConfig` / `RiskVetResult`, optional **`[risk]`** extra for CVX-backed checks), an institutional **OMS** (`shunya.oms` — parent FSM, share reconciliation, Alpaca trade stream bridge, optional SQLAlchemy persistence + **Alembic** migrations under `alembic/`) and **EMS** (`shunya.ems` — broker gateway, TWAP/VWAP slices, micro-price limits, async parent runner), optional **Alpaca** execution primitives (`AlpacaExecutionAdapter`, `OrderManager`), optional **TimescaleDB** for durable bars and fundamentals, and a repo-local **FastAPI** service for **alphas, async backtests, instruments, market dashboards, and data coverage APIs**. A separate **React** app (**[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**) provides Alpha Studio (Monaco + lint/assist), backtest management, a **Trade** desk (portfolios, live, execution, risk) with mock client state until OMS/EMS HTTP APIs land, and charts against this API.
+**Shunya** is a Python stack for **systematic equity research**: multi-ticker **OHLCV panels** (`finTs`), **JAX** alpha pipelines (**FinStrat** / `cross_section`), **backtrader** execution (**FinBT**), a decoupled **portfolio** layer (`PortfolioConstructionService` with `TargetBlendConfig` / `AlphaBlendConfig`, plus legacy `PortfolioManager` / `AlphaBlendPortfolioManager` facades, `RollingSharpeTracker`), optional **pre-trade risk** (`PortfolioRiskEngine`, `RiskVetConfig` / `RiskVetResult`, optional **`[risk]`** extra for CVX-backed checks), an institutional **OMS** (`shunya.oms` — parent FSM, share reconciliation, Alpaca trade stream bridge, optional SQLAlchemy persistence + **Alembic** migrations under `alembic/`) and **EMS** (`shunya.ems` — broker gateway, TWAP/VWAP slices, micro-price limits, async parent runner), optional **Alpaca** execution primitives (`AlpacaExecutionAdapter`, `OrderManager`), optional **TimescaleDB** for durable bars and fundamentals, and a repo-local **FastAPI** service for **alphas, async backtests, instruments, market dashboards, and data coverage APIs**. The **React** app in **[`ui/`](ui/)** provides Alpha Studio (Monaco + lint/assist), backtest management, a **Trade** desk (portfolios, live, execution, risk) with mock client state until OMS/EMS HTTP APIs land, and charts against this API.
 
 Historical data is provider-driven: **`yfinance`** by default, optional **Alpaca** bars, **Tiingo** EOD for ingest, and **Timescale**-backed reads when `DATABASE_URL` is configured. Technicals attach via **`finta`**.
 
@@ -29,7 +30,8 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture, extension patterns, a
 | `shunya.oms` | Institutional OMS: parent-order FSM, in-memory ledger, share reconciliation vs USD targets, Alpaca stream + REST helpers, optional **Postgres** persistence via `shunya/oms/db` and repo-root **Alembic** (`alembic/versions/`) |
 | `shunya.ems` | EMS: `BrokerGateway` / `AlpacaBrokerGateway`, TWAP/VWAP schedulers, micro-price limit helpers, `EMSParentRunner` for child lifecycle |
 | `shunya.utils` | `indicators` — column namespaces (`COL`, `IX`, `IX_LIVE`), strategy feature lists, helpers |
-| `api` | **FastAPI** service (alphas, backtest jobs, worker queue, data dashboard, instruments, market routes, secured **`POST /trade/paper/cycle`** when Alpaca is enabled, optional **Ollama**-backed alpha assist / backtest review); requires `--extra api` (+ `--extra timescale` for Postgres). Consumed by **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)**. See [HTTP API and dashboard](#http-api-and-dashboard-api). |
+| `api` | **FastAPI** service (alphas, backtest jobs, worker queue, data dashboard, instruments, market routes, secured **`POST /trade/paper/cycle`** when Alpaca is enabled, optional **Ollama**-backed alpha assist / backtest review); requires `--extra api` (+ `--extra timescale` for Postgres). Consumed by the **[`ui/`](ui/)** web app. See [HTTP API and dashboard](#http-api-and-dashboard-api). |
+| `ui` | **React + Vite** web app (Alpha Studio, backtests, dashboards, trade surfaces); in dev, proxies `/api` to the FastAPI service on port **8000**. See [`ui/README.md`](ui/README.md). |
 
 Common imports from `shunya` (illustrative):
 
@@ -124,7 +126,7 @@ uv run pytest
 
 ## Service and UI setup
 
-Run the **FastAPI service** from this repo, then the **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** dev server. Order matters: start the API before the UI so health checks and proxied calls succeed.
+Run the **FastAPI service** from this repo, then the **`ui/`** Vite dev server. Order matters: start the API before the UI so health checks and proxied calls succeed.
 
 ### 1) API service (FastAPI + worker)
 
@@ -162,18 +164,19 @@ uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 
 More env vars, Railway, and route-level detail: [`api/README.md`](api/README.md).
 
-### 2) Web UI (shunya-ui)
+### 2) Web UI (`ui/`)
+
+From the **same** clone (repo root or any directory):
 
 ```bash
-git clone https://github.com/Kaushikdey647/shunya-ui.git
-cd shunya-ui
-npm install
+cd ui
+npm ci
 npm run dev
 ```
 
-Open the URL Vite prints (default **http://localhost:5173**). In dev, **`vite.config.ts` proxies `/api` → `http://127.0.0.1:8000`**, so the API should listen on **8000** unless you change the proxy.
+Open the URL Vite prints (default **http://localhost:5173**). In dev, **[`ui/vite.config.ts`](ui/vite.config.ts) proxies `/api` → `http://127.0.0.1:8000`**, so the API should listen on **8000** unless you change the proxy.
 
-**Production UI:** set **`VITE_API_BASE`** at **build** time to your public API origin if the UI is not served behind the same host as `/api`. See the **[shunya-ui README](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)** for `npm run build`, preview, and hosting notes.
+**Production UI:** set **`VITE_API_BASE`** at **build** time to your public API origin if the UI is not served behind the same host as `/api`. See **[`ui/README.md`](ui/README.md)** for `npm run build`, preview, and hosting notes.
 
 ```python
 import jax.numpy as jnp
@@ -270,13 +273,13 @@ The **Python package** is imported as `api` (directory `api/` at **repo root**; 
 
 Bind address and port default to `127.0.0.1` / `8000`; override with **`SHUNYA_API_HOST`** and **`SHUNYA_API_PORT`**. For **Railway** and similar hosts, bind **`0.0.0.0`** and **`PORT`** (e.g. `uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT`). Use **`GET /healthz`** for load-balancer liveness (instant **200**); **`GET /health`** runs Postgres + Yahoo checks and is not suitable as a deploy probe. Example Railway settings: [`railway.toml`](railway.toml).
 
-**Browser CORS:** If the UI is served from another origin (e.g. **shunya-ui** on Vercel), set **`SHUNYA_CORS_ORIGINS`** to a comma-separated **allowlist** of exact origins—scheme + host (+ optional port), **no path or trailing slash**. Example: `SHUNYA_CORS_ORIGINS=https://shunya-ui.vercel.app`. Add preview URLs as separate entries if needed. Register this on the **API** service (Railway variables); restart/redeploy so `create_app()` picks it up. Leave unset for same-origin or non-browser clients only.
+**Browser CORS:** If the UI is served from another origin (e.g. a **Vite preview** or static host on a different domain than the API), set **`SHUNYA_CORS_ORIGINS`** to a comma-separated **allowlist** of exact origins—scheme + host (+ optional port), **no path or trailing slash**. Example: `SHUNYA_CORS_ORIGINS=https://my-app.vercel.app`. Add preview URLs as separate entries if needed. Register this on the **API** service (Railway variables); restart/redeploy so `create_app()` picks it up. Leave unset for same-origin or non-browser clients only.
 
 **Docker Compose:** `docker compose up` starts TimescaleDB plus the API (`uvicorn api.main:app` on port **8000**); see [`docker-compose.yml`](docker-compose.yml).
 
 **Backtest HTTP API (repo clone):** migrations include `api_alphas` / `api_backtest_jobs`, `equity_indexes` / `symbol_index_membership`. The API supports **`POST /backtests` with `index_code`** for Timescale-only index universes and **raw index** benchmark tickers; backtests use a **fixed daily window** `2020-01-01`–`2026-01-01` (exclusive end) with optional **tune-only** results hiding **2025-01-01** onward unless `include_test_period_in_results` is true (see [`api/README.md`](api/README.md)).
 
-Additional **market overview** routes (yfinance-backed, used by the **shunya-ui** home dashboard):
+Additional **market overview** routes (yfinance-backed, used by the **`ui/`** home dashboard):
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -286,7 +289,7 @@ Additional **market overview** routes (yfinance-backed, used by the **shunya-ui*
 
 Service implementations live under `api/services/` (`market_snapshot.py`, `market_movers.py`, `market_headlines.py`); shared symbol validation is `api/services/market_symbols.py`.
 
-**Alpha Studio helpers (optional Ollama):** `POST /alphas/lint-body`, `POST /alphas/assist-body`, and `POST /alphas/assist-backtest-review` power the **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** Monaco workspace. Set **`SHUNYA_API_OLLAMA_HOST`** (and optionally **`SHUNYA_API_OLLAMA_MODEL`**, **`SHUNYA_API_OLLAMA_TIMEOUT_SECONDS`**) on the API process; when the host is unset, assist and review return empty or stub payloads (see `api/alpha_assist.py`).
+**Alpha Studio helpers (optional Ollama):** `POST /alphas/lint-body`, `POST /alphas/assist-body`, and `POST /alphas/assist-backtest-review` power the **`ui/`** Alpha Studio (Monaco) workspace. Set **`SHUNYA_API_OLLAMA_HOST`** (and optionally **`SHUNYA_API_OLLAMA_MODEL`**, **`SHUNYA_API_OLLAMA_TIMEOUT_SECONDS`**) on the API process; when the host is unset, assist and review return empty or stub payloads (see `api/alpha_assist.py`).
 
 **Read in code:**
 
@@ -463,13 +466,14 @@ Build with `uv build` (wheel and sdist). Upload with [Twine](https://twine.readt
 - P1 completed: decision/session guards, panel QA diagnostics, richer backtest diagnostics.
 - P2 completed: reconciliation loop + remediation hooks, net/turnover/ADV constraints, integration tests.
 - P3 superseded: tick-to-trade streaming (`shunya.streaming`, `StreamingRunner`) and the `FinTrade` orchestrator were removed in favor of a decoupled `PortfolioManager` plus explicit adapter usage.
-- P4 in progress: **OMS/EMS** Python modules (`shunya.oms`, `shunya.ems`) and **`PortfolioRiskEngine`** for pre-trade checks; HTTP surface in `api/` for live trade desk TBD — **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** currently uses client-side mock state for Trade routes.
+- P4 in progress: **OMS/EMS** Python modules (`shunya.oms`, `shunya.ems`) and **`PortfolioRiskEngine`** for pre-trade checks; HTTP surface in `api/` for live trade desk TBD — the **`ui/`** app currently uses client-side mock state for Trade routes.
 
 ## Documentation
 
+- **Published site (GitHub Pages):** **[kaushikdey647.github.io/shunya](https://kaushikdey647.github.io/shunya/)** — install guide, Timescale / ADR guides, HTTP API overview, and mkdocstrings-generated **`shunya`** API.
 - Main usage and behavior: [`README.md`](README.md)
 - **Changelog:** [`CHANGELOG.md`](CHANGELOG.md)
-- **Web UI (Alpha Studio, dashboards, Trade mock):** **[shunya-ui](https://github.com/Kaushikdey647/shunya-ui)** — [`README.md`](https://github.com/Kaushikdey647/shunya-ui/blob/main/README.md)
+- **Web UI (Alpha Studio, dashboards, Trade mock):** **[`ui/`](ui/)** — [`ui/README.md`](ui/README.md)
 - Contributor and architecture guide: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - Local Timescale market store (compose, migrate, ingest, `finTs`): [`docs/data_timescale.md`](docs/data_timescale.md)
 - **Backtest + instrument HTTP API** (alphas, jobs, data dashboard, instruments, **market** overview): [`api/README.md`](api/README.md)

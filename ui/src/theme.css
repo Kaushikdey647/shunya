@@ -1,0 +1,74 @@
+/* TradingView-inspired semantic tokens; toggled via html[data-theme] */
+html {
+  --font-sans: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --radius: 4px;
+  --top-nav-h: 44px;
+  --side-nav-w: 200px;
+  --table-cell-y: 0.5rem;
+  --table-cell-x: 0.65rem;
+}
+
+html[data-table-density='compact'] {
+  --table-cell-y: 0.28rem;
+  --table-cell-x: 0.45rem;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --surface-page: #f0f3fa;
+  --surface-panel: #ffffff;
+  --surface-top: #ffffff;
+  --surface-side: #eceef1;
+  --surface-hover: #e0e3eb;
+  --border: #d1d4dc;
+  --border-strong: #b2b5be;
+  --text: #131722;
+  --text-strong: #0c0e15;
+  --text-muted: #787b86;
+  /* Primary CTA / buttons only — chrome links use --link */
+  --accent: #c9a017;
+  --accent-muted: rgba(201, 160, 23, 0.14);
+  --focus-ring: #b8860b;
+  --link: #5c6570;
+  --chrome-accent: #3d4450;
+  --chrome-accent-muted: rgba(61, 68, 80, 0.12);
+  --success: #089981;
+  --success-bg: #e6f9f4;
+  --error: #f23645;
+  --error-bg: #fde8ea;
+  --warn: #c9a227;
+  --warn-bg: #faf6e6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --chart-bg: #ffffff;
+  --chart-grid: #e0e3eb;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-page: #050506;
+  --surface-panel: #080807;
+  --surface-top: #060607;
+  --surface-side: #050506;
+  --surface-hover: #14151a;
+  --border: #25262c;
+  --border-strong: #32333a;
+  --text: #d1d4dc;
+  --text-strong: #f0f3fa;
+  --text-muted: #787b86;
+  --accent: #e6bd20;
+  --accent-muted: rgba(230, 189, 32, 0.22);
+  --focus-ring: #f5cf45;
+  --link: #9ca3af;
+  --chrome-accent: #c8cdd8;
+  --chrome-accent-muted: rgba(200, 205, 216, 0.12);
+  --success: #089981;
+  --success-bg: rgba(8, 153, 129, 0.15);
+  --error: #f23645;
+  --error-bg: rgba(242, 54, 69, 0.12);
+  --warn: #e6c84a;
+  --warn-bg: rgba(201, 162, 39, 0.12);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --chart-bg: #050506;
+  --chart-grid: #25262c;
+}

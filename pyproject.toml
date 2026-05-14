@@ -82,7 +82,7 @@ shunya-paper = "shunya.live.cli:main"
 [project.urls]
 Homepage = "https://github.com/Kaushikdey647/shunya"
 Repository = "https://github.com/Kaushikdey647/shunya"
-Documentation = "https://github.com/Kaushikdey647/shunya#readme"
+Documentation = "https://kaushikdey647.github.io/shunya/"
 Changelog = "https://github.com/Kaushikdey647/shunya/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
@@ -101,4 +101,8 @@ dev = [
     "alembic>=1.18.4",
     "ipykernel>=7.2.0",
     "psycopg[binary]>=3.2",
+]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.26.0",
 ]
