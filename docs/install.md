@@ -43,3 +43,11 @@ uv run mkdocs serve
 ```
 
 Use `--group docs` only if you only need MkDocs (for example in CI). Then open the URL MkDocs prints (usually `http://127.0.0.1:8000`).
+
+## Related documentation
+
+- [Glossary](glossary.md) — terminology
+- [Concepts](concepts/overview.md) — library architecture and major types
+- [How-to: Local dev](how-to/local-dev-api-ui.md) — API, worker, and `ui/` together
+- [HTTP API](http-api.md) — FastAPI route outline
+- [Web application](ui/overview.md) — React client areas and configuration

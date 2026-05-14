@@ -1,0 +1,37 @@
+# Web application overview
+
+The **`ui/`** directory is a **React + Vite** front end for the Shunya **FastAPI** service. Backtests and alpha execution run on the **server**; the browser is for editing, configuration, and visualization.
+
+## Feature map
+
+| Area | What you get |
+|------|----------------|
+| **Home** | Macro strip, movers, headlines, recent backtests, browser watchlist, health |
+| **Alpha Studio** | Monaco editor, lint and optional AI assist (Ollama via API), inline DSL hints, backtest enqueue, results below the editor (metrics, optional AI review, Recharts / lightweight-charts) |
+| **Backtests** | Create jobs, list, detail pages with charts |
+| **Data** | Coverage and dashboard views backed by the API |
+| **Instruments** | Search and OHLCV-style detail (`/instruments/:symbol`) |
+| **Trade** | Portfolios (blend configs); Live cockpit; Account (Alpaca when API + token); Execution and Risk surfaces (client mock state in `localStorage` until more live routes exist) |
+| **Settings** | App runtime flags and Alpaca / trade-desk configuration where applicable |
+
+## Design
+
+Bloomberg-inspired dark terminal chrome: amber primary, warm neutrals, IBM Plex Mono for monospace (see `ui/src/mantine/theme.ts`).
+
+## Legacy routes
+
+Paths under **`/alphas/*`** redirect to **`/studio/*`** for compatibility.
+
+## Source layout (high level)
+
+| Path | Role |
+|------|------|
+| `src/api/` | `apiFetch`, endpoints, DTO types |
+| `src/alphaEditor/` | Monaco completions, inline hints, wrap helpers |
+| `src/components/` | Shell, charts, editors, trade widgets |
+| `src/pages/` | Route screens |
+| `App.tsx` | React Router routes |
+
+## Further reading
+
+- [Research](research.md), [Studio](studio.md), [Trade](trade.md), [Configuration](configuration.md)

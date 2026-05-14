@@ -63,12 +63,32 @@ plugins:
 
 nav:
   - Home: index.md
+  - Glossary: glossary.md
   - Install: install.md
-  - Guides:
+  - Concepts:
+      - System overview: concepts/overview.md
+      - "Data layer: finTs and providers": concepts/fints-providers.md
+      - "Signals: FinStrat and FinBT": concepts/finstrat-finbt.md
+      - Portfolio construction and risk: concepts/portfolio-risk.md
+      - "Execution: OMS, EMS, live desk": concepts/oms-ems.md
+      - Operators and cross-section: concepts/operators.md
+  - How-to guides:
+      - "Local dev: API, worker, and UI": how-to/local-dev-api-ui.md
+      - Timescale first-run checklist: how-to/timescale-checklist.md
+      - Backtest from the web UI: how-to/backtest-from-ui.md
+      - Paper trading cycle (API): how-to/paper-cycle-api.md
+      - "Alpha Studio: AI assist and DSL": how-to/alpha-studio-ai-dsl.md
+  - Web application:
+      - Overview: ui/overview.md
+      - Research: ui/research.md
+      - Studio: ui/studio.md
+      - Trade: ui/trade.md
+      - Configuration: ui/configuration.md
+  - HTTP API: http-api.md
+  - Data & integrations:
       - Local Timescale: data_timescale.md
       - Alpha Vantage: alpha-vantage.md
       - "ADR 001: layering": adr/001-architecture-layers.md
-  - HTTP API: http-api.md
   - Reference:
       - reference/index.md
       - "Python package (shunya)": reference/library.md
