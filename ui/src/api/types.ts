@@ -322,7 +322,7 @@ export interface DataDashboardResponse {
   industry_counts: ClassificationLabelCount[]
 }
 
-export type HealthComponentStatus = 'ok' | 'error'
+export type HealthComponentStatus = 'ok' | 'error' | 'skipped'
 
 export type OverallHealthStatus = 'ok' | 'degraded' | 'error'
 
@@ -336,13 +336,23 @@ export interface HealthResponse {
   backend: HealthCheckItem
   database: HealthCheckItem
   yfinance: HealthCheckItem
+  alpaca: HealthCheckItem
 }
 
-function isHealthCheckItem(v: unknown): v is HealthCheckItem {
+function isCoreHealthCheckItem(v: unknown): v is HealthCheckItem {
   if (v === null || typeof v !== 'object') return false
   const h = v as Record<string, unknown>
   return (
     (h.status === 'ok' || h.status === 'error') &&
+    typeof h.latency_ms === 'number'
+  )
+}
+
+function isAlpacaHealthField(v: unknown): v is HealthCheckItem {
+  if (v === null || typeof v !== 'object') return false
+  const h = v as Record<string, unknown>
+  return (
+    (h.status === 'ok' || h.status === 'error' || h.status === 'skipped') &&
     typeof h.latency_ms === 'number'
   )
 }
@@ -353,7 +363,12 @@ export function isHealthResponse(x: unknown): x is HealthResponse {
   const o = x as Record<string, unknown>
   const s = o.status
   if (s !== 'ok' && s !== 'degraded' && s !== 'error') return false
-  return isHealthCheckItem(o.backend) && isHealthCheckItem(o.database) && isHealthCheckItem(o.yfinance)
+  return (
+    isCoreHealthCheckItem(o.backend) &&
+    isCoreHealthCheckItem(o.database) &&
+    isCoreHealthCheckItem(o.yfinance) &&
+    isAlpacaHealthField(o.alpaca)
+  )
 }
 
 export type TunableValueSource = 'database' | 'environment'

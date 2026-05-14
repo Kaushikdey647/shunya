@@ -4,7 +4,7 @@ import { getHealth } from '../api/endpoints'
 import { isHealthResponse, type HealthResponse } from '../api/types'
 
 function healthTitle(data: HealthResponse) {
-  return `API ${data.status} · backend ${data.backend.status} ${data.backend.latency_ms}ms · db ${data.database.status} ${data.database.latency_ms}ms · yfinance ${data.yfinance.status} ${data.yfinance.latency_ms}ms`
+  return `API ${data.status} · backend ${data.backend.status} ${data.backend.latency_ms}ms · db ${data.database.status} ${data.database.latency_ms}ms · yfinance ${data.yfinance.status} ${data.yfinance.latency_ms}ms · alpaca ${data.alpaca.status} ${data.alpaca.latency_ms}ms`
 }
 
 function Dot({ color, title, label }: { color: string; title: string; label: string }) {

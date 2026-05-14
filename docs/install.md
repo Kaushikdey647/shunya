@@ -35,6 +35,26 @@ uv sync --extra dev --extra timescale
 
 Add `--extra api` when you need the FastAPI app and worker. Use `uv run …` so the project venv is picked up (for example `uv run pytest`, `uv run uvicorn api.main:app`).
 
+## Web UI (`ui/`)
+
+The **React + Vite** app in **`ui/`** is not published on PyPI; install it from a **clone** of this repository alongside (or after) the Python environment above.
+
+Requires **Node.js 20+** and **npm** (see [`ui/package.json`](https://github.com/Kaushikdey647/shunya/blob/main/ui/package.json) in the repo).
+
+From the repository root:
+
+```bash
+cd ui
+npm ci
+npm run dev
+```
+
+Open the URL Vite prints (default **http://localhost:5173**). Start the **FastAPI** service on **port 8000** first so health checks and proxied API calls succeed; in dev, [`ui/vite.config.ts`](https://github.com/Kaushikdey647/shunya/blob/main/ui/vite.config.ts) forwards **`/api`** to **`http://127.0.0.1:8000`**.
+
+**Production:** `npm run build`, then `npm run preview` or `npm run start`. Set **`VITE_API_BASE`** at **build** time when the UI and API are served from different origins.
+
+More detail: [`ui/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/ui/README.md), [How-to: Local dev](how-to/local-dev-api-ui.md), root [README — Service and UI setup](https://github.com/Kaushikdey647/shunya/blob/main/README.md#service-and-ui-setup).
+
 ## Docs site locally
 
 ```bash

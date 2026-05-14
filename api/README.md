@@ -21,6 +21,18 @@ From the repo root:
 uv sync --extra api --extra timescale
 ```
 
+### Web UI (optional)
+
+The **`ui/`** React app uses **Node.js 20+** and **npm**, separate from the Python venv. From the repository root (with the API running on port **8000** for dev):
+
+```bash
+cd ui
+npm ci
+npm run dev
+```
+
+Vite prints a local URL (default **http://localhost:5173**); dev mode proxies **`/api`** to **`http://127.0.0.1:8000`**. See [`ui/README.md`](../ui/README.md) and the root [README — Service and UI setup](https://github.com/Kaushikdey647/shunya/blob/main/README.md#service-and-ui-setup).
+
 Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrations (including **`013_api_runtime_config.sql`** for `GET`/`PATCH /settings/app`), then start the app:
 
 ```bash

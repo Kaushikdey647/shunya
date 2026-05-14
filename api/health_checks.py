@@ -8,15 +8,16 @@ from typing import Literal
 import pandas as pd
 import psycopg
 
+from alpaca.common.exceptions import APIError
+
 from api.schemas.models import HealthComponentModel, HealthResponseModel
 from api.settings import env_yfinance_repair_default, get_settings
 from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_index_policy
 from shunya.data.yfinance_session import build_yfinance_session
+from shunya.integration.alpaca_settings import build_trading_client, try_load_alpaca_settings_from_env
 
 _log = logging.getLogger(__name__)
-
-HealthStatus = Literal["ok", "error"]
 
 
 def _elapsed_ms(t0: float) -> float:
@@ -67,14 +68,36 @@ def check_yfinance() -> HealthComponentModel:
         return HealthComponentModel(status="error", latency_ms=_elapsed_ms(t0))
 
 
+def check_alpaca() -> HealthComponentModel:
+    """Trading API reachability when ``SHUNYA_API_ALPACA_ENABLED``; otherwise ``skipped``."""
+    t0 = time.perf_counter()
+    if not get_settings().alpaca_enabled:
+        return HealthComponentModel(status="skipped", latency_ms=_elapsed_ms(t0))
+    settings = try_load_alpaca_settings_from_env()
+    if settings is None:
+        _log.warning("alpaca health check: keys missing while Alpaca is enabled")
+        return HealthComponentModel(status="error", latency_ms=_elapsed_ms(t0))
+    try:
+        client = build_trading_client(settings)
+        client.get_account()
+        return HealthComponentModel(status="ok", latency_ms=_elapsed_ms(t0))
+    except APIError as exc:
+        _log.warning("alpaca health check failed (API): %s", exc)
+        return HealthComponentModel(status="error", latency_ms=_elapsed_ms(t0))
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("alpaca health check failed: %s", exc)
+        return HealthComponentModel(status="error", latency_ms=_elapsed_ms(t0))
+
+
 def collect_health() -> HealthResponseModel:
     backend = check_backend()
     database = check_database()
     yfinance = check_yfinance()
+    alpaca = check_alpaca()
 
     if backend.status == "error" or database.status == "error":
         overall: Literal["ok", "degraded", "error"] = "error"
-    elif yfinance.status == "error":
+    elif yfinance.status == "error" or alpaca.status == "error":
         overall = "degraded"
     else:
         overall = "ok"
@@ -84,4 +107,5 @@ def collect_health() -> HealthResponseModel:
         backend=backend,
         database=database,
         yfinance=yfinance,
+        alpaca=alpaca,
     )

@@ -12,7 +12,7 @@
 
 | I want to… | Page |
 |------------|------|
-| Install the library or docs toolchain | [Install](install.md) |
+| Install the library, docs toolchain, or web UI | [Install](install.md) |
 | Learn terms quickly | [Glossary](glossary.md) |
 | Understand architecture and data flow | [Concepts → System overview](concepts/overview.md), [ADR 001](adr/001-architecture-layers.md) |
 | Learn `finTs`, providers, calendars | [Concepts → finTs and providers](concepts/fints-providers.md) |

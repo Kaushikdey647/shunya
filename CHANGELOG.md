@@ -13,6 +13,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **`GET /health`** response includes an **`alpaca`** component (`api/health_checks.py`): **`skipped`** when **`SHUNYA_API_ALPACA_ENABLED`** is off; otherwise a **`TradingClient.get_account()`** reachability check. Alpaca errors contribute to overall **`degraded`** (same as the Yahoo probe), alongside existing backend and database fields.
+- **`scripts/local-dev-all.sh`** — single entrypoint for local dev: prerequisite checks, root **`.env`** bootstrap, Docker **TimescaleDB**, **`uv sync`**, **`shunya-timescale migrate`**, API + Vite UI (see [Local development: API, worker, and UI](docs/how-to/local-dev-api-ui.md)).
 - **OMS / EMS (institutional execution split):**
   - `shunya/oms` — share-based reconciliation (`required_delta_shares`), `ParentOrder` FSM via `transitions`, `InMemoryLedger`, `InstitutionalOMS`, Alpaca trade stream bridge (`AlpacaOMSTradeStream`), REST position snapshot (`rest_snapshot`), SQLAlchemy persistence (`shunya/oms/db`), Alembic migration `001_oms_tables`, and `risk_bridge` helpers for `PortfolioRiskEngine` outputs.
   - `shunya/ems` — `BrokerGateway` / `AlpacaBrokerGateway`, TWAP/VWAP schedulers (`twap_slice_quantities`, `vwap_slice_quantities`, optional `smooth_volume_profile_jax`), micro-pricing (`limit_price_for_child`), child `client_order_id` scheme (`child_client_order_id`), and async `EMSParentRunner` (limit submit, timeout, cancel, urgency escalation).
@@ -106,6 +108,10 @@ All notable changes to this project are documented in this file.
 - `FinStrat.panel_at` / `group_labels_at` respect `signal_delay` (execution date → lagged panel date on `get_trading_calendar()`).
 - `FinBT._ohlcv_frames` uses `finTs._aligned_calendar` or the intersection of per-ticker indices.
 - Public exports updated in `shunya/__init__.py` and `shunya/algorithm/__init__.py` (`PanelAlignReport`, helpers, diagnostics types).
+
+### Documentation
+
+- **Web UI install:** documented **`ui/`** setup (**Node.js 20+**, **`npm ci`**, **`npm run dev`**) in `docs/install.md`, root `README.md` (Requirements), `api/README.md` (under Install), `docs/how-to/local-dev-api-ui.md` (prerequisites + section title), and `docs/ui/overview.md`; `docs/index.md` install row now mentions the web UI.
 
 ### Testing
 

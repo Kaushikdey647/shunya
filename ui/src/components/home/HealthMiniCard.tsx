@@ -89,6 +89,21 @@ export default function HealthMiniCard() {
                       </Text>
                     </Table.Td>
                   </Table.Tr>
+                  <Table.Tr>
+                    <Table.Td>Alpaca</Table.Td>
+                    <Table.Td>
+                      <Text ff="monospace" size="sm">
+                        {q.data.alpaca.status}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text ff="monospace" size="sm">
+                        {q.data.alpaca.status === 'skipped'
+                          ? '—'
+                          : `${q.data.alpaca.latency_ms.toFixed(1)} ms`}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>

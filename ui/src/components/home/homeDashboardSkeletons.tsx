@@ -103,7 +103,7 @@ export function HealthMiniCardBodySkeleton({ tableProps }: { tableProps: Mantine
       <Table.ScrollContainer minWidth={260}>
         <Table {...tableProps}>
           <Table.Tbody>
-            {['Backend', 'Database', 'Yahoo'].map((label) => (
+            {['Backend', 'Database', 'Yahoo', 'Alpaca'].map((label) => (
               <Table.Tr key={label}>
                 <Table.Td>
                   <Text size="sm">{label}</Text>

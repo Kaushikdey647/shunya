@@ -44,6 +44,11 @@ def test_health_ok_all_components(monkeypatch) -> None:
         "check_yfinance",
         lambda: HealthComponentModel(status="ok", latency_ms=50.0),
     )
+    monkeypatch.setattr(
+        health_checks,
+        "check_alpaca",
+        lambda: HealthComponentModel(status="ok", latency_ms=3.0),
+    )
 
     with TestClient(create_app()) as client:
         r = client.get("/health")
@@ -54,6 +59,7 @@ def test_health_ok_all_components(monkeypatch) -> None:
     assert body["backend"]["latency_ms"] == 0.01
     assert body["database"]["status"] == "ok"
     assert body["yfinance"]["status"] == "ok"
+    assert body["alpaca"]["status"] == "ok"
 
 
 def test_health_degraded_when_yfinance_fails(monkeypatch) -> None:
@@ -75,6 +81,11 @@ def test_health_degraded_when_yfinance_fails(monkeypatch) -> None:
         health_checks,
         "check_yfinance",
         lambda: HealthComponentModel(status="error", latency_ms=100.0),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_alpaca",
+        lambda: HealthComponentModel(status="ok", latency_ms=3.0),
     )
 
     with TestClient(create_app()) as client:
@@ -103,8 +114,79 @@ def test_health_error_when_database_fails(monkeypatch) -> None:
         "check_yfinance",
         lambda: HealthComponentModel(status="ok", latency_ms=50.0),
     )
+    monkeypatch.setattr(
+        health_checks,
+        "check_alpaca",
+        lambda: HealthComponentModel(status="ok", latency_ms=3.0),
+    )
 
     with TestClient(create_app()) as client:
         r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "error"
+
+
+def test_health_ok_when_alpaca_skipped(monkeypatch) -> None:
+    from api import health_checks
+    from api.main import create_app
+
+    monkeypatch.setattr("api.main.backtest_worker_loop", _worker_no_db)
+    monkeypatch.setattr(
+        health_checks,
+        "check_backend",
+        lambda: HealthComponentModel(status="ok", latency_ms=0.01),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_database",
+        lambda: HealthComponentModel(status="ok", latency_ms=2.0),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_yfinance",
+        lambda: HealthComponentModel(status="ok", latency_ms=50.0),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_alpaca",
+        lambda: HealthComponentModel(status="skipped", latency_ms=0.0),
+    )
+
+    with TestClient(create_app()) as client:
+        r = client.get("/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["alpaca"]["status"] == "skipped"
+
+
+def test_health_degraded_when_alpaca_fails(monkeypatch) -> None:
+    from api import health_checks
+    from api.main import create_app
+
+    monkeypatch.setattr("api.main.backtest_worker_loop", _worker_no_db)
+    monkeypatch.setattr(
+        health_checks,
+        "check_backend",
+        lambda: HealthComponentModel(status="ok", latency_ms=0.01),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_database",
+        lambda: HealthComponentModel(status="ok", latency_ms=2.0),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_yfinance",
+        lambda: HealthComponentModel(status="ok", latency_ms=50.0),
+    )
+    monkeypatch.setattr(
+        health_checks,
+        "check_alpaca",
+        lambda: HealthComponentModel(status="error", latency_ms=200.0),
+    )
+
+    with TestClient(create_app()) as client:
+        r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["status"] == "degraded"

@@ -271,7 +271,7 @@ The **Python package** is imported as `api` (directory `api/` at **repo root**; 
 
 **Run the server** (install, `DATABASE_URL`, migrate, `uvicorn`) is covered in **[Service and UI setup](#service-and-ui-setup)** above; this subsection documents behavior, hosting, and integrations.
 
-Bind address and port default to `127.0.0.1` / `8000`; override with **`SHUNYA_API_HOST`** and **`SHUNYA_API_PORT`**. For **Railway** and similar hosts, bind **`0.0.0.0`** and **`PORT`** (e.g. `uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT`). Use **`GET /healthz`** for load-balancer liveness (instant **200**); **`GET /health`** runs Postgres + Yahoo checks and is not suitable as a deploy probe. Example Railway settings: [`railway.toml`](railway.toml).
+Bind address and port default to `127.0.0.1` / `8000`; override with **`SHUNYA_API_HOST`** and **`SHUNYA_API_PORT`**. For **Railway** and similar hosts, bind **`0.0.0.0`** and **`PORT`** (e.g. `uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT`). Use **`GET /healthz`** for load-balancer liveness (instant **200**); **`GET /health`** runs Postgres, Yahoo, and (when enabled) Alpaca broker checks and is not suitable as a deploy probe. Example Railway settings: [`railway.toml`](railway.toml).
 
 **Browser CORS:** If the UI is served from another origin (e.g. a **Vite preview** or static host on a different domain than the API), set **`SHUNYA_CORS_ORIGINS`** to a comma-separated **allowlist** of exact origins—scheme + host (+ optional port), **no path or trailing slash**. Example: `SHUNYA_CORS_ORIGINS=https://my-app.vercel.app`. Add preview URLs as separate entries if needed. Register this on the **API** service (Railway variables); restart/redeploy so `create_app()` picks it up. Leave unset for same-origin or non-browser clients only.
 
@@ -407,6 +407,16 @@ Install from a clone (e.g. with [uv](https://docs.astral.sh/uv/)):
 uv sync
 # optional: FastAPI HTTP API — add --extra api (+ --extra timescale for DB-backed routes)
 ```
+
+**Web UI (`ui/`):** not on PyPI; use a clone. Requires **Node.js 20+** and **npm**:
+
+```bash
+cd ui
+npm ci
+npm run dev
+```
+
+Open the URL Vite prints (default **http://localhost:5173**). Run the API on **port 8000** first so the dev proxy works; full stack walkthrough: [Service and UI setup](#service-and-ui-setup). Published install page: [Install — Web UI](https://kaushikdey647.github.io/shunya/install/).
 
 ## Classification and sector controls
 

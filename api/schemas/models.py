@@ -542,7 +542,7 @@ class IngestionRunOut(BaseModel):
     error: Optional[str] = None
 
 
-HealthComponentStatusLiteral = Literal["ok", "error"]
+HealthComponentStatusLiteral = Literal["ok", "error", "skipped"]
 OverallHealthStatusLiteral = Literal["ok", "degraded", "error"]
 
 
@@ -556,6 +556,7 @@ class HealthResponseModel(BaseModel):
     backend: HealthComponentModel
     database: HealthComponentModel
     yfinance: HealthComponentModel
+    alpaca: HealthComponentModel
 
 
 MoversKindLiteral = Literal["gainers", "losers", "active"]

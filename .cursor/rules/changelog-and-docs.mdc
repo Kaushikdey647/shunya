@@ -1,0 +1,27 @@
+---
+description: Update CHANGELOG.md and docs/ when changes affect users or documented behavior
+alwaysApply: true
+---
+
+# Changelog and documentation updates
+
+When you complete work that changes **user-visible behavior**, **public APIs**, **CLI flags**, **configuration**, **installation**, **HTTP contracts**, **UI flows**, or **anything already described** under `docs/`, treat documentation and the changelog as part of the same change — not optional follow-up.
+
+## Changelog
+
+- Edit the repo-root **`CHANGELOG.md`**.
+- Add entries under **`## [Unreleased]`** using the existing sections (**Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**, **Security**) and tone: concise bullets, module paths or symbols in backticks where helpful.
+- If the change only touches the **`ui/`** package, also update **`ui/CHANGELOG.md`** when that file already documents the UI release stream.
+
+## Documentation (`docs/`)
+
+- Update the **smallest set of Markdown pages** that would otherwise become wrong or incomplete (for example `docs/http-api.md`, `docs/install.md`, how-to guides, UI pages under `docs/ui/`, concept pages under `docs/concepts/`).
+- If navigation or the site map should change, update **`mkdocs.yml`** (nav) in the same change.
+- Keep terminology aligned with **`docs/glossary.md`** when you introduce or rename user-facing terms.
+
+## When you may skip
+
+- Purely internal refactors, comments, or tests with **no** observable or documented contract change.
+- Typo-only fixes in code comments or non-user docs **unless** they correct a misleading public name or API.
+
+If unsure whether users or integrators would care, **update the changelog and docs anyway**; favor clarity over leaving stale docs.

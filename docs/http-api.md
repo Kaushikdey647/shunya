@@ -25,6 +25,11 @@ Typical backtest flow:
 3. Worker runs **FinBT** / library code, writes results and status.
 4. Client **`GET /backtests/{job_id}`** → API returns status and JSON results when complete.
 
+## Health
+
+- **`GET /healthz`** — fast liveness (**`{"status":"ok"}`**); safe for load balancers and Railway-style probes.
+- **`GET /health`** — aggregate readiness: backend settings, Postgres **`SELECT 1`**, a small Yahoo Finance fetch, and **Alpaca** when **`SHUNYA_API_ALPACA_ENABLED`** is set (lightweight **`get_account()`** against the broker API). The **`alpaca`** field is **`skipped`** when the trade desk is disabled at the API layer. Yahoo or Alpaca failures set overall status to **`degraded`**; backend or database errors set **`error`**.
+
 ## Route groups (outline)
 
 | Prefix | Purpose |

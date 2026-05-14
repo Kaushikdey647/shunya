@@ -32,6 +32,10 @@ Paths under **`/alphas/*`** redirect to **`/studio/*`** for compatibility.
 | `src/pages/` | Route screens |
 | `App.tsx` | React Router routes |
 
+## Install and run
+
+The UI ships only inside this repository (not on PyPI). Install **Node.js 20+** and **npm**, then from the repo root: `cd ui`, **`npm ci`**, **`npm run dev`**. Start the FastAPI service on **port 8000** before relying on the dev proxy. Step-by-step: [Install](../install.md) and [Local development: API, worker, and UI](../how-to/local-dev-api-ui.md).
+
 ## Further reading
 
 - [Research](research.md), [Studio](studio.md), [Trade](trade.md), [Configuration](configuration.md)

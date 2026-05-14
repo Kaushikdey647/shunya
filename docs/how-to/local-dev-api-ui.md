@@ -1,6 +1,20 @@
 # Local development: API, worker, and UI
 
+## One-shot bootstrap
+
+From the repository root:
+
+```bash
+./scripts/local-dev-all.sh
+```
+
+The script checks for Docker, `uv`, and Node.js 20+, creates or augments a root **`.env`** with a default **`DATABASE_URL`** when none is set, starts the **TimescaleDB** service from **`docker compose`**, runs **`uv sync`** (dev, API, Timescale extras), applies **`shunya-timescale migrate`**, starts **`uvicorn`** on port **8000**, installs UI dependencies with **`npm ci`** when **`ui/node_modules`** is missing, then runs **`npm run dev`** in **`ui/`**. Stopping the UI (Ctrl+C) stops the API process started by the script.
+
+For step-by-step control, use the sections below instead.
+
 Run the **FastAPI** service first, then the **`ui/`** Vite dev server. The UI health checks and proxied `/api` calls expect the API to be reachable.
+
+**Prerequisites:** **Python** with [`uv`](https://docs.astral.sh/uv/) (or your usual tool) for sections 1–3; **Node.js 20+** and **npm** to install and run the UI in sections 4–5. See also [Install](../install.md) (Web UI section).
 
 ## 1. Verify Python dependencies
 
@@ -51,7 +65,9 @@ If the UI runs on another origin (for example `http://localhost:5173`) **without
 
 Set **`SHUNYA_API_OLLAMA_HOST`** (for example `http://127.0.0.1:11434`) and optionally **`SHUNYA_API_OLLAMA_MODEL`**. Model and timeout can also be tuned via **`PATCH /settings/app`** when the database overlay and trade-desk token are configured (see [api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md)).
 
-## 4. Start the UI
+## 4. Install and start the UI
+
+From the repository root (first time in `ui/`, use **`npm ci`** so the lockfile is respected):
 
 ```bash
 cd ui
