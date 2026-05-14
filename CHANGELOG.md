@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Onboarding:** new [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) doc (`docs/quickstart.md`) with paths for library-only, `./scripts/local-dev-all.sh`, and Docker Compose; MkDocs nav + docs home map row; README “above the fold” bullets and bootstrap copy; aligned “worker” wording with the in-process backtest loop in `api/main.py` across how-to and HTTP API docs; `docker-compose.yml` comment clarifying no separate worker container.
+
 ### Fixed
 
 - MkDocs math: load **MathJax** via `extra_javascript` and `docs/javascripts/mathjax.js` so **Arithmatex** `\(…\)` / `\[…\]` renders (previously only the extension was enabled).

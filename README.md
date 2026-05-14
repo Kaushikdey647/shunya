@@ -11,6 +11,22 @@
 [![Broker](https://img.shields.io/badge/broker-alpaca--py-orange.svg)](https://github.com/alpacahq/alpaca-py)
 [![Web UI](https://img.shields.io/badge/UI-repo%20ui%2F-646CFF?logo=react&logoColor=white)](https://github.com/Kaushikdey647/shunya/tree/main/ui)
 
+- **Library:** install [`shunya-py`](https://pypi.org/project/shunya-py/) from PyPI for `finTs`, **FinStrat**, **FinBT**, and related APIs without cloning this repo.
+- **Monorepo:** this repository adds **FastAPI** (`api/`) and a **React** app (`ui/`) for Alpha Studio, async backtests, and dashboards.
+- **Documentation:** [GitHub Pages](https://kaushikdey647.github.io/shunya/) — start with **[Quickstart](https://kaushikdey647.github.io/shunya/quickstart/)** (library-only vs full stack vs Docker Compose).
+
+**Full stack (Timescale + API + UI) from a clone:**
+
+```bash
+./scripts/local-dev-all.sh
+```
+
+Then open the URL Vite prints (default **http://localhost:5173**) and verify the API with `curl -sSf http://127.0.0.1:8000/healthz`. More detail: **[Quickstart](https://kaushikdey647.github.io/shunya/quickstart/)** · [docs/how-to/local-dev-api-ui.md](docs/how-to/local-dev-api-ui.md).
+
+Backtest jobs are stored in Postgres and processed by an **async loop started in the FastAPI app lifespan** ([`api/main.py`](api/main.py)); you do **not** need a second terminal or a separate “worker” OS process for normal local development.
+
+---
+
 **Shunya** is a Python stack for **systematic equity research**: multi-ticker **OHLCV panels** (`finTs`), **JAX** alpha pipelines (**FinStrat** / `cross_section`), **backtrader** execution (**FinBT**), a decoupled **portfolio** layer (`PortfolioConstructionService` with `TargetBlendConfig` / `AlphaBlendConfig`, plus legacy `PortfolioManager` / `AlphaBlendPortfolioManager` facades, `RollingSharpeTracker`), optional **pre-trade risk** (`PortfolioRiskEngine`, `RiskVetConfig` / `RiskVetResult`, optional **`[risk]`** extra for CVX-backed checks), an institutional **OMS** (`shunya.oms` — parent FSM, share reconciliation, Alpaca trade stream bridge, optional SQLAlchemy persistence + **Alembic** migrations under `alembic/`) and **EMS** (`shunya.ems` — broker gateway, TWAP/VWAP slices, micro-price limits, async parent runner), optional **Alpaca** execution primitives (`AlpacaExecutionAdapter`, `OrderManager`), optional **TimescaleDB** for durable bars and fundamentals, and a repo-local **FastAPI** service for **alphas, async backtests, instruments, market dashboards, and data coverage APIs**. The **React** app in **[`ui/`](ui/)** provides Alpha Studio (Monaco + lint/assist), backtest management, a **Trade** desk (portfolios, live, execution, risk) with mock client state until OMS/EMS HTTP APIs land, and charts against this API.
 
 Historical data is provider-driven: **`yfinance`** by default, optional **Alpaca** bars, **Tiingo** EOD for ingest, and **Timescale**-backed reads when `DATABASE_URL` is configured. Technicals attach via **`finta`**.
@@ -119,7 +135,7 @@ pip install "shunya-py[timescale]"   # optional: Postgres client for local Times
 
 # From a clone (installs the local project; add --extra notebook for Jupyter notebooks):
 uv sync --extra dev --extra timescale
-# optional: HTTP API + worker (FastAPI) — see [Service and UI setup](#service-and-ui-setup)
+# optional: HTTP API (FastAPI; backtest jobs run in-process) — see [Service and UI setup](#service-and-ui-setup)
 # uv sync --extra dev --extra timescale --extra api
 uv run pytest
 ```
@@ -128,7 +144,7 @@ uv run pytest
 
 Run the **FastAPI service** from this repo, then the **`ui/`** Vite dev server. Order matters: start the API before the UI so health checks and proxied calls succeed.
 
-### 1) API service (FastAPI + worker)
+### 1) API service (FastAPI; in-process backtest worker)
 
 **Option A — Docker Compose** (TimescaleDB + API on **http://127.0.0.1:8000**)
 

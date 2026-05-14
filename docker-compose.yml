@@ -1,4 +1,6 @@
 # Local TimescaleDB for shunya market data + fundamentals (see docs/data_timescale.md).
+# The `api` service runs uvicorn only; backtest jobs are processed by an asyncio loop
+# started inside the FastAPI app lifespan (same process — no separate worker container).
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg16

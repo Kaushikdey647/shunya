@@ -10,6 +10,8 @@ From the repository root:
 
 The script checks for Docker, `uv`, and Node.js 20+, creates or augments a root **`.env`** with a default **`DATABASE_URL`** when none is set, starts the **TimescaleDB** service from **`docker compose`**, runs **`uv sync`** (dev, API, Timescale extras), applies **`shunya-timescale migrate`**, starts **`uvicorn`** on port **8000**, installs UI dependencies with **`npm ci`** when **`ui/node_modules`** is missing, then runs **`npm run dev`** in **`ui/`**. Stopping the UI (Ctrl+C) stops the API process started by the script.
 
+**Backtest jobs** run **in the same process as `uvicorn`**: the API lifespan starts an asyncio task that polls Postgres and executes queued backtests. You do **not** need a separate worker daemon for normal development (Docker Compose runs the same layout: one **`api`** container, no extra `worker` service).
+
 For step-by-step control, use the sections below instead.
 
 Run the **FastAPI** service first, then the **`ui/`** Vite dev server. The UI health checks and proxied `/api` calls expect the API to be reachable.

@@ -31,7 +31,7 @@ From the authoritative [api/README.md](https://github.com/Kaushikdey647/shunya/b
 
 ## Troubleshooting
 
-- **Job stuck / failed** — confirm a **worker** process is running against the same `DATABASE_URL` as the API, and check API logs.
+- **Job stuck / failed** — confirm the **API process** (`uvicorn api.main:app`) is running with the same **`DATABASE_URL`** you use from the UI (the in-process worker loop runs inside that process; there is no separate worker binary to start by default). Check API logs for claim/run errors.
 - **Queue test flakes** — if you also run pytest against the same DB, see the “job queue” warnings in [api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md).
 
 ## See also

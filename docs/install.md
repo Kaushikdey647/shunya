@@ -30,10 +30,11 @@ pip install "shunya-py[api,timescale]"
 ```bash
 git clone https://github.com/Kaushikdey647/shunya.git
 cd shunya
+cp .env.example .env   # optional if you use ./scripts/local-dev-all.sh (it bootstraps .env)
 uv sync --extra dev --extra timescale
 ```
 
-Add `--extra api` when you need the FastAPI app and worker. Use `uv run …` so the project venv is picked up (for example `uv run pytest`, `uv run uvicorn api.main:app`).
+Add `--extra api` when you need the FastAPI app (backtest queue processing runs **in-process** with uvicorn; see [Quickstart](quickstart.md)). Use `uv run …` so the project venv is picked up (for example `uv run pytest`, `uv run uvicorn api.main:app`).
 
 ## Web UI (`ui/`)
 

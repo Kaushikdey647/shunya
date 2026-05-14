@@ -12,11 +12,12 @@
 
 | I want to… | Page |
 |------------|------|
+| **Start in a few minutes** (library vs API vs Docker) | [Quickstart](quickstart.md) |
 | Install the library, docs toolchain, or web UI | [Install](install.md) |
 | Learn terms quickly | [Glossary](glossary.md) |
 | **Quant finance** view (alphas, portfolios, OMS/EMS, pipeline, fundamentals, design tips) | [Concepts](concepts/index.md) |
 | **Code and APIs** (`finTs`, `FinStrat`, PCS, operators, stack overview) | [Documentation](documentation/system-overview.md), [ADR 001](adr/001-architecture-layers.md) |
-| Run API + worker + UI locally | [How-to → Local dev](how-to/local-dev-api-ui.md) |
+| Run API + UI locally (embedded backtest loop in uvicorn) | [How-to → Local dev](how-to/local-dev-api-ui.md) |
 | Bootstrap Timescale | [How-to → Timescale checklist](how-to/timescale-checklist.md), [Local Timescale](data_timescale.md) |
 | Run a backtest from the browser | [How-to → Backtest from UI](how-to/backtest-from-ui.md) |
 | Call the paper cycle HTTP route | [How-to → Paper cycle](how-to/paper-cycle-api.md) |

@@ -16,7 +16,7 @@ There is no checked-in static OpenAPI export; use a running instance or generate
 ## Architecture
 
 - **HTTP process** — FastAPI app (`api.main:app`).
-- **Background worker** — polls the database job queue for backtests and related tasks; must use the same **`DATABASE_URL`** as the API in typical deployments.
+- **Background worker** — by default this is **not** a separate OS process: an **asyncio task** started from the app lifespan polls the Postgres job queue for backtests and related work, using the same **`DATABASE_URL`** as the HTTP handlers. Splitting a dedicated worker process is possible for deployment isolation but is **not** required for local or default Compose setups.
 
 Typical backtest flow:
 

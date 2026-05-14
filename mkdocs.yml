@@ -80,6 +80,7 @@ nav:
   - Home: index.md
   - Glossary: glossary.md
   - Install: install.md
+  - Quickstart: quickstart.md
   - Concepts:
       - Introduction: concepts/index.md
       - "Alphas, metrics, and evaluation": concepts/alphas-metrics-and-evaluation.md
