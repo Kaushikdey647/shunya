@@ -12,7 +12,7 @@ from api.repositories import backtests as jobs_repo
 from api.runner import run_backtest_from_payload
 from api.services.ohlcv_yfinance_backfill import (
     backfill_ohlcv_from_yfinance,
-    payload_has_index_code,
+    payload_has_timescale_panel,
     tickers_for_ohlcv_backfill,
 )
 from api.tunable_config import get_effective_tunables
@@ -75,7 +75,7 @@ def execute_claimed_backtest_job(
     except FinTsConfigurationError as exc:
         return _truncate(exc.message, 8000), exc.code, None, None
     except Exception as exc1:  # noqa: BLE001
-        if not (payload_has_index_code(payload) and _recoverable_fin_ts_data_error(exc1)):
+        if not (payload_has_timescale_panel(payload) and _recoverable_fin_ts_data_error(exc1)):
             return (
                 _truncate(_format_exc(exc1), 8000),
                 str(ErrorCode.BACKTEST_JOB_EXECUTION_ERROR),

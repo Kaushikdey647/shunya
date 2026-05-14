@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Literal, Optional, Self
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -32,10 +33,18 @@ class AlphaCreate(BaseModel):
     import_ref: Optional[str] = Field(default=None, max_length=256)
     source_code: Optional[str] = Field(default=None, max_length=_SOURCE_MAX)
     finstrat_config: FinStratConfig = Field(default_factory=FinStratConfig)
+    default_universe_id: Optional[str] = Field(default=None, max_length=64)
 
     @field_validator("import_ref", "source_code", mode="before")
     @classmethod
     def _blank_to_none(cls, v: object) -> object:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("default_universe_id", mode="before")
+    @classmethod
+    def _blank_universe_id(cls, v: object) -> object:
         if v is None or (isinstance(v, str) and not v.strip()):
             return None
         return v
@@ -58,10 +67,18 @@ class AlphaPatch(BaseModel):
     import_ref: Optional[str] = Field(default=None, max_length=256)
     source_code: Optional[str] = Field(default=None, max_length=_SOURCE_MAX)
     finstrat_config: Optional[FinStratConfig] = None
+    default_universe_id: Optional[str] = Field(default=None, max_length=64)
 
     @field_validator("import_ref", "source_code", mode="before")
     @classmethod
     def _blank_to_none(cls, v: object) -> object:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
+
+    @field_validator("default_universe_id", mode="before")
+    @classmethod
+    def _blank_universe_id_patch(cls, v: object) -> object:
         if v is None or (isinstance(v, str) and not v.strip()):
             return None
         return v
@@ -74,13 +91,110 @@ class AlphaOut(BaseModel):
     import_ref: Optional[str]
     source_code: Optional[str]
     finstrat_config: dict[str, Any]
+    default_universe_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+
+# --- User-defined universes -------------------------------------------------
+
+
+class UniverseCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9 _-]+$")
+    description: Optional[str] = Field(default=None, max_length=2048)
+
+
+class UniversePatch(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9 _-]+$")
+    description: Optional[str] = Field(default=None, max_length=2048)
+
+
+class UniverseOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    member_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class UniverseMemberOut(BaseModel):
+    ticker: str
+    long_name: Optional[str] = None
+    sector_disp: Optional[str] = None
+    industry_disp: Optional[str] = None
+
+
+class UniverseMembersMutationOut(BaseModel):
+    """Result of POST add or DELETE remove members."""
+
+    changed: int
+    member_count: int
+
+
+class UniverseTickerListOut(BaseModel):
+    tickers: list[str]
+
+
+class UniverseMembersAddRequest(BaseModel):
+    tickers: list[str] = Field(..., min_length=1, max_length=500)
+
+    @field_validator("tickers", mode="before")
+    @classmethod
+    def _norm_tickers(cls, v: object) -> object:
+        if not isinstance(v, list):
+            return v
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in v:
+            t = str(raw).strip().upper()
+            if not t or t in seen:
+                continue
+            seen.add(t)
+            out.append(t)
+        return out
+
+
+class UniverseMembersReplaceRequest(BaseModel):
+    tickers: list[str] = Field(default_factory=list, max_length=5000)
+
+    @field_validator("tickers", mode="before")
+    @classmethod
+    def _norm_replace(cls, v: object) -> object:
+        if not isinstance(v, list):
+            return v
+        out: list[str] = []
+        seen: set[str] = set()
+        for raw in v:
+            t = str(raw).strip().upper()
+            if not t or t in seen:
+                continue
+            seen.add(t)
+            out.append(t)
+        return out
+
+
+class UniverseBreakdownSlice(BaseModel):
+    label: str
+    count: int
+    fraction: float = Field(..., description="Share of classified members (0..1).")
+
+
+class UniverseSummaryOut(BaseModel):
+    member_count: int
+    classified_for_breakdown_count: int
+    sector_breakdown: list[UniverseBreakdownSlice] = Field(default_factory=list)
+    industry_breakdown: list[UniverseBreakdownSlice] = Field(default_factory=list)
+    fundamentals_coverage_count: int = 0
+    median_market_cap: Optional[float] = None
+    mean_trailing_pe: Optional[float] = None
+    median_beta: Optional[float] = None
 
 
 class BacktestCreate(BaseModel):
     alpha_id: str
     index_code: Optional[str] = Field(default=None, max_length=64)
+    universe_id: Optional[str] = Field(default=None, max_length=64)
     fin_ts: FinTsRequest
     finstrat_override: Optional[FinStratConfig] = None
     finbt: FinBtConfig = Field(default_factory=FinBtConfig)
@@ -96,13 +210,42 @@ class BacktestCreate(BaseModel):
             "of failing; benchmark ticker must still have bars. Default false (strict full universe)."
         ),
     )
+    omit_universe_members_missing_ohlcv: bool = Field(
+        default=False,
+        description=(
+            "When universe_id is set: drop members with no OHLCV in the backtest window instead of "
+            "failing; benchmark_ticker must still have bars."
+        ),
+    )
+
+    @field_validator("universe_id", mode="before")
+    @classmethod
+    def _blank_universe_id_bt(cls, v: object) -> object:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        return v
 
     @model_validator(mode="after")
-    def _tickers_or_index(self) -> Self:
-        if (self.index_code or "").strip():
+    def _tickers_index_or_universe(self) -> Self:
+        ic = (self.index_code or "").strip()
+        uid = (self.universe_id or "").strip()
+        if ic and uid:
+            raise ValueError("Set at most one of index_code and universe_id.")
+        if ic:
+            return self
+        if uid:
+            bench = (self.benchmark_ticker or "").strip()
+            if not bench:
+                raise ValueError("benchmark_ticker is required when universe_id is set.")
+            try:
+                UUID(uid)
+            except ValueError as exc:
+                raise ValueError("universe_id must be a valid UUID.") from exc
             return self
         if not self.fin_ts.ticker_list:
-            raise ValueError("fin_ts.ticker_list must be non-empty when index_code is not set")
+            raise ValueError(
+                "fin_ts.ticker_list must be non-empty when neither index_code nor universe_id is set"
+            )
         return self
 
 
@@ -121,6 +264,7 @@ class BacktestJobOut(BaseModel):
     alpha_id: str
     alpha_name: Optional[str] = None
     index_code: Optional[str] = None
+    universe_id: Optional[str] = None
     include_test_period_in_results: bool = False
     status: Literal["queued", "running", "succeeded", "failed"]
     error_message: Optional[str] = None
@@ -700,6 +844,11 @@ class PaperCycleRequest(BaseModel):
     universe: Optional[list[str]] = None
     prices: Optional[dict[str, float]] = None
     twap_bins: int = Field(default=4, ge=1, le=48)
+    universe_resolution_note: Optional[str] = Field(
+        default=None,
+        max_length=512,
+        description="Optional audit string (e.g. portfolio id) echoed in desk messages.",
+    )
 
     @model_validator(mode="after")
     def _mode(self) -> Self:

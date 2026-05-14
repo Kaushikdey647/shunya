@@ -41,6 +41,17 @@ def tickers_for_ohlcv_backfill(payload: dict[str, Any]) -> list[str]:
     return out
 
 
+def payload_has_timescale_panel(payload: dict[str, Any]) -> bool:
+    """True when job used index or saved-universe resolution (Timescale panel + optional yfinance backfill)."""
+    ic = payload.get("index_code")
+    uid = payload.get("universe_id")
+    if isinstance(ic, str) and ic.strip():
+        return True
+    if isinstance(uid, str) and uid.strip():
+        return True
+    return False
+
+
 def payload_has_index_code(payload: dict[str, Any]) -> bool:
     ic = payload.get("index_code")
     return isinstance(ic, str) and bool(ic.strip())

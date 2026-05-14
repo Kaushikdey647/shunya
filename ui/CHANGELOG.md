@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Universes** (`/universe`, `/universe/:id`): list and edit saved equity universes (API **`/universes`**), sector/industry and fundamentals summary; **Alpha Studio** optional **default universe** per alpha; **Backtest** panel can enqueue with **`universe_id`** + benchmark; **Instrument** detail **Add to universe** for equities; **Portfolio** workspace shows union of slot alphas’ default-universe tickers and snapshots **last portfolio universe** for the Execution hub.
 - **Trade** navigation group: **Portfolios** (`/portfolios`, `/portfolios/:id`), **Live** (`/live`), **Execution** hub and parent tracer (`/execution`, `/execution/:parentId`), **Risk** command center (`/risk`).
 - Client-side **trade desk** state in [`src/lib/tradeDeskStore.ts`](src/lib/tradeDeskStore.ts) with `useTradeDesk` ([`src/hooks/useTradeDesk.ts`](src/hooks/useTradeDesk.ts)); persisted under **`localStorage`** key `shunya_trade_desk_v1` until backend OMS/EMS APIs are available.
 - Trade-focused UI building blocks under [`src/components/trade/`](src/components/trade/) (for example add-to-portfolio flow, correlation heatmap, order stream line, distance cell).

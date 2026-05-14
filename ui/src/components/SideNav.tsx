@@ -12,6 +12,7 @@ const RESEARCH: NavItem[] = [
 
 const STUDIO: NavItem[] = [
   { to: '/studio', label: 'Studio', end: false },
+  { to: '/universe', label: 'Universes', end: false },
   { to: '/backtests', label: 'Backtests', end: false },
 ]
 

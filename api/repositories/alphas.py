@@ -15,6 +15,7 @@ def _row_to_out(row: dict[str, Any]) -> AlphaOut:
     fc = row["finstrat_config"]
     if isinstance(fc, str):
         fc = json.loads(fc)
+    du = row.get("default_universe_id")
     return AlphaOut(
         id=str(row["id"]),
         name=row["name"],
@@ -22,6 +23,7 @@ def _row_to_out(row: dict[str, Any]) -> AlphaOut:
         import_ref=row.get("import_ref"),
         source_code=row.get("source_code"),
         finstrat_config=dict(fc) if fc is not None else {},
+        default_universe_id=str(du) if du is not None else None,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -37,11 +39,18 @@ def insert_alpha(body: AlphaCreate) -> AlphaOut:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     """
-                    INSERT INTO api_alphas (name, description, import_ref, source_code, finstrat_config)
-                    VALUES (%s, %s, %s, %s, %s::jsonb)
-                    RETURNING id, name, description, import_ref, source_code, finstrat_config, created_at, updated_at
+                    INSERT INTO api_alphas (name, description, import_ref, source_code, finstrat_config, default_universe_id)
+                    VALUES (%s, %s, %s, %s, %s::jsonb, %s)
+                    RETURNING id, name, description, import_ref, source_code, finstrat_config, default_universe_id, created_at, updated_at
                     """,
-                    (body.name, body.description, body.import_ref, body.source_code, json.dumps(cfg)),
+                    (
+                        body.name,
+                        body.description,
+                        body.import_ref,
+                        body.source_code,
+                        json.dumps(cfg),
+                        body.default_universe_id,
+                    ),
                 )
                 row = cur.fetchone()
             conn.commit()
@@ -59,7 +68,7 @@ def list_alphas(limit: int = 100, offset: int = 0) -> list[AlphaOut]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT id, name, description, import_ref, source_code, finstrat_config, created_at, updated_at
+                SELECT id, name, description, import_ref, source_code, finstrat_config, default_universe_id, created_at, updated_at
                 FROM api_alphas
                 ORDER BY created_at DESC
                 LIMIT %s OFFSET %s
@@ -81,7 +90,7 @@ def get_alpha(alpha_id: str) -> Optional[AlphaOut]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT id, name, description, import_ref, source_code, finstrat_config, created_at, updated_at
+                SELECT id, name, description, import_ref, source_code, finstrat_config, default_universe_id, created_at, updated_at
                 FROM api_alphas WHERE id = %s
                 """,
                 (alpha_id,),
@@ -121,6 +130,9 @@ def update_alpha(alpha_id: str, patch: AlphaPatch) -> Optional[AlphaOut]:
                 )
             )
         )
+    if "default_universe_id" in data:
+        fields.append("default_universe_id = %s")
+        params.append(data["default_universe_id"])
     if not fields:
         return get_alpha(alpha_id)
     fields.append("updated_at = %s")
@@ -132,7 +144,7 @@ def update_alpha(alpha_id: str, patch: AlphaPatch) -> Optional[AlphaOut]:
                 f"""
                 UPDATE api_alphas SET {", ".join(fields)}
                 WHERE id = %s
-                RETURNING id, name, description, import_ref, source_code, finstrat_config, created_at, updated_at
+                RETURNING id, name, description, import_ref, source_code, finstrat_config, default_universe_id, created_at, updated_at
                 """,
                 tuple(params),
             )

@@ -76,6 +76,8 @@ export interface AlphaCreate {
   source_code?: string | null
   import_ref?: string | null
   finstrat_config: FinStratConfig
+  /** Optional saved universe used as default for portfolio union / backtests. */
+  default_universe_id?: string | null
 }
 
 export interface AlphaPatch {
@@ -84,6 +86,7 @@ export interface AlphaPatch {
   import_ref?: string | null
   source_code?: string | null
   finstrat_config?: FinStratConfig | null
+  default_universe_id?: string | null
 }
 
 export interface AlphaOut {
@@ -93,6 +96,7 @@ export interface AlphaOut {
   import_ref: string | null
   source_code: string | null
   finstrat_config: Record<string, unknown>
+  default_universe_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -159,10 +163,64 @@ export interface EquityIndexOut {
   benchmark_ticker: string
 }
 
+export interface UniverseOut {
+  id: string
+  name: string
+  description: string | null
+  member_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface UniverseCreate {
+  name: string
+  description?: string | null
+}
+
+export interface UniversePatch {
+  name?: string | null
+  description?: string | null
+}
+
+export interface UniverseMemberOut {
+  ticker: string
+  long_name?: string | null
+  sector_disp?: string | null
+  industry_disp?: string | null
+}
+
+export interface UniverseMembersMutationOut {
+  changed: number
+  member_count: number
+}
+
+export interface UniverseBreakdownSlice {
+  label: string
+  count: number
+  fraction: number
+}
+
+export interface UniverseSummaryOut {
+  member_count: number
+  classified_for_breakdown_count: number
+  sector_breakdown: UniverseBreakdownSlice[]
+  industry_breakdown: UniverseBreakdownSlice[]
+  fundamentals_coverage_count: number
+  median_market_cap?: number | null
+  mean_trailing_pe?: number | null
+  median_beta?: number | null
+}
+
+export interface UniverseTickerListOut {
+  tickers: string[]
+}
+
 export interface BacktestCreate {
   alpha_id: string
   /** When set, server resolves constituents from Timescale and sets raw index benchmark ticker. */
   index_code?: string | null
+  /** Saved custom universe (mutually exclusive with index_code). Requires benchmark_ticker. */
+  universe_id?: string | null
   fin_ts: FinTsRequest
   finstrat_override?: FinStratConfig | null
   finbt?: FinBtConfig
@@ -173,6 +231,8 @@ export interface BacktestCreate {
    * When true with index_code: drop constituents with no OHLCV in the window; benchmark must still have bars.
    */
   omit_index_members_missing_ohlcv?: boolean
+  /** When true with universe_id: drop members missing OHLCV in the window. */
+  omit_universe_members_missing_ohlcv?: boolean
 }
 
 export type BacktestJobStatus = 'queued' | 'running' | 'succeeded' | 'failed'
@@ -182,6 +242,7 @@ export interface BacktestJobOut {
   alpha_id: string
   alpha_name?: string | null
   index_code?: string | null
+  universe_id?: string | null
   include_test_period_in_results?: boolean
   status: BacktestJobStatus
   error_message: string | null

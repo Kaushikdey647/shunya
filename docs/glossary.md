@@ -14,6 +14,9 @@ Short definitions for terms used across Shunya docs and code.
 | **`FinStrat`** | Binds a panel to `algorithm(ctx) -> weights` with neutralization, decay, truncation, and temporal modes. |
 | **`import_ref`** | Allow-listed module attribute path for an alpha callable when not using inline `source_code`. |
 | **Index backtest** | **`POST /backtests`** with **`index_code`**: universe from `symbol_index_membership`, Timescale-only OHLCV, benchmark from catalog. |
+| **Universe (saved)** | Named set of equity tickers in **`api_universes`** / **`api_universe_members`**; CRUD and analytics via **`/universes`**. |
+| **Universe backtest** | **`POST /backtests`** with **`universe_id`** (mutually exclusive with **`index_code`**): members from **`api_universe_members`**, client **`benchmark_ticker`**, Timescale-only panel; optional **`omit_universe_members_missing_ohlcv`**. |
+| **`default_universe_id`** | Optional FK on **`api_alphas`**: alpha’s preferred saved universe for UI and portfolio union hints. |
 | **`MarketDataProvider`** | Pluggable historical loader (Yahoo, Alpaca, Tiingo, Timescale, …). |
 | **OMS** | Order management system — parent orders, ledger, reconciliation (`shunya.oms`). |
 | **EMS** | Execution management — scheduling and broker gateway (`shunya.ems`). |

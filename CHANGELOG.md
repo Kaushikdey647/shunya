@@ -25,6 +25,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Custom universes (Timescale + API + UI):** migration **`014_api_universes.sql`** (`api_universes`, `api_universe_members`, `api_alphas.default_universe_id`); **`/universes`** CRUD, members, flat tickers, summary analytics; **`POST /backtests`** supports **`universe_id`** + **`benchmark_ticker`** (mutually exclusive with **`index_code`**); job list exposes **`universe_id`**; yfinance OHLCV backfill treats index and saved-universe jobs the same; **`POST /trade/paper/cycle`** accepts optional **`universe_resolution_note`** echoed in **`messages`**.
 - **Documentation site:** split **Concepts** (quant finance + how it maps to Shunya) vs **Documentation** (code, types, APIs); new pages under `docs/concepts/` and `docs/documentation/`; MkDocs **Mermaid** via `mkdocs-mermaid2-plugin` with vendored `docs/javascripts/mermaid.min.js` for strict/offline-friendly builds; **MathJax** via `pymdownx.arithmatex` and `theme.features: content.math.mathjax`.
 - **`scripts/local-dev-all.sh`** — single entrypoint for local dev: prerequisite checks, root **`.env`** bootstrap, Docker **TimescaleDB**, **`uv sync`**, **`shunya-timescale migrate`**, API + Vite UI (see [Local development: API, worker, and UI](docs/how-to/local-dev-api-ui.md)).
 - **OMS / EMS (institutional execution split):**

@@ -252,7 +252,7 @@ export default function BacktestsListPage() {
                   <Table.Th>Status</Table.Th>
                   <Table.Th>Job ID</Table.Th>
                   <Table.Th>Alpha</Table.Th>
-                  <Table.Th>Index</Table.Th>
+                  <Table.Th>Universe</Table.Th>
                   <Table.Th style={{ textAlign: 'right' }}>CAGR</Table.Th>
                   <Table.Th style={{ textAlign: 'right' }}>Sharpe</Table.Th>
                   <Table.Th style={{ textAlign: 'right' }}>Max DD</Table.Th>
@@ -298,7 +298,9 @@ export default function BacktestsListPage() {
                     </Table.Td>
                     <Table.Td>
                       <Text ff="monospace" size="sm">
-                        {j.index_code ?? '—'}
+                        {j.universe_id
+                          ? `U:${j.universe_id.slice(0, 8)}…`
+                          : (j.index_code ?? '—')}
                       </Text>
                     </Table.Td>
                     <Table.Td style={{ textAlign: 'right' }}>

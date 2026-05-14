@@ -39,6 +39,13 @@ import type {
   InstrumentValuationMeasuresPayload,
   InstrumentYfinanceTableResponse,
   EquityIndexOut,
+  UniverseCreate,
+  UniverseMemberOut,
+  UniverseMembersMutationOut,
+  UniverseOut,
+  UniversePatch,
+  UniverseSummaryOut,
+  UniverseTickerListOut,
   MarketHeadlinesResponse,
   MarketMoversResponse,
   MarketSnapshotResponse,
@@ -183,6 +190,111 @@ export async function getMarketHeadlines(params?: {
 
 export async function listEquityIndices(): Promise<EquityIndexOut[]> {
   return apiFetch<EquityIndexOut[]>('/indices', { method: 'GET' })
+}
+
+export async function listUniverses(params?: {
+  limit?: number
+  offset?: number
+}): Promise<UniverseOut[]> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.offset != null) sp.set('offset', String(params.offset))
+  const q = sp.toString()
+  return apiFetch<UniverseOut[]>(`/universes${q ? `?${q}` : ''}`, { method: 'GET' })
+}
+
+export async function createUniverse(body: UniverseCreate): Promise<UniverseOut> {
+  return apiFetch<UniverseOut>('/universes', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getUniverse(universeId: string): Promise<UniverseOut> {
+  return apiFetch<UniverseOut>(`/universes/${encodeURIComponent(universeId)}`, { method: 'GET' })
+}
+
+export async function patchUniverse(
+  universeId: string,
+  body: UniversePatch,
+): Promise<UniverseOut> {
+  return apiFetch<UniverseOut>(`/universes/${encodeURIComponent(universeId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteUniverse(universeId: string): Promise<void> {
+  await apiFetch<void>(`/universes/${encodeURIComponent(universeId)}`, { method: 'DELETE' })
+}
+
+export async function listUniverseMembers(
+  universeId: string,
+  params?: { limit?: number; offset?: number },
+): Promise<UniverseMemberOut[]> {
+  const sp = new URLSearchParams()
+  if (params?.limit != null) sp.set('limit', String(params.limit))
+  if (params?.offset != null) sp.set('offset', String(params.offset))
+  const q = sp.toString()
+  return apiFetch<UniverseMemberOut[]>(
+    `/universes/${encodeURIComponent(universeId)}/members${q ? `?${q}` : ''}`,
+    { method: 'GET' },
+  )
+}
+
+export async function getUniverseTickers(universeId: string): Promise<UniverseTickerListOut> {
+  return apiFetch<UniverseTickerListOut>(
+    `/universes/${encodeURIComponent(universeId)}/tickers`,
+    { method: 'GET' },
+  )
+}
+
+export async function getUniverseSummary(universeId: string): Promise<UniverseSummaryOut> {
+  return apiFetch<UniverseSummaryOut>(
+    `/universes/${encodeURIComponent(universeId)}/summary`,
+    { method: 'GET' },
+  )
+}
+
+export async function addUniverseMembers(
+  universeId: string,
+  body: { tickers: string[] },
+): Promise<UniverseMembersMutationOut> {
+  return apiFetch<UniverseMembersMutationOut>(
+    `/universes/${encodeURIComponent(universeId)}/members`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ tickers: body.tickers }),
+    },
+  )
+}
+
+export async function removeUniverseMembers(
+  universeId: string,
+  tickers: string[],
+): Promise<UniverseMembersMutationOut> {
+  const sp = new URLSearchParams()
+  for (const t of tickers) {
+    if (t.trim()) sp.append('tickers', t.trim().toUpperCase())
+  }
+  const q = sp.toString()
+  return apiFetch<UniverseMembersMutationOut>(
+    `/universes/${encodeURIComponent(universeId)}/members${q ? `?${q}` : ''}`,
+    { method: 'DELETE' },
+  )
+}
+
+export async function replaceUniverseMembers(
+  universeId: string,
+  body: { tickers: string[] },
+): Promise<UniverseMembersMutationOut> {
+  return apiFetch<UniverseMembersMutationOut>(
+    `/universes/${encodeURIComponent(universeId)}/members`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ tickers: body.tickers }),
+    },
+  )
 }
 
 export async function listAlphas(params: {

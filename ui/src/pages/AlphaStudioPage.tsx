@@ -9,6 +9,7 @@ import {
   NumberInput,
   Paper,
   ScrollArea,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -31,6 +32,7 @@ import {
   getBacktestResult,
   listAlphas,
   listBacktests,
+  listUniverses,
   patchAlpha,
   postAlphaAssistBacktestReview,
 } from '../api/endpoints'
@@ -446,6 +448,12 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
     enabled: Boolean(alphaId),
   })
 
+  const universesPickQ = useQuery({
+    queryKey: ['universes', 'alpha-studio'],
+    queryFn: () => listUniverses({ limit: 300, offset: 0 }),
+    enabled: Boolean(alphaId),
+  })
+
   const detailsForm = useForm<AlphaDetailsFormValues>({
     resolver: zodResolver(alphaDetailsSchema),
     defaultValues: {},
@@ -487,6 +495,14 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
 
   const finstratMut = useMutation({
     mutationFn: (finstrat_config: FinStratConfig) => patchAlpha(alphaId, { finstrat_config }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['alpha', alphaId] })
+      void qc.invalidateQueries({ queryKey: ['alphas'] })
+    },
+  })
+
+  const defaultUniverseMut = useMutation({
+    mutationFn: (uid: string | null) => patchAlpha(alphaId, { default_universe_id: uid }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['alpha', alphaId] })
       void qc.invalidateQueries({ queryKey: ['alphas'] })
@@ -701,6 +717,25 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
                     >
                       <TextInput label="Name" {...detailsForm.register('name')} />
                       <TextInput label="Description" {...detailsForm.register('description')} />
+                      <ApiErrorAlert error={defaultUniverseMut.error} />
+                      <Select
+                        label="Default universe"
+                        description="Used for portfolio union views and optional saved-universe backtests."
+                        data={[
+                          { value: '', label: universesPickQ.isLoading ? 'Loading…' : 'None' },
+                          ...(universesPickQ.data ?? []).map((u) => ({
+                            value: u.id,
+                            label: `${u.name} (${u.member_count})`,
+                          })),
+                        ]}
+                        value={alphaQ.data.default_universe_id ?? ''}
+                        onChange={(v) =>
+                          defaultUniverseMut.mutate(v && v.trim() ? v.trim() : null)
+                        }
+                        searchable
+                        clearable
+                        disabled={defaultUniverseMut.isPending}
+                      />
                       {alphaQ.data.import_ref && (
                         <TextInput
                           label="Module import (read-only; overridden when inline source is saved)"

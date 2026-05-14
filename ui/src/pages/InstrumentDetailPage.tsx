@@ -6,6 +6,8 @@ import {
   Card,
   Divider,
   Group,
+  Modal,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -13,14 +15,16 @@ import {
   Text,
   Title,
 } from '@mantine/core'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
+  addUniverseMembers,
   getInstrumentNews,
   getInstrumentOhlcv,
   getInstrumentOverview,
   instrumentDetailPath,
+  listUniverses,
 } from '../api/endpoints'
 import type { InstrumentOverviewResponse } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
@@ -304,11 +308,14 @@ function OverviewBody({ o }: { o: InstrumentOverviewResponse }) {
 export default function InstrumentDetailPage() {
   const { symbol: symbolParam } = useParams<{ symbol: string }>()
   const [searchParams] = useSearchParams()
+  const qc = useQueryClient()
   const qtHint = searchParams.get('qt')
   const symbol = useMemo(() => normalizeSymbol(symbolParam), [symbolParam])
   const [mainTab, setMainTab] = useState<string>('overview')
   const [preset, setPreset] = useState<Preset>(() => TIMEFRAMES[5]!)
   const [focusBarUnix, setFocusBarUnix] = useState<number | null>(null)
+  const [uniModal, setUniModal] = useState(false)
+  const [univSel, setUnivSel] = useState('')
 
   const overview = useQuery({
     queryKey: ['instrument-overview', symbol],
@@ -332,6 +339,26 @@ export default function InstrumentDetailPage() {
     queryFn: () => getInstrumentNews(symbol!),
     enabled: symbol != null,
     staleTime: 60_000,
+  })
+
+  const universesQ = useQuery({
+    queryKey: ['universes', 'picker'],
+    queryFn: () => listUniverses({ limit: 300, offset: 0 }),
+    enabled: uniModal && symbol != null,
+  })
+
+  const addToUniverseMut = useMutation({
+    mutationFn: () => {
+      if (!univSel.trim()) return Promise.reject(new Error('Pick a universe.'))
+      if (!symbol) return Promise.reject(new Error('Missing symbol.'))
+      return addUniverseMembers(univSel.trim(), { tickers: [symbol] })
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['universes'] })
+      void qc.invalidateQueries({ queryKey: ['universe', univSel] })
+      setUniModal(false)
+      setUnivSel('')
+    },
   })
 
   const newsRows = newsQuery.data?.news ?? []
@@ -384,6 +411,18 @@ export default function InstrumentDetailPage() {
 
   const yahooUrl = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`
   const titleName = overview.data?.long_name ?? overview.data?.short_name ?? symbol
+  const canAddToUniverse = overview.data?.instrument_kind === 'equity'
+
+  const universeSelectData = useMemo(() => {
+    const rows = universesQ.data ?? []
+    return [
+      { value: '', label: universesQ.isLoading ? 'Loading…' : rows.length ? 'Select…' : 'No universes' },
+      ...rows.map((u) => ({
+        value: u.id,
+        label: `${u.name} (${u.member_count})`,
+      })),
+    ]
+  }, [universesQ.data, universesQ.isLoading])
 
   return (
     <PageScaffold>
@@ -412,6 +451,11 @@ export default function InstrumentDetailPage() {
           )}
         </Stack>
         <Group gap="md">
+          {canAddToUniverse && (
+            <Button variant="light" color="yellow" size="compact-sm" onClick={() => setUniModal(true)}>
+              Add to universe
+            </Button>
+          )}
           <Anchor href={yahooUrl} target="_blank" rel="noopener noreferrer" size="sm">
             Yahoo Finance
           </Anchor>
@@ -533,6 +577,33 @@ export default function InstrumentDetailPage() {
         Market data and fundamentals are sourced from Yahoo Finance via yfinance; fields may be missing or delayed
         depending on the symbol.
       </Text>
+
+      <Modal
+        opened={uniModal}
+        onClose={() => {
+          setUniModal(false)
+          setUnivSel('')
+        }}
+        title={`Add ${symbol} to universe`}
+      >
+        <Stack gap="md">
+          <ApiErrorAlert error={addToUniverseMut.error} />
+          <Select
+            label="Universe"
+            data={universeSelectData}
+            value={univSel}
+            onChange={(v) => setUnivSel(v ?? '')}
+            searchable
+          />
+          <Button
+            color="yellow"
+            disabled={!univSel || addToUniverseMut.isPending}
+            onClick={() => addToUniverseMut.mutate()}
+          >
+            {addToUniverseMut.isPending ? 'Adding…' : 'Add'}
+          </Button>
+        </Stack>
+      </Modal>
     </PageScaffold>
   )
 }

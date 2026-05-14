@@ -36,6 +36,7 @@ Typical backtest flow:
 |--------|---------|
 | **`/alphas`** | CRUD on alpha definitions: optional inline **`source_code`** (executed in worker) or module **`import_ref`** (allow-listed). Stored **`finstrat_config`**. |
 | **`/indices`** | Equity indexes from Timescale for benchmark / membership flows. |
+| **`/universes`** | CRUD saved equity universes, membership, flat ticker list, sector/industry + fundamentals summary. |
 | **`/backtests`** | Enqueue async jobs, list/get status, fetch JSON results when succeeded (FinBT-shaped payload plus optional benchmark). |
 | **`POST /data`** | Panel diagnostics from `finTs` (NaNs, vol, Sharpe, Sortino, …). |
 | **`GET /data/dashboard`** | Database-wide coverage heatmaps and risk/return aggregates. |
@@ -45,7 +46,7 @@ Typical backtest flow:
 | **`GET /settings/app`** | Effective runtime tunables (env merged with optional DB overlay). |
 | **`PATCH /settings/app`** | Merge non-secret tunables into overlay (requires DB + migration; auth when trade-desk token is set). |
 
-Semantics that affect every client (fixed backtest window, index jobs, `include_test_period_in_results`): authoritative bullet list in **[api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md)**.
+Semantics that affect every client (fixed backtest window, **index** vs **saved-universe** jobs, `include_test_period_in_results`): authoritative bullet list in **[api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md)**.
 
 ## Authentication and privileged headers
 

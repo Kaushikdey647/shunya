@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Group,
+  Modal,
   NumberInput,
   Paper,
   SegmentedControl,
@@ -14,6 +15,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core'
+import { useQueries } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import PageScaffold from '../components/PageScaffold'
 import CorrelationHeatmap from '../components/trade/CorrelationHeatmap'
@@ -21,11 +23,13 @@ import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
 import {
   deployAlphaToPortfolio,
   removeSlotFromPortfolio,
+  setLastPortfolioUniverseSnapshot,
   setSlotWeight,
   updatePortfolio,
 } from '../lib/tradeDeskStore'
 import { useTradeDesk } from '../hooks/useTradeDesk'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getAlpha, getUniverseTickers } from '../api/endpoints'
 
 function ledgerRows(alphaIds: string[], goLive: boolean) {
   const syms = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'META']
@@ -51,8 +55,50 @@ export default function PortfolioWorkspacePage() {
   const desk = useTradeDesk()
   const density = useMantineTableDensity()
   const [pasteId, setPasteId] = useState('')
+  const [uniModal, setUniModal] = useState(false)
 
   const portfolio = useMemo(() => desk.portfolios.find((p) => p.id === id), [desk.portfolios, id])
+
+  const alphaQueries = useQueries({
+    queries: (portfolio?.slots ?? []).map((s) => ({
+      queryKey: ['alpha', s.alphaId],
+      queryFn: () => getAlpha(s.alphaId),
+      enabled: Boolean(portfolio && id),
+    })),
+  })
+
+  const universeIds = useMemo(() => {
+    const u = new Set<string>()
+    for (const q of alphaQueries) {
+      const du = q.data?.default_universe_id
+      if (du) u.add(du)
+    }
+    return [...u]
+  }, [alphaQueries.map((q) => q.data?.default_universe_id ?? '').join('|')])
+
+  const tickerQueries = useQueries({
+    queries: universeIds.map((uid) => ({
+      queryKey: ['universe-tickers', uid],
+      queryFn: () => getUniverseTickers(uid),
+      enabled: Boolean(portfolio && uid),
+    })),
+  })
+
+  const unionTickers = useMemo(() => {
+    const s = new Set<string>()
+    for (const q of tickerQueries) {
+      for (const t of q.data?.tickers ?? []) s.add(t)
+    }
+    return [...s].sort()
+  }, [tickerQueries.map((q) => (q.data?.tickers ?? []).join(',')).join(';')])
+
+  useEffect(() => {
+    if (!portfolio) return
+    setLastPortfolioUniverseSnapshot(
+      unionTickers,
+      `portfolio:${portfolio.name} (${portfolio.id.slice(0, 8)}…)`,
+    )
+  }, [portfolio?.id, portfolio?.name, unionTickers.join(',')])
 
   if (!id) {
     return (
@@ -94,7 +140,31 @@ export default function PortfolioWorkspacePage() {
             <Badge variant="outline" color="yellow" size="sm">
               StrategySpec v{portfolio.strategySpecVersion}
             </Badge>
+            <Badge variant="light" color="teal" size="sm">
+              Union universe: {unionTickers.length} names
+            </Badge>
+            <Button variant="light" size="compact-xs" onClick={() => setUniModal(true)}>
+              View tickers
+            </Button>
           </Group>
+          <Modal opened={uniModal} onClose={() => setUniModal(false)} title="Portfolio union tickers" size="lg">
+            <Text size="xs" c="dimmed" mb="sm">
+              Union of default universes from each slot alpha (alphas without a default universe contribute nothing).
+            </Text>
+            <Text component="pre" fz="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap', maxHeight: 360, overflow: 'auto' }}>
+              {unionTickers.length ? unionTickers.join(', ') : '—'}
+            </Text>
+            <Button
+              mt="md"
+              variant="default"
+              disabled={!unionTickers.length}
+              onClick={() => {
+                void navigator.clipboard.writeText(unionTickers.join(','))
+              }}
+            >
+              Copy CSV
+            </Button>
+          </Modal>
         </div>
         <Stack gap="xs" align="flex-end">
           <Switch

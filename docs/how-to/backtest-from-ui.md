@@ -28,6 +28,7 @@ From the authoritative [api/README.md](https://github.com/Kaushikdey647/shunya/b
 - **`POST /backtests`** uses a **fixed** simulation window **`[2020-01-01, 2026-01-01)`** (end exclusive) and **daily** bars. Client-supplied `fin_ts.start_date`, `end_date`, and `bar_spec` are **overwritten** by the server.
 - **`include_test_period_in_results`** (default `false`) — when `false`, stored metrics and time series **exclude** the **test** slice from **2025-01-01** onward (tune-only view in dashboards).
 - **`POST` with `index_code`** — resolves constituents from `symbol_index_membership`, sets benchmark to the catalog raw index symbol, forces **`market_data_provider=timescale`** and **no Yahoo**. You can set **`omit_index_members_missing_ohlcv`: true** to drop members without bars; the benchmark must still have data.
+- **`POST` with `universe_id`** (mutually exclusive with **`index_code`**) — resolves members from **`api_universe_members`**; you must send **`benchmark_ticker`** (e.g. `SPY`). Same Timescale-only panel rules; optional **`omit_universe_members_missing_ohlcv`** drops members without OHLCV in the window.
 
 ## Troubleshooting
 

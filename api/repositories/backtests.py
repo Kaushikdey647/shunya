@@ -25,11 +25,15 @@ def _job_row_to_out(row: dict[str, Any]) -> BacktestJobOut:
         include_test = False
     else:
         include_test = str(inc).lower() in ("true", "1", "t", "yes")
+    uid = row.get("universe_id")
+    if uid is not None and isinstance(uid, str) and not uid.strip():
+        uid = None
     return BacktestJobOut(
         id=str(row["id"]),
         alpha_id=str(row["alpha_id"]),
         alpha_name=row.get("alpha_name"),
         index_code=str(ic) if ic is not None else None,
+        universe_id=str(uid) if uid is not None else None,
         include_test_period_in_results=include_test,
         status=row["status"],
         error_message=row.get("error_message"),
@@ -93,6 +97,7 @@ def list_jobs(
                        j.created_at, j.started_at, j.finished_at,
                        a.name AS alpha_name,
                        NULLIF(j.request_payload->>'index_code', '') AS index_code,
+                       NULLIF(j.request_payload->>'universe_id', '') AS universe_id,
                        COALESCE((j.request_payload->>'include_test_period_in_results')::boolean, false)
                          AS include_test_period_in_results
                 FROM api_backtest_jobs j
@@ -122,6 +127,7 @@ def get_job(job_id: str) -> Optional[BacktestJobOut]:
                        j.created_at, j.started_at, j.finished_at,
                        a.name AS alpha_name,
                        NULLIF(j.request_payload->>'index_code', '') AS index_code,
+                       NULLIF(j.request_payload->>'universe_id', '') AS universe_id,
                        COALESCE((j.request_payload->>'include_test_period_in_results')::boolean, false)
                          AS include_test_period_in_results
                 FROM api_backtest_jobs j

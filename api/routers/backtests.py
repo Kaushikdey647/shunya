@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, status
 
 from api.backtest_resolve import resolve_index_backtest_if_needed
 from api.backtest_windows import normalize_backtest_create
+from api.universe_resolve import resolve_universe_backtest_if_needed
 from api.repositories import alphas as alphas_repo
 from api.repositories import backtests as jobs_repo
 from api.schemas.models import (
@@ -25,7 +26,7 @@ def enqueue_backtest(body: BacktestCreate) -> BacktestJobOut:
     if alphas_repo.get_alpha_raw(body.alpha_id) is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
     body = normalize_backtest_create(body)
-    resolved = resolve_index_backtest_if_needed(body)
+    resolved = resolve_universe_backtest_if_needed(resolve_index_backtest_if_needed(body))
     return jobs_repo.insert_job(resolved)
 
 

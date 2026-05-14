@@ -36,6 +36,22 @@ export default function ExecutionHubPage() {
           Open tracer
         </Button>
       </Stack>
+      <Text c="dimmed" size="sm" mt="md">
+        Last portfolio union universe:{' '}
+        <Text span fw={600}>
+          {desk.lastPortfolioUniverseTickers.length
+            ? `${desk.lastPortfolioUniverseTickers.length} tickers`
+            : 'none recorded'}
+        </Text>
+        {desk.lastPortfolioUniverseNote ? (
+          <>
+            {' '}
+            <Text span c="dimmed" size="xs">
+              ({desk.lastPortfolioUniverseNote})
+            </Text>
+          </>
+        ) : null}
+      </Text>
       <Title order={3} size="h4" mt="xl">
         Recent parents
       </Title>

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 
 from api.index_catalog import benchmark_for_index
@@ -60,6 +62,52 @@ def test_backtest_create_partial_index_universe_flag() -> None:
         ),
     )
     assert b.omit_index_members_missing_ohlcv is True
+
+
+def test_backtest_create_saved_universe_requires_benchmark() -> None:
+    uid = str(uuid4())
+    with pytest.raises(ValueError, match="benchmark_ticker"):
+        BacktestCreate(
+            alpha_id="00000000-0000-0000-0000-000000000000",
+            universe_id=uid,
+            fin_ts=FinTsRequest(
+                start_date="2020-01-01",
+                end_date="2026-01-01",
+                ticker_list=[],
+            ),
+        )
+
+
+def test_backtest_create_saved_universe_with_benchmark() -> None:
+    uid = str(uuid4())
+    b = BacktestCreate(
+        alpha_id="00000000-0000-0000-0000-000000000000",
+        universe_id=uid,
+        benchmark_ticker="SPY",
+        fin_ts=FinTsRequest(
+            start_date="2020-01-01",
+            end_date="2026-01-01",
+            ticker_list=[],
+        ),
+    )
+    assert b.universe_id == uid
+    assert b.benchmark_ticker == "SPY"
+
+
+def test_backtest_create_rejects_index_and_universe_together() -> None:
+    uid = str(uuid4())
+    with pytest.raises(ValueError, match="at most one"):
+        BacktestCreate(
+            alpha_id="00000000-0000-0000-0000-000000000000",
+            index_code="SP500",
+            universe_id=uid,
+            benchmark_ticker="SPY",
+            fin_ts=FinTsRequest(
+                start_date="2020-01-01",
+                end_date="2026-01-01",
+                ticker_list=[],
+            ),
+        )
 
 
 def test_data_summary_rejects_empty_tickers() -> None:

@@ -3,6 +3,7 @@ import {
   Button,
   Checkbox,
   Code,
+  SegmentedControl,
   Select,
   Stack,
   Text,
@@ -17,7 +18,7 @@ import {
   BACKTEST_SIM_START,
   BACKTEST_TEST_START,
 } from '../api/backtestWindows'
-import { enqueueBacktest, listEquityIndices } from '../api/endpoints'
+import { enqueueBacktest, listEquityIndices, listUniverses } from '../api/endpoints'
 import { defaultFinBtConfig, defaultFinTsRequest } from '../api/defaultConfigs'
 import type { BacktestJobOut, FinBtConfig, FinStratConfig, FinTsRequest } from '../api/types'
 import FinTsAdvancedSection from '../components/FinTsAdvancedSection'
@@ -52,9 +53,13 @@ export default function BacktestConfigPanel({
   const navigate = useNavigate()
   const qc = useQueryClient()
 
+  const [universeMode, setUniverseMode] = useState<'index' | 'saved'>('index')
   const [indexCode, setIndexCode] = useState('')
+  const [savedUniverseId, setSavedUniverseId] = useState('')
+  const [savedBenchmark, setSavedBenchmark] = useState('SPY')
   const [includeTestInResults, setIncludeTestInResults] = useState(false)
   const [omitMembersMissingOhlcv, setOmitMembersMissingOhlcv] = useState(true)
+  const [omitUniverseMembersMissingOhlcv, setOmitUniverseMembersMissingOhlcv] = useState(true)
 
   const [finTsAdv, setFinTsAdv] = useState<FinTsAdvancedState>(initialAdvForIndexBacktest)
 
@@ -76,6 +81,11 @@ export default function BacktestConfigPanel({
   const indicesQ = useQuery({
     queryKey: ['equity-indices'],
     queryFn: () => listEquityIndices(),
+  })
+
+  const universesQ = useQuery({
+    queryKey: ['universes', 'for-backtest'],
+    queryFn: () => listUniverses({ limit: 500, offset: 0 }),
   })
 
   const indicesWithMembers = useMemo(
@@ -115,11 +125,33 @@ export default function BacktestConfigPanel({
     ]
   }, [indicesQ.isLoading, indicesQ.data?.length, indicesWithMembers])
 
+  const universesWithMembers = useMemo(
+    () => (universesQ.data ?? []).filter((u) => u.member_count > 0),
+    [universesQ.data],
+  )
+
+  const universeSelectData = useMemo(() => {
+    const placeholder =
+      universesQ.isLoading
+        ? 'Loading…'
+        : universesWithMembers.length
+          ? 'Select…'
+          : universesQ.data?.length
+            ? 'Universes exist but are empty — add members'
+            : 'No universes yet'
+    return [
+      { value: '', label: placeholder },
+      ...universesWithMembers.map((u) => ({
+        value: u.id,
+        label: `${u.name} (${u.member_count} names)`,
+      })),
+    ]
+  }, [universesQ.isLoading, universesQ.data?.length, universesWithMembers])
+
   const mutation = useMutation({
     mutationFn: () => {
       const aid = alphaId.trim()
       if (!aid) throw new Error('Missing alpha.')
-      if (!indexCode.trim()) throw new Error('Select an index.')
 
       const fin_ts: FinTsRequest = defaultFinTsRequest({
         start_date: BACKTEST_SIM_START,
@@ -150,14 +182,30 @@ export default function BacktestConfigPanel({
         validate_finite_targets: finbtValidateFinite,
       }
 
+      if (universeMode === 'index') {
+        if (!indexCode.trim()) throw new Error('Select an index.')
+        return enqueueBacktest({
+          alpha_id: aid,
+          index_code: indexCode.trim(),
+          fin_ts,
+          finstrat_override,
+          finbt,
+          include_test_period_in_results: includeTestInResults,
+          omit_index_members_missing_ohlcv: omitMembersMissingOhlcv,
+        })
+      }
+      if (!savedUniverseId.trim()) throw new Error('Select a saved universe.')
+      const bench = (savedBenchmark || 'SPY').trim()
+      if (!bench) throw new Error('Benchmark ticker is required for saved universes.')
       return enqueueBacktest({
         alpha_id: aid,
-        index_code: indexCode.trim(),
+        universe_id: savedUniverseId.trim(),
+        benchmark_ticker: bench,
         fin_ts,
         finstrat_override,
         finbt,
         include_test_period_in_results: includeTestInResults,
-        omit_index_members_missing_ohlcv: omitMembersMissingOhlcv,
+        omit_universe_members_missing_ohlcv: omitUniverseMembersMissingOhlcv,
       })
     },
     onSuccess: (job) => {
@@ -182,16 +230,51 @@ export default function BacktestConfigPanel({
         }}
       >
         <Stack gap="md">
-          <Select
-            label="Index universe"
-            data={indexSelectData}
-            value={indexCode}
-            onChange={(v) => setIndexCode(v ?? '')}
-            required
-            disabled={indicesQ.isLoading || !indicesWithMembers.length}
+          <SegmentedControl
+            value={universeMode}
+            onChange={(v) => setUniverseMode(v as 'index' | 'saved')}
+            data={[
+              { label: 'Index universe', value: 'index' },
+              { label: 'Saved universe', value: 'saved' },
+            ]}
           />
 
+          {universeMode === 'index' ? (
+            <Select
+              label="Index universe"
+              data={indexSelectData}
+              value={indexCode}
+              onChange={(v) => setIndexCode(v ?? '')}
+              required
+              disabled={indicesQ.isLoading || !indicesWithMembers.length}
+            />
+          ) : (
+            <Stack gap="sm">
+              <Select
+                label="Saved universe"
+                data={universeSelectData}
+                value={savedUniverseId}
+                onChange={(v) => setSavedUniverseId(v ?? '')}
+                required
+                disabled={universesQ.isLoading || !universesWithMembers.length}
+              />
+              <TextInput
+                label="Benchmark ticker (e.g. SPY, ^GSPC)"
+                description="Required for performance comparison; must have OHLCV in Timescale for the simulation window."
+                value={savedBenchmark}
+                onChange={(e) => setSavedBenchmark(e.currentTarget.value)}
+                ff="monospace"
+              />
+              <Checkbox
+                label="Skip universe members with no OHLCV in the simulation window (benchmark must still have data)"
+                checked={omitUniverseMembersMissingOhlcv}
+                onChange={(e) => setOmitUniverseMembersMissingOhlcv(e.currentTarget.checked)}
+              />
+            </Stack>
+          )}
+
           {!indicesQ.isLoading &&
+            universeMode === 'index' &&
             indicesQ.data &&
             indicesQ.data.length > 0 &&
             indicesWithMembers.length === 0 && (
@@ -204,7 +287,7 @@ export default function BacktestConfigPanel({
               </Text>
             )}
 
-          {selectedBenchmark && (
+          {universeMode === 'index' && selectedBenchmark && (
             <Text size="sm" c="dimmed">
               Benchmark index (raw ticker):{' '}
               <Text span ff="monospace">
@@ -243,6 +326,7 @@ export default function BacktestConfigPanel({
             label="Skip index members with no OHLCV in the simulation window (benchmark ticker must still have data in Timescale)"
             checked={omitMembersMissingOhlcv}
             onChange={(e) => setOmitMembersMissingOhlcv(e.currentTarget.checked)}
+            disabled={universeMode !== 'index'}
           />
 
           <FinTsAdvancedSection

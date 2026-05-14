@@ -10,7 +10,8 @@ The **`ui/`** directory is a **React + Vite** front end for the Shunya **FastAPI
 | **Alpha Studio** | Monaco editor, lint and optional AI assist (Ollama via API), inline DSL hints, backtest enqueue, results below the editor (metrics, optional AI review, Recharts / lightweight-charts) |
 | **Backtests** | Create jobs, list, detail pages with charts |
 | **Data** | Coverage and dashboard views backed by the API |
-| **Instruments** | Search and OHLCV-style detail (`/instruments/:symbol`) |
+| **Instruments** | Search and OHLCV-style detail (`/instruments/:symbol`); equities can be added to a saved universe |
+| **Universes** | List and edit saved equity universes (`/universe`, `/universe/:id`) backed by **`/universes`** |
 | **Trade** | Portfolios (blend configs); Live cockpit; Account (Alpaca when API + token); Execution and Risk surfaces (client mock state in `localStorage` until more live routes exist) |
 | **Settings** | App runtime flags and Alpaca / trade-desk configuration where applicable |
 

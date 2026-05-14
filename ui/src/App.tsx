@@ -21,6 +21,8 @@ import RiskCommandCenterPage from './pages/RiskCommandCenterPage'
 import SearchResultsPage from './pages/SearchResultsPage'
 import SettingsPage from './pages/SettingsPage'
 import TradeAccountPage from './pages/TradeAccountPage'
+import UniverseDetailPage from './pages/UniverseDetailPage'
+import UniverseListPage from './pages/UniverseListPage'
 
 function RedirectLegacyAlphaToStudio() {
   const { alphaId } = useParams<{ alphaId: string }>()
@@ -47,6 +49,8 @@ export default function App() {
         <Route path="backtests/new" element={<BacktestNewPage />} />
         <Route path="backtests/:jobId" element={<BacktestDetailPage />} />
         <Route path="data" element={<DataSummaryPage />} />
+        <Route path="universe" element={<UniverseListPage />} />
+        <Route path="universe/:id" element={<UniverseDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="portfolios" element={<PortfoliosListPage />} />
         <Route path="portfolios/:id" element={<PortfolioWorkspacePage />} />

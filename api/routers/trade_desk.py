@@ -231,7 +231,11 @@ async def paper_cycle(
             prices=body.prices or {},
             correlation_id=cid,
         )
-    return PaperCycleResponse(**res.as_dict())
+    out = res.as_dict()
+    if body.universe_resolution_note and str(body.universe_resolution_note).strip():
+        note = str(body.universe_resolution_note).strip()[:400]
+        out["messages"] = [f"universe_resolution_note={note}"] + list(out.get("messages") or [])
+    return PaperCycleResponse(**out)
 
 
 @router.get(

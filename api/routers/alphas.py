@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, Query, status
 
 from api.alpha_assist import run_alpha_assist, run_alpha_backtest_review
 from api.alpha_lint import run_pyright_on_wrapped
 from api.alpha_validation import validate_import_ref
 from api.repositories import alphas as repo
+from api.repositories import universes as universes_repo
 from api.schemas.models import (
     AlphaAssistBacktestReviewRequest,
     AlphaAssistBacktestReviewResponse,
@@ -24,6 +27,26 @@ from shunya.algorithm.alpha_source_wrap import wrap_alpha_body
 from shunya.errors import ErrorCode, ShunyaError
 
 router = APIRouter(prefix="/alphas", tags=["alphas"])
+
+
+def _validate_default_universe_id(uid: str | None) -> None:
+    if uid is None or not str(uid).strip():
+        return
+    s = str(uid).strip()
+    try:
+        UUID(s)
+    except ValueError as exc:
+        raise ShunyaError(
+            "default_universe_id must be a UUID.",
+            code=ErrorCode.VALIDATION_ERROR,
+            http_status=400,
+        ) from exc
+    if not universes_repo.universe_exists(s):
+        raise ShunyaError(
+            "default_universe_id does not reference an existing universe.",
+            code=ErrorCode.UNIVERSE_NOT_FOUND,
+            http_status=404,
+        )
 
 
 @router.post("/lint-body", response_model=AlphaLintBodyResponse)
@@ -70,6 +93,7 @@ def assist_backtest_review(body: AlphaAssistBacktestReviewRequest) -> AlphaAssis
 
 @router.post("", response_model=AlphaOut, status_code=status.HTTP_201_CREATED)
 def create_alpha(body: AlphaCreate) -> AlphaOut:
+    _validate_default_universe_id(body.default_universe_id)
     try:
         return repo.insert_alpha(body)
     except RuntimeError as exc:
@@ -107,6 +131,9 @@ def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
             validate_import_ref(body.import_ref)
         except ValueError as exc:
             raise ShunyaError(str(exc), code=ErrorCode.VALIDATION_ERROR, http_status=400) from exc
+    data = body.model_dump(exclude_unset=True)
+    if "default_universe_id" in data:
+        _validate_default_universe_id(data.get("default_universe_id"))
     row = repo.update_alpha(alpha_id, body)
     if row is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
