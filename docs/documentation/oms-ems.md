@@ -8,6 +8,10 @@ The **OMS** layer models institutional parent orders: parent-order FSM, in-memor
 
 The **EMS** schedules and routes child orders: **`BrokerGateway`** / **`AlpacaBrokerGateway`**, TWAP/VWAP-style schedulers, micro-price limit helpers, and **`EMSParentRunner`** for child lifecycle.
 
+The **web UI** exposes an **Execution hub** route that visualizes slicer progress, child order rows, and a compact L1 card (demo / mock state may apply until more live EMS APIs exist). See [Trade area → Execution](../ui/trade.md).
+
+![Execution hub — EMS slicer (UI)](../execution.png)
+
 ## Alpaca integration
 
 Low-level helpers **`AlpacaExecutionAdapter`** and **`OrderManager`** translate signed USD deltas into orders and cache open-order state across **your** rebalance loop. There is no bundled tick-to-trade runner; you connect these behind a scheduler or service.

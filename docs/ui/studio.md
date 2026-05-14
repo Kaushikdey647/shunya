@@ -10,6 +10,8 @@ Create a record with name, optional **`import_ref`**, optional inline **`source_
 
 ## Workspace (`/studio/:alphaId`)
 
+![Alpha Studio workspace](../alpha.png)
+
 - **Monaco editor** for Python alpha body when using inline storage.
 - **Lint** and **assist** call FastAPI (optional Ollama on the server).
 - **Inline DSL** hints from `ui/src/alphaEditor/alphaDslCatalog.ts` (`ctx`, `ts`, `cs`, `fun`, `jnp`).
@@ -28,7 +30,15 @@ Create and maintain saved universes (**`/universes`** API): members, sector/indu
 - **New** — configure and submit **`POST /backtests`** (index universe, saved **`universe_id`** + **`benchmark_ticker`**, or explicit ticker list per API rules).
 - **Detail** — logs, charts, and payload when `succeeded`.
 
-HTTP semantics (fixed date window, `include_test_period_in_results`, index runs): [Backtest from the web UI](../how-to/backtest-from-ui.md).
+Example metrics strip and indexed performance vs benchmark on a succeeded job:
+
+![Backtest detail — KPI strip and performance](../backtest-1.png)
+
+Secondary tearsheets (monthly returns heatmap, turnover, exposures, distributions, rolling Sharpe, stacked targets):
+
+![Backtest detail — analytics grid](../backtest-2.png)
+
+- **HTTP semantics** (fixed date window, `include_test_period_in_results`, index runs): [Backtest from the web UI](../how-to/backtest-from-ui.md).
 
 ## See also
 

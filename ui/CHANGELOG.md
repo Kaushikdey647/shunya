@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **`README.md`:** home dashboard screenshot (`docs/dashboard.png`) next to the intro.
 - **Home / shell health:** **`GET /health`** parsing and the system health mini-card include **Alpaca** status and latency (or **`skipped`** when the API trade desk is disabled); the header dot tooltip lists Alpaca alongside backend, database, and Yahoo.
 - **Theme:** Bloomberg-terminal–style presentation — amber-on-dark accent palette, warm neutral dark scale, monospace stack tuned for data-dense screens ([`src/mantine/theme.ts`](src/mantine/theme.ts), [`src/mantine/cssVariablesResolver.ts`](src/mantine/cssVariablesResolver.ts), [`src/index.css`](src/index.css)).
 - **App shell / nav:** Side navigation grouped into **Research**, **Studio**, and **Trade** ([`src/components/SideNav.tsx`](src/components/SideNav.tsx)); command palette and home widgets aligned with the new IA ([`src/components/AppShell.tsx`](src/components/AppShell.tsx), [`src/components/CommandPalette.tsx`](src/components/CommandPalette.tsx), [`src/components/home/*`](src/components/home/)).

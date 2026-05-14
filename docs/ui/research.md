@@ -4,6 +4,8 @@ Routes under **Research** in the UI shell (`ui/src/components/SideNav.tsx`).
 
 ## Home (`/`)
 
+![Home dashboard](../dashboard.png)
+
 Dashboard cards: macro strip, movers, market headlines, recent backtests feed, health mini-card, and a **watchlist**.
 
 **Watchlist** uses **`POST /market/snapshot`** and persists tickers in **`localStorage`** (`shunya_watchlist_v1`). It is browser-local until a server-backed watchlist exists.

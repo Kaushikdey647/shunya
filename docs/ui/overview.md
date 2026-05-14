@@ -2,6 +2,19 @@
 
 The **`ui/`** directory is a **React + Vite** front end for the Shunya **FastAPI** service. Backtests and alpha execution run on the **server**; the browser is for editing, configuration, and visualization.
 
+## UI preview
+
+Static captures live under `docs/*.png` in the repository (MkDocs serves them on the doc site).
+
+![Home: macro strip, movers, and recent backtests](../dashboard.png)
+
+| Area | Screenshot walkthrough |
+|------|-------------------------|
+| Research (home, data, settings) | [Research](research.md) — dashboard on **Home** |
+| Alpha Studio, universes, backtests | [Studio](studio.md) — workspace and result charts |
+| Running a simulation from the browser | [Backtest from the web UI](../how-to/backtest-from-ui.md) |
+| Portfolios, live desk, execution | [Trade](trade.md) — blend workspace, Sentinel, EMS slicer |
+
 ## Feature map
 
 | Area | What you get |

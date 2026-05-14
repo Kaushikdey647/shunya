@@ -21,6 +21,12 @@ Use the Studio UI control to create a **backtest job** (POST to `/backtests`). T
 
 Under **Studio → Backtests** (`/backtests`), open the list and then a job detail page (`/backtests/:jobId`) for status, logs, and (when `succeeded`) charts and metrics.
 
+When a job finishes successfully, the detail page shows a **metrics strip**, an **indexed performance** chart versus the run’s benchmark (when configured), and additional **tearsheets** (returns heatmap, turnover, sector exposure, return distribution, rolling Sharpe, target weights over time).
+
+![Backtest job — KPIs and performance chart](../backtest-1.png)
+
+![Backtest job — tearsheet panels](../backtest-2.png)
+
 ## HTTP semantics (what the UI relies on)
 
 From the authoritative [api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md):
