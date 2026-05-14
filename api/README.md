@@ -31,7 +31,7 @@ npm ci
 npm run dev
 ```
 
-Vite prints a local URL (default **http://localhost:5173**); dev mode proxies **`/api`** to **`http://127.0.0.1:8000`**. See [`ui/README.md`](../ui/README.md) and the root [README — Service and UI setup](https://github.com/Kaushikdey647/shunya/blob/main/README.md#service-and-ui-setup).
+Vite prints a local URL (default **http://localhost:5173**); dev mode proxies **`/api`** to **`http://127.0.0.1:8000`**. See [`ui/README.md`](../ui/README.md) and the docs **[Quickstart](https://kaushikdey647.github.io/shunya/quickstart/)** / **[Local development: API, worker, and UI](https://kaushikdey647.github.io/shunya/how-to/local-dev-api-ui/)**.
 
 Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrations (including **`013_api_runtime_config.sql`** for `GET`/`PATCH /settings/app`), then start the app:
 

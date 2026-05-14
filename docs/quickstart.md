@@ -19,7 +19,7 @@ uv sync --extra dev
 uv run pytest
 ```
 
-Minimal simulation (same idea as the root README; full narrative in [README — Core ideas](https://github.com/Kaushikdey647/shunya/blob/main/README.md#core-ideas)):
+Minimal simulation; deeper narrative in [Concepts](concepts/index.md) and [Signals: FinStrat and FinBT](documentation/finstrat-finbt.md):
 
 ```python
 import jax.numpy as jnp

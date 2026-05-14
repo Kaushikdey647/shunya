@@ -6,7 +6,7 @@
 
 **PyPI:** [`shunya-py`](https://pypi.org/project/shunya-py/) — `pip install shunya-py` (optional extras: `timescale`, `api`, `risk`, …).
 
-**Repository:** [github.com/Kaushikdey647/shunya](https://github.com/Kaushikdey647/shunya) — full narrative, quick start, and roadmap in the root [README](https://github.com/Kaushikdey647/shunya/blob/main/README.md).
+**Repository:** [github.com/Kaushikdey647/shunya](https://github.com/Kaushikdey647/shunya) — short intro and quick commands in the root [README](https://github.com/Kaushikdey647/shunya/blob/main/README.md); this site holds the full guides.
 
 ## Documentation map
 

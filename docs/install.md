@@ -54,7 +54,7 @@ Open the URL Vite prints (default **http://localhost:5173**). Start the **FastAP
 
 **Production:** `npm run build`, then `npm run preview` or `npm run start`. Set **`VITE_API_BASE`** at **build** time when the UI and API are served from different origins.
 
-More detail: [`ui/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/ui/README.md), [How-to: Local dev](how-to/local-dev-api-ui.md), root [README — Service and UI setup](https://github.com/Kaushikdey647/shunya/blob/main/README.md#service-and-ui-setup).
+More detail: [`ui/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/ui/README.md), [Quickstart](quickstart.md), [How-to: Local dev](how-to/local-dev-api-ui.md).
 
 ## Docs site locally
 
