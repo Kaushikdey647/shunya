@@ -23,4 +23,4 @@ The web app **Trade → Account** and **Settings → Alpaca** use other **`/trad
 
 ## Conceptual background
 
-[Execution: OMS, EMS, live desk](../concepts/oms-ems.md).
+[Execution: OMS, EMS](../documentation/oms-ems.md); finance view: [OMS, EMS, and order routing](../concepts/oms-ems-and-order-routing.md).

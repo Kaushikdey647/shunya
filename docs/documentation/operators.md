@@ -36,3 +36,7 @@ gated = logical.trade_when(signal > 0, signal, 0.0)
 ## API reference
 
 Generated signatures and docstrings: [Python package (`shunya`)](../reference/library.md).
+
+## Further reading
+
+- [Alpha design: rank, z-score, gates](../concepts/alpha-design-rank-zscore-and-gates.md) — when to use which transform.

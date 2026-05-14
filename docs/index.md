@@ -14,12 +14,8 @@
 |------------|------|
 | Install the library, docs toolchain, or web UI | [Install](install.md) |
 | Learn terms quickly | [Glossary](glossary.md) |
-| Understand architecture and data flow | [Concepts → System overview](concepts/overview.md), [ADR 001](adr/001-architecture-layers.md) |
-| Learn `finTs`, providers, calendars | [Concepts → finTs and providers](concepts/fints-providers.md) |
-| Learn FinStrat / FinBT | [Concepts → FinStrat and FinBT](concepts/finstrat-finbt.md) |
-| Learn PCS and risk | [Concepts → Portfolio and risk](concepts/portfolio-risk.md) |
-| Learn OMS / EMS / paper desk | [Concepts → OMS and EMS](concepts/oms-ems.md) |
-| Learn operator modules | [Concepts → Operators](concepts/operators.md) |
+| **Quant finance** view (alphas, portfolios, OMS/EMS, pipeline, fundamentals, design tips) | [Concepts](concepts/index.md) |
+| **Code and APIs** (`finTs`, `FinStrat`, PCS, operators, stack overview) | [Documentation](documentation/system-overview.md), [ADR 001](adr/001-architecture-layers.md) |
 | Run API + worker + UI locally | [How-to → Local dev](how-to/local-dev-api-ui.md) |
 | Bootstrap Timescale | [How-to → Timescale checklist](how-to/timescale-checklist.md), [Local Timescale](data_timescale.md) |
 | Run a backtest from the browser | [How-to → Backtest from UI](how-to/backtest-from-ui.md) |

@@ -29,5 +29,6 @@ The completion catalog is **`ui/src/alphaEditor/alphaDslCatalog.ts`**. **`fun.*`
 
 ## See also
 
-- [FinStrat and FinBT](../concepts/finstrat-finbt.md)
+- [FinStrat and FinBT](../documentation/finstrat-finbt.md) (code)
+- [Alpha styles and patterns](../concepts/alpha-styles-and-shunya-patterns.md) (finance)
 - [Studio](../ui/studio.md)

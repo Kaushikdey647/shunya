@@ -64,10 +64,13 @@ uv run mkdocs serve
 
 Use `--group docs` only if you only need MkDocs (for example in CI). Then open the URL MkDocs prints (usually `http://127.0.0.1:8000`).
 
+MkDocs **Mermaid** diagrams use a vendored copy at **`docs/javascripts/mermaid.min.js`** (for `mkdocs build --strict` without relying on outbound URL checks). If that file is missing, download the same path from [cdn.jsdelivr](https://cdn.jsdelivr.net/npm/mermaid@10.4.0/dist/mermaid.min.js) before building.
+
 ## Related documentation
 
 - [Glossary](glossary.md) — terminology
-- [Concepts](concepts/overview.md) — library architecture and major types
+- [Concepts](concepts/index.md) — quantitative finance and how it maps to Shunya
+- [Documentation](documentation/system-overview.md) — library stack, types, and APIs
 - [How-to: Local dev](how-to/local-dev-api-ui.md) — API, worker, and `ui/` together
 - [HTTP API](http-api.md) — FastAPI route outline
 - [Web application](ui/overview.md) — React client areas and configuration

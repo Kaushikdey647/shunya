@@ -39,3 +39,4 @@ Optional **`TimescaleFundamentalDataProvider`** and related ingest attach fundam
 
 - [Local Timescale](../data_timescale.md) — migrate, ingest, read in `finTs`.
 - [Python API reference](../reference/library.md) — generated docstrings for public symbols.
+- [Fundamentals for alphas](../concepts/fundamentals-for-alphas.md) — finance meaning of `fun.*` fields.

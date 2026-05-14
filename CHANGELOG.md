@@ -13,7 +13,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **`GET /health`** response includes an **`alpaca`** component (`api/health_checks.py`): **`skipped`** when **`SHUNYA_API_ALPACA_ENABLED`** is off; otherwise a **`TradingClient.get_account()`** reachability check. Alpaca errors contribute to overall **`degraded`** (same as the Yahoo probe), alongside existing backend and database fields.
+- **Documentation site:** split **Concepts** (quant finance + how it maps to Shunya) vs **Documentation** (code, types, APIs); new pages under `docs/concepts/` and `docs/documentation/`; MkDocs **Mermaid** via `mkdocs-mermaid2-plugin` with vendored `docs/javascripts/mermaid.min.js` for strict/offline-friendly builds; **MathJax** via `pymdownx.arithmatex` and `theme.features: content.math.mathjax`.
 - **`scripts/local-dev-all.sh`** — single entrypoint for local dev: prerequisite checks, root **`.env`** bootstrap, Docker **TimescaleDB**, **`uv sync`**, **`shunya-timescale migrate`**, API + Vite UI (see [Local development: API, worker, and UI](docs/how-to/local-dev-api-ui.md)).
 - **OMS / EMS (institutional execution split):**
   - `shunya/oms` — share-based reconciliation (`required_delta_shares`), `ParentOrder` FSM via `transitions`, `InMemoryLedger`, `InstitutionalOMS`, Alpaca trade stream bridge (`AlpacaOMSTradeStream`), REST position snapshot (`rest_snapshot`), SQLAlchemy persistence (`shunya/oms/db`), Alembic migration `001_oms_tables`, and `risk_bridge` helpers for `PortfolioRiskEngine` outputs.

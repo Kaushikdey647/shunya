@@ -32,6 +32,9 @@ class FundamentalFieldSpec:
     source_label: str
 
 
+# Canonical fundamental columns for Alpha Studio `fun.*` and Timescale ingest.
+# When adding rows here, update docs/concepts/fundamentals-for-alphas.md and
+# ui/src/alphaEditor/alphaDslCatalog.ts so completions stay aligned.
 _FUNDAMENTAL_FIELD_SPECS: tuple[FundamentalFieldSpec, ...] = (
     FundamentalFieldSpec("REVENUE", "Revenue", "income_statement", "Revenue"),
     FundamentalFieldSpec("NET_INCOME", "Net_Income", "income_statement", "Net Income"),
@@ -98,6 +101,7 @@ FUNDAMENTAL_FIELD_MAP: Dict[str, FundamentalFieldSpec] = {
 }
 
 # Daily / price-linked fields (stored in fundamentals_daily; same names on AlphaContext when attached).
+# Doc table: docs/concepts/fundamentals-for-alphas.md
 DAILY_FUNDAMENTAL_FIELDS: tuple[str, ...] = (
     "Market_Cap",
     "Enterprise_Value",

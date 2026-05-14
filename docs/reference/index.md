@@ -8,7 +8,7 @@ The installable PyPI package **`shunya-py`** ships the **`shunya`** namespace on
 
 Submodules under `shunya.*` are not given separate top-level pages in this first revision; expand types on the library page or jump to source on GitHub from the docstring links where enabled.
 
-For narrative explanations of major types (`finTs`, FinStrat, PCS, OMS/EMS), see **[Concepts](../concepts/overview.md)**.
+For narrative explanations of major types (`finTs`, FinStrat, PCS, OMS/EMS), see **[Concepts (finance)](../concepts/index.md)**. For **APIs, types, and configuration**, see **[Documentation](../documentation/system-overview.md)**.
 
 ## HTTP API (`api`)
 

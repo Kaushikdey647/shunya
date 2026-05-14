@@ -4,7 +4,8 @@ Short definitions for terms used across Shunya docs and code.
 
 | Term | Meaning |
 |------|---------|
-| **Alpha** | A named strategy definition: Python body (`source_code` and/or `import_ref`) plus **FinStrat** JSON config; stored and versioned via **`/alphas`**. |
+| **Alpha (finance)** | Cross-sectional score or forecast \(s_{i,t}\) used to rank or weight names before costs; see [Concepts → Alphas and metrics](concepts/alphas-metrics-and-evaluation.md). |
+| **Alpha (product)** | A named strategy definition: Python body (`source_code` and/or `import_ref`) plus **FinStrat** JSON config; stored via **`/alphas`**. |
 | **`api_runtime_config`** | Database overlay merged with env for tunable API settings; read via **`GET /settings/app`**, written via **`PATCH /settings/app`**. |
 | **`cross_section` (`cs`)** | JAX-friendly cross-sectional ops (`rank`, `zscore`, …) on per-bar vectors. |
 | **`DecisionContext`** | Object pinning signal time and data provenance (`yfinance_research` vs `alpaca_bars`). |
@@ -24,6 +25,7 @@ Short definitions for terms used across Shunya docs and code.
 
 ## See also
 
-- [Concepts: System overview](concepts/overview.md)
+- [Concepts (finance)](concepts/index.md)
+- [Documentation (code)](documentation/system-overview.md)
 - [HTTP API](http-api.md)
 - [Python reference](reference/library.md)

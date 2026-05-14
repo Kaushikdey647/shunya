@@ -31,7 +31,7 @@ For `neutralization="group"`, pass **`group_column`** on **FinBT** (defaults to 
 
 ## `FinBT`
 
-`FinBT(fin_strat, fin_ts, ...)` runs the same **FinStrat** on the same **`fin_ts`** instance inside **backtrader**, rebalancing to **`pass_`** dollar targets each bar.
+`FinBT(fin_strat, fin_ts, ...)` runs the same **FinStrat** on the same **`finTs`** instance inside **backtrader**, rebalancing to **`pass_`** dollar targets each bar.
 
 - Call **`run()`** to execute; it resets **FinStrat** decay state as implemented.
 - Pass **`commission`** (broker rate) and optional **`slippage_pct`** (adverse percent via backtrader’s `set_slippage_perc`).
@@ -66,3 +66,4 @@ results = bt.results(show=False)
 - [Operators](operators.md) — `cross_section`, `logical`, `time_series`, `group_ops` used inside `algorithm`.
 - [finTs and providers](fints-providers.md) — panel construction and calendars.
 - [Python API reference](../reference/library.md).
+- [Alphas, metrics, evaluation](../concepts/alphas-metrics-and-evaluation.md) — finance view of signals and backtest metrics.

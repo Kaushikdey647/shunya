@@ -30,7 +30,8 @@ For how adapters, ports, and API error mapping stay decoupled from engines, see 
 
 ## Where to read next
 
-- [finTs and providers](fints-providers.md) — data contracts and provenance.
-- [FinStrat and FinBT](finstrat-finbt.md) — signal to simulation.
+- [Data layer: finTs and providers](fints-providers.md) — data contracts and provenance.
+- [Signals: FinStrat and FinBT](finstrat-finbt.md) — signal to simulation.
 - [HTTP API summary](../http-api.md) — route groups and OpenAPI.
 - [Glossary](../glossary.md) — short definitions of terms used across the docs.
+- [Concepts (finance)](../concepts/index.md) — quantitative background and how it maps to this stack.

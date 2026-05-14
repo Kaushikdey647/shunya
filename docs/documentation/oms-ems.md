@@ -33,3 +33,7 @@ See the repository **README** for full flags and examples.
 ## HTTP trade desk
 
 The FastAPI app exposes **`POST /trade/paper/cycle`** for a single paper cycle when Alpaca and the trade-desk token are enabled. See [Paper trading cycle (API)](../how-to/paper-cycle-api.md) and the [HTTP API](../http-api.md) outline.
+
+## Further reading
+
+- [OMS, EMS, and order routing](../concepts/oms-ems-and-order-routing.md) — finance and architecture view.

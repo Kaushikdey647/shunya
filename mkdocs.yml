@@ -31,6 +31,7 @@ theme:
     - content.code.copy
     - search.suggest
     - search.highlight
+    - content.math.mathjax
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -38,6 +39,8 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.snippets
   - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
   - admonition
   - pymdownx.details
   - tables
@@ -46,6 +49,9 @@ markdown_extensions:
 
 plugins:
   - search
+  - mermaid2:
+      version: "10.4.0"
+      javascript: javascripts/mermaid.min.js
   - mkdocstrings:
       handlers:
         python:
@@ -66,12 +72,21 @@ nav:
   - Glossary: glossary.md
   - Install: install.md
   - Concepts:
-      - System overview: concepts/overview.md
-      - "Data layer: finTs and providers": concepts/fints-providers.md
-      - "Signals: FinStrat and FinBT": concepts/finstrat-finbt.md
-      - Portfolio construction and risk: concepts/portfolio-risk.md
-      - "Execution: OMS, EMS, live desk": concepts/oms-ems.md
-      - Operators and cross-section: concepts/operators.md
+      - Introduction: concepts/index.md
+      - "Alphas, metrics, and evaluation": concepts/alphas-metrics-and-evaluation.md
+      - "Portfolios, construction, and PMS": concepts/portfolios-construction-and-pms.md
+      - "OMS, EMS, and order routing": concepts/oms-ems-and-order-routing.md
+      - "Pipeline: alpha to execution": concepts/pipeline-alpha-to-execution.md
+      - "Alpha styles and Shunya patterns": concepts/alpha-styles-and-shunya-patterns.md
+      - "Fundamentals for alphas": concepts/fundamentals-for-alphas.md
+      - "Alpha design: rank, z-score, gates": concepts/alpha-design-rank-zscore-and-gates.md
+  - Documentation:
+      - "System overview": documentation/system-overview.md
+      - "Data layer: finTs and providers": documentation/fints-providers.md
+      - "Signals: FinStrat and FinBT": documentation/finstrat-finbt.md
+      - Portfolio construction and risk: documentation/portfolio-risk.md
+      - "Execution: OMS, EMS, live desk": documentation/oms-ems.md
+      - Operators and cross-section: documentation/operators.md
   - How-to guides:
       - "Local dev: API, worker, and UI": how-to/local-dev-api-ui.md
       - Timescale first-run checklist: how-to/timescale-checklist.md

@@ -27,5 +27,5 @@ HTTP semantics (fixed date window, `include_test_period_in_results`, index runs)
 
 ## See also
 
-- [FinStrat and FinBT](../concepts/finstrat-finbt.md)
+- [FinStrat and FinBT](../documentation/finstrat-finbt.md) (code); [Alphas, metrics](../concepts/alphas-metrics-and-evaluation.md) (finance)
 - [HTTP API](../http-api.md)

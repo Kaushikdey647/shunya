@@ -28,3 +28,4 @@ Portfolio math is intentionally **decoupled** from market-data transports and fr
 - [Execution: OMS, EMS, live desk](oms-ems.md) — how targets flow toward brokers.
 - [Paper trading cycle (API)](../how-to/paper-cycle-api.md) — one-shot paper cycle via FastAPI.
 - [Python API reference](../reference/library.md).
+- [Portfolios, construction, and PMS](../concepts/portfolios-construction-and-pms.md) — finance view.
