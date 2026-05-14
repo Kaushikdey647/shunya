@@ -64,9 +64,9 @@ uv run mkdocs serve
 
 Use `--group docs` only if you only need MkDocs (for example in CI). Then open the URL MkDocs prints (usually `http://127.0.0.1:8000`).
 
-MkDocs **Mermaid** diagrams use a vendored copy at **`docs/javascripts/mermaid.min.js`** (for `mkdocs build --strict` without relying on outbound URL checks). If that file is missing, download the same path from [cdn.jsdelivr](https://cdn.jsdelivr.net/npm/mermaid@10.4.0/dist/mermaid.min.js) before building.
+MkDocs **Mermaid** uses vendored **`docs/javascripts/mermaid.min.js`** (for strict builds without fetching Mermaid at build time). If missing, download from [cdn.jsdelivr](https://cdn.jsdelivr.net/npm/mermaid@10.4.0/dist/mermaid.min.js). Fenced ` ```mermaid ` blocks require **`pymdownx.superfences` → `custom_fences`** in **`mkdocs.yml`** so they are not passed through the normal code highlighter.
 
-**Math** (Arithmatex): **`docs/javascripts/mathjax.js`** plus the MathJax script in **`mkdocs.yml` → `extra_javascript`** are required for `\(...\)` and `\[...\]` to render in the browser.
+**Math** (Arithmatex): **`docs/javascripts/mathjax.js`** plus the MathJax script in **`mkdocs.yml` → `extra_javascript`** are required for `\(...\)` and `\[...\]` to render. The `ignoreHtmlClass` value must match the [Arithmatex “Loading MathJax”](https://facelessuser.github.io/pymdown-extensions/extensions/arithmatex/#loading-mathjax) snippet (`".*"`, not `".*|"`).
 
 ## Related documentation
 

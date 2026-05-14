@@ -1,4 +1,6 @@
-/* MathJax 3 + pymdownx Arithmatex (generic). Material: setup/extensions → Arithmatex. */
+/* MathJax 3 + pymdownx Arithmatex (generic). Official Arithmatex generic snippet:
+   https://facelessuser.github.io/pymdown-extensions/extensions/arithmatex/#loading-mathjax
+   Use ignoreHtmlClass ".*" (not ".*|") so processing is limited to .arithmatex correctly. */
 window.MathJax = {
   tex: {
     inlineMath: [["\\(", "\\)"]],
@@ -7,7 +9,7 @@ window.MathJax = {
     processEnvironments: true,
   },
   options: {
-    ignoreHtmlClass: ".*|",
+    ignoreHtmlClass: ".*",
     processHtmlClass: "arithmatex",
   },
 };

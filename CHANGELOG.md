@@ -7,6 +7,8 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - MkDocs math: load **MathJax** via `extra_javascript` and `docs/javascripts/mathjax.js` so **Arithmatex** `\(…\)` / `\[…\]` renders (previously only the extension was enabled).
+- MathJax config: use **`ignoreHtmlClass: ".*"`** (per PyMdown Arithmatex docs); **`".*|"`** breaks scanning so TeX stayed visible.
+- MkDocs Mermaid: register **`pymdownx.superfences` → `custom_fences` → `mermaid2.fence_mermaid_custom`** so ` ```mermaid ` blocks are not converted to generic Pygments code fences (which prevented **mkdocs-mermaid2** from running).
 
 ### Removed
 
