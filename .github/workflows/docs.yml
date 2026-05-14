@@ -1,3 +1,8 @@
+# Publishes the MkDocs `site/` output (Material theme + sidebar).
+#
+# In the repo: Settings → Pages → Build and deployment → Source must be
+# **GitHub Actions**. If Source is "Deploy from branch" → `/docs`, GitHub runs
+# Jekyll on Markdown and you get a plain page with no navigation sidebar.
 name: Deploy documentation
 
 on:
@@ -37,6 +42,10 @@ jobs:
 
       - name: Build MkDocs
         run: uv run mkdocs build --strict
+
+      # MkDocs ignores dotfiles in docs/; GitHub Pages must not Jekyll-process this artifact.
+      - name: Add .nojekyll to site root
+        run: touch site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3
         with:

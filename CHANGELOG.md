@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file.
 
 - **Onboarding:** new [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) doc (`docs/quickstart.md`) with paths for library-only, `./scripts/local-dev-all.sh`, and Docker Compose; MkDocs nav + docs home map row; README “above the fold” bullets and bootstrap copy; aligned “worker” wording with the in-process backtest loop in `api/main.py` across how-to and HTTP API docs; `docker-compose.yml` comment clarifying no separate worker container.
 - **READMEs:** root `README.md` and `ui/README.md` trimmed to a short intro, quickstart, single documentation-site link, contributing, and license; detailed material moved to the published docs site.
+- **GitHub Pages:** document that the site must be published from **GitHub Actions** (MkDocs `site/` artifact). Publishing the `/docs` folder from a branch runs **Jekyll** on Markdown, which looks like a plain centered page with no Material sidebar; the docs workflow now adds **`site/.nojekyll`** after build so the uploaded artifact is never Jekyll-processed.
 
 ### Fixed
 
