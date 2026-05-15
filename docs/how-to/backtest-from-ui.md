@@ -44,4 +44,4 @@ From the authoritative [api/README.md](https://github.com/Kaushikdey647/shunya/b
 ## See also
 
 - [Studio](../ui/studio.md) — UI features (Monaco, lint, results).
-- [HTTP API](../http-api.md) — route outline.
+- [HTTP API (overview)](../reference/http-api-package.md) — route outline.

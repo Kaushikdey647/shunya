@@ -24,8 +24,7 @@
 | Configure Alpha Studio AI / DSL | [How-to → Alpha Studio](how-to/alpha-studio-ai-dsl.md) |
 | Fix missing doc sidebar on GitHub Pages / publish MkDocs correctly | [How-to → Documentation site & GitHub Pages](how-to/documentation-site-github-pages.md) |
 | Use the web app by area (with UI screenshots) | [Web application](ui/overview.md) |
-| Browse FastAPI route groups | [HTTP API](http-api.md) |
-| Map the **`api/`** package, OpenAPI URLs, export **`openapi.json`** | [Reference → HTTP API package (`api/`)](reference/http-api-package.md) |
+| HTTP API (`api`) — routes, OpenAPI, generated `api.main` | [Overview](reference/http-api-package.md), [`api.main`](reference/api-library.md) |
 | Read auto-generated Python API | [Reference → Library](reference/library.md) |
 | Alpha Vantage integration | [Alpha Vantage](alpha-vantage.md) |
 

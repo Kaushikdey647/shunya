@@ -90,5 +90,5 @@ Set **`VITE_API_BASE`** at **build** time if the UI is not served behind the sam
 ## See also
 
 - [Bootstrap scripts (API + UI + DB)](bootstrap-scripts.md) — `scripts/` ingest and example alphas after migrate.
-- [HTTP API](../http-api.md) — route groups and OpenAPI.
+- [HTTP API (overview)](../reference/http-api-package.md) — route groups and OpenAPI.
 - [Backtest from the web UI](backtest-from-ui.md).

@@ -7,7 +7,7 @@
 | Layer | Role |
 |-------|------|
 | **`shunya` (PyPI `shunya-py`)** | Library: `finTs`, `FinStrat`, `FinBT`, portfolio services, OMS/EMS, providers, operators. |
-| **`api/`** | FastAPI app (not in the wheel): alphas, async backtests, data/instruments/market routes, optional trade desk and Ollama assist. |
+| **`api/`** | FastAPI app (Python package **`api`** is in the **`shunya-py`** wheel; install **`[api]`** extra to run it): alphas, async backtests, data/instruments/market routes, optional trade desk and Ollama assist. |
 | **`ui/`** | Vite + React client: Alpha Studio, backtests, dashboards, trade surfaces (some live, some mock until more HTTP routes exist). |
 | **Postgres / Timescale** | Optional durable OHLCV, API job queue, dashboard aggregates, runtime config overlay. |
 
@@ -32,6 +32,6 @@ For how adapters, ports, and API error mapping stay decoupled from engines, see 
 
 - [Data layer: finTs and providers](fints-providers.md) — data contracts and provenance.
 - [Signals: FinStrat and FinBT](finstrat-finbt.md) — signal to simulation.
-- [HTTP API summary](../http-api.md) — route groups and OpenAPI.
+- [HTTP API (overview)](../reference/http-api-package.md) — route groups and OpenAPI.
 - [Glossary](../glossary.md) — short definitions of terms used across the docs.
 - [Concepts (finance)](../concepts/index.md) — quantitative background and how it maps to this stack.

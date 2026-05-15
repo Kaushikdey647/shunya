@@ -12,6 +12,7 @@ on:
       - "docs/**"
       - "mkdocs.yml"
       - "shunya/**"
+      - "api/**"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/docs.yml"
@@ -38,7 +39,7 @@ jobs:
           version: "0.9.x"
 
       - name: Install dependencies
-        run: uv sync --frozen --group docs
+        run: uv sync --frozen --group docs --extra api
 
       - name: Build MkDocs
         run: uv run mkdocs build --strict

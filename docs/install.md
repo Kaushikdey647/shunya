@@ -13,7 +13,7 @@ pip install shunya-py
 | Extra | Purpose |
 |-------|---------|
 | `timescale` | Postgres/Timescale client (`psycopg`), CLI `shunya-timescale` |
-| `api` | FastAPI + uvicorn stack for the repo-local HTTP service |
+| `api` | FastAPI + uvicorn and related deps to **run** the **`api`** HTTP service (the **`api`** package is included in the wheel; base `shunya-py` does not install these runtime libraries) |
 | `risk` | CVX-backed `PortfolioRiskEngine` helpers |
 | `notebook` | Jupyter-friendly additions |
 | `kite` | Kite Connect market / execution adapters |
@@ -77,5 +77,5 @@ MkDocs **Mermaid** uses vendored **`docs/javascripts/mermaid.min.js`** (for stri
 - [Concepts](concepts/index.md) — quantitative finance and how it maps to Shunya
 - [Documentation](documentation/system-overview.md) — library stack, types, and APIs
 - [How-to: Local dev](how-to/local-dev-api-ui.md) — API, worker, and `ui/` together
-- [HTTP API](http-api.md) — FastAPI route outline
+- [HTTP API (overview)](reference/http-api-package.md) — FastAPI route outline
 - [Web application](ui/overview.md) — React client areas and configuration

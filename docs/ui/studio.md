@@ -35,7 +35,7 @@ Calls **`GET /universes/{id}/return-analytics`** using Timescale **daily** OHLCV
 - **PCA** — explained-variance bar, PC1 score over time, and **PC1 vs PC2 loadings** scatter (hover shows **ticker** and loadings).
 - **Concentration** — HHI, CR5, CR10, weight mode; **top holdings** as one header row of tickers and one row of weights (scrolls horizontally when needed).
 
-Other query parameters on the route (not all exposed in the UI) include **`interval`** (**`1d`** only), **`source`**, **`max_members`** (cap on names in the panel), and **`n_pca_components`**. See [HTTP API — Universe return analytics](../http-api.md#universe-return-analytics).
+Other query parameters on the route (not all exposed in the UI) include **`interval`** (**`1d`** only), **`source`**, **`max_members`** (cap on names in the panel), and **`n_pca_components`**. See [HTTP API — Universe return analytics](../reference/http-api-package.md#universe-return-analytics).
 
 ## Backtests (`/backtests`, `/backtests/new`, `/backtests/:jobId`)
 
@@ -56,4 +56,4 @@ Secondary tearsheets (monthly returns heatmap, turnover, exposures, distribution
 ## See also
 
 - [FinStrat and FinBT](../documentation/finstrat-finbt.md) (code); [Alphas, metrics](../concepts/alphas-metrics-and-evaluation.md) (finance)
-- [HTTP API](../http-api.md)
+- [HTTP API (overview)](../reference/http-api-package.md)

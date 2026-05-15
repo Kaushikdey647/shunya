@@ -1,3 +1,11 @@
+"""FastAPI application factory and ASGI entrypoint for the Shunya HTTP API.
+
+``create_app()`` wires routers, CORS, health routes, and a lifespan that starts the
+in-process backtest worker loop. The module-level ``app`` is the default ASGI app for
+``uvicorn api.main:app``. See ``api/README.md`` and the published docs under **Reference**
+for route semantics and environment variables.
+"""
+
 from __future__ import annotations
 
 import asyncio

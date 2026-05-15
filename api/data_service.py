@@ -45,20 +45,35 @@ def compute_data_summary(req: DataSummaryRequest) -> DataSummaryResponse:
                 sub = df.xs(t, level=0)
             except KeyError:
                 risk_rows.append(
-                    TickerRiskRow(ticker=t, return_pct=None, risk_ann_pct=None, sharpe=None, sortino=None)
+                    TickerRiskRow(
+                        ticker=t,
+                        return_pct=None,
+                        log_return_pct=None,
+                        risk_ann_pct=None,
+                        sharpe=None,
+                        sortino=None,
+                    )
                 )
                 continue
             if "Close" not in sub.columns:
                 risk_rows.append(
-                    TickerRiskRow(ticker=t, return_pct=None, risk_ann_pct=None, sharpe=None, sortino=None)
+                    TickerRiskRow(
+                        ticker=t,
+                        return_pct=None,
+                        log_return_pct=None,
+                        risk_ann_pct=None,
+                        sharpe=None,
+                        sortino=None,
+                    )
                 )
                 continue
             close = sub["Close"].sort_index()
-            ret_pct, risk_ann, sharpe, sortino = per_bar_return_stats_with_ppy(close, ppy)
+            ret_pct, risk_ann, sharpe, sortino, log_ret_pct = per_bar_return_stats_with_ppy(close, ppy)
             risk_rows.append(
                 TickerRiskRow(
                     ticker=t,
                     return_pct=ret_pct,
+                    log_return_pct=log_ret_pct,
                     risk_ann_pct=risk_ann,
                     sharpe=sharpe,
                     sortino=sortino,
@@ -66,11 +81,12 @@ def compute_data_summary(req: DataSummaryRequest) -> DataSummaryResponse:
             )
     else:
         close = df["Close"].sort_index() if "Close" in df.columns else pd.Series(dtype=float)
-        ret_pct, risk_ann, sharpe, sortino = per_bar_return_stats_with_ppy(close, ppy)
+        ret_pct, risk_ann, sharpe, sortino, log_ret_pct = per_bar_return_stats_with_ppy(close, ppy)
         risk_rows.append(
             TickerRiskRow(
                 ticker=tickers[0],
                 return_pct=ret_pct,
+                log_return_pct=log_ret_pct,
                 risk_ann_pct=risk_ann,
                 sharpe=sharpe,
                 sortino=sortino,

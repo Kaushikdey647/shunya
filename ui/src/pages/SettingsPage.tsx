@@ -1,5 +1,6 @@
 import {
   Alert,
+  Anchor,
   Button,
   Group,
   NumberInput,
@@ -150,6 +151,26 @@ export default function SettingsPage() {
         Server tunables merge <strong>environment</strong> defaults with an optional <strong>database</strong>{' '}
         overlay. Secrets stay in <code>.env</code> / process env only.
       </Text>
+
+      <Paper withBorder p="md" radius="md">
+        <Title order={4} mb="xs">
+          Keyboard
+        </Title>
+        <Text size="sm" c="dimmed" mb="xs">
+          Global: <strong>⌘K</strong> / <strong>Ctrl+K</strong> command palette · <strong>⇧Space</strong> ticker
+          search (avoids macOS Spotlight) · <strong>⇧↑</strong> / <strong>⇧↓</strong> cycle primary nav (skipped in
+          modals). Tables: focus the table area, then <strong>⇧↑</strong> / <strong>⇧↓</strong> and{' '}
+          <strong>⌘↵</strong> to open the row. Alpha workspace: <strong>⌘↵</strong> runs <strong>Run backtest</strong>{' '}
+          when enabled.
+        </Text>
+        <Text size="xs" c="dimmed">
+          Full reference:{' '}
+          <Anchor href="https://kaushikdey647.github.io/shunya/ui/keyboard-shortcuts/" target="_blank" rel="noreferrer">
+            Keyboard shortcuts (docs)
+          </Anchor>
+          .
+        </Text>
+      </Paper>
 
       <ApiErrorAlert error={q.error} />
       <ApiErrorAlert error={mut.error} />

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "shunya-py"
 version = "0.2.0"
-description = "Multi-ticker equity panels, JAX alphas, portfolio combination, backtrader backtests, and optional Alpaca execution helpers."
+description = "Multi-ticker equity panels, JAX alphas, portfolio combination, backtrader backtests, optional Alpaca execution helpers, and FastAPI `api` service (install [api] extra to run the HTTP server)."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
@@ -86,7 +86,7 @@ Documentation = "https://kaushikdey647.github.io/shunya/"
 Changelog = "https://github.com/Kaushikdey647/shunya/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["shunya"]
+packages = ["shunya", "api"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

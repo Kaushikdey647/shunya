@@ -9,11 +9,12 @@ import {
   Title,
 } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUniverse, listUniverses } from '../api/endpoints'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import PageScaffold from '../components/PageScaffold'
+import { useRovingTableKeyboard } from '../keyboard/useRovingList'
 import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
 
 export default function UniverseListPage() {
@@ -28,6 +29,19 @@ export default function UniverseListPage() {
   })
 
   const rows = useMemo(() => q.data ?? [], [q.data])
+
+  const onActivateUniverseRow = useCallback(
+    (index: number) => {
+      const u = rows[index]
+      if (u) navigate(`/universe/${encodeURIComponent(u.id)}`)
+    },
+    [navigate, rows],
+  )
+
+  const universeTableKbd = useRovingTableKeyboard({
+    rowCount: rows.length,
+    onActivate: onActivateUniverseRow,
+  })
 
   const createMut = useMutation({
     mutationFn: () => createUniverse({ name: name.trim() }),
@@ -83,7 +97,7 @@ export default function UniverseListPage() {
         </Text>
       )}
       {rows.length > 0 && (
-        <Table.ScrollContainer minWidth={480}>
+        <Table.ScrollContainer minWidth={480} {...universeTableKbd.scrollContainerProps}>
           <Table {...density} striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
@@ -93,8 +107,8 @@ export default function UniverseListPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {rows.map((u) => (
-                <Table.Tr key={u.id}>
+              {rows.map((u, rowIndex) => (
+                <Table.Tr key={u.id} {...universeTableKbd.rowProps(rowIndex)}>
                   <Table.Td>
                     <Anchor component={Link} to={`/universe/${encodeURIComponent(u.id)}`}>
                       {u.name}

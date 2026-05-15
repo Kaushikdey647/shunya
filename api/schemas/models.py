@@ -382,6 +382,7 @@ class TickerNanRow(BaseModel):
 class TickerRiskRow(BaseModel):
     ticker: str
     return_pct: Optional[float]
+    log_return_pct: Optional[float] = None
     risk_ann_pct: Optional[float]
     sharpe: Optional[float]
     sortino: Optional[float]
@@ -416,6 +417,7 @@ class TickerDashboardRow(BaseModel):
     longest_run_buckets: int = 0
     coverage: list[int] = Field(default_factory=list)
     return_pct: Optional[float] = None
+    log_return_pct: Optional[float] = None
     risk_ann_pct: Optional[float] = None
     sharpe: Optional[float] = None
     sortino: Optional[float] = None

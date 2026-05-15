@@ -41,4 +41,4 @@ If Source is set to **Deploy from a branch** and the folder **`/ (root)`** or **
 ## Related
 
 - [Install](../install.md) — docs groups and local serve
-- [HTTP API](../http-api.md) — API outline (separate from this static site)
+- [HTTP API (overview)](../reference/http-api-package.md) — route and auth outline (same docs site).

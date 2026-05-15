@@ -27,17 +27,26 @@ def periods_per_year_from_bar_spec(bar: BarSpec) -> float:
 
 def per_bar_return_stats_with_ppy(
     close: pd.Series, periods_per_year: float
-) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
-    """From aligned Close (ascending), (total_return_pct, ann_vol_pct, sharpe, sortino)."""
+) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float], Optional[float]]:
+    """From aligned Close (ascending), (total_return_pct, ann_vol_pct, sharpe, sortino, log_total_return_pct).
+
+    ``log_total_return_pct`` is ``100 * ln(c_last / c_first)`` (percent log units), defined only when
+    both endpoints are strictly positive and finite.
+    """
     s = close.astype(float).dropna()
     if len(s) < 2:
-        return None, None, None, None
+        return None, None, None, None, None
     c0 = float(s.iloc[0])
     c1 = float(s.iloc[-1])
     ret_pct = ((c1 / c0 - 1.0) * 100.0) if c0 > 0 else None
+    log_ret_pct: Optional[float] = None
+    if c0 > 0.0 and c1 > 0.0 and math.isfinite(c0) and math.isfinite(c1):
+        ratio = c1 / c0
+        if ratio > 0.0 and math.isfinite(ratio):
+            log_ret_pct = float(100.0 * math.log(ratio))
     r = s.pct_change().dropna().replace([np.inf, -np.inf], np.nan).dropna()
     if len(r) < 2:
-        return ret_pct, None, None, None
+        return ret_pct, None, None, None, log_ret_pct
     std = float(r.std(ddof=1))
     mean = float(r.mean())
     if std <= 0.0 or not math.isfinite(std):
@@ -55,4 +64,4 @@ def per_bar_return_stats_with_ppy(
             sortino = None
         else:
             sortino = float(math.sqrt(periods_per_year) * (mean / dstd))
-    return ret_pct, risk_ann, sharpe, sortino
+    return ret_pct, risk_ann, sharpe, sortino, log_ret_pct

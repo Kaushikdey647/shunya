@@ -28,6 +28,8 @@ Static captures live under `docs/*.png` in the repository (MkDocs serves them on
 | **Trade** | Portfolios (blend configs); Live cockpit; Account (Alpaca when API + token); Execution and Risk surfaces (client mock state in `localStorage` until more live routes exist) |
 | **Settings** | App runtime flags and Alpaca / trade-desk configuration where applicable |
 
+Keyboard shortcuts for the web app are summarized on the docs site: **[Keyboard shortcuts](keyboard-shortcuts.md)** (⌘/Ctrl+K palette, ⇧Space ticker, ⇧↑⇧↓ primary nav and lists, tables, Alpha Studio run backtest).
+
 ## Design
 
 Bloomberg-inspired dark terminal chrome: amber primary, warm neutrals, IBM Plex Mono for monospace (see `ui/src/mantine/theme.ts`).

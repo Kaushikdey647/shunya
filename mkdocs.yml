@@ -111,7 +111,7 @@ nav:
       - Studio: ui/studio.md
       - Trade: ui/trade.md
       - Configuration: ui/configuration.md
-  - HTTP API: http-api.md
+      - "Keyboard shortcuts": ui/keyboard-shortcuts.md
   - Data & integrations:
       - Local Timescale: data_timescale.md
       - Alpha Vantage: alpha-vantage.md
@@ -119,4 +119,5 @@ nav:
   - Reference:
       - reference/index.md
       - "Python package (shunya)": reference/library.md
-      - "HTTP API package (api)": reference/http-api-package.md
+      - "HTTP API (overview)": reference/http-api-package.md
+      - "HTTP API (api.main)": reference/api-library.md

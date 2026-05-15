@@ -105,4 +105,4 @@ Then follow [Install](install.md) and [Local development: API, worker, and UI](h
 | Timescale ingest | [Timescale checklist](how-to/timescale-checklist.md), [Local Timescale](data_timescale.md) |
 | Finance concepts | [Concepts](concepts/index.md) |
 | Code-oriented APIs | [Documentation](documentation/system-overview.md) |
-| HTTP routes | [HTTP API](http-api.md) |
+| HTTP routes | [HTTP API (overview)](reference/http-api-package.md) |

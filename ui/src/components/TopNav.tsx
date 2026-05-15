@@ -1,6 +1,8 @@
 import { Anchor, Box, Burger, Group } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
+import type { RefObject } from 'react'
 import { Link } from 'react-router-dom'
+import type { TickerSearchHandle } from './TickerSearch'
 import DensityToggle from './DensityToggle'
 import HealthIndicator from './HealthIndicator'
 import ThemeToggle from './ThemeToggle'
@@ -9,9 +11,10 @@ import TickerSearch from './TickerSearch'
 type Props = {
   mobileNavOpened: boolean
   onMobileNavToggle: () => void
+  tickerSearchRef: RefObject<TickerSearchHandle | null>
 }
 
-export default function TopNav({ mobileNavOpened, onMobileNavToggle }: Props) {
+export default function TopNav({ mobileNavOpened, onMobileNavToggle, tickerSearchRef }: Props) {
   const isMobile = useMediaQuery('(max-width: 47.99em)')
 
   return (
@@ -37,7 +40,7 @@ export default function TopNav({ mobileNavOpened, onMobileNavToggle }: Props) {
         </Anchor>
       </Group>
       <Box style={{ flex: 1, minWidth: 0, maxWidth: isMobile ? undefined : 448 }}>
-        <TickerSearch />
+        <TickerSearch ref={tickerSearchRef} />
       </Box>
       <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
         <HealthIndicator />

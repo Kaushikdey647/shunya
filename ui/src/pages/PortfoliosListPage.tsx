@@ -1,6 +1,8 @@
 import { Badge, Button, Group, Paper, Stack, Table, Text, Title } from '@mantine/core'
-import { Link } from 'react-router-dom'
+import { useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import PageScaffold from '../components/PageScaffold'
+import { useRovingTableKeyboard } from '../keyboard/useRovingList'
 import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
 import { createPortfolio, deletePortfolio } from '../lib/tradeDeskStore'
 import { mockPortfolioRegistryMetrics } from '../lib/tradeDeskMockMetrics'
@@ -9,6 +11,20 @@ import { useTradeDesk } from '../hooks/useTradeDesk'
 export default function PortfoliosListPage() {
   const desk = useTradeDesk()
   const density = useMantineTableDensity()
+  const navigate = useNavigate()
+
+  const onActivatePortfolioRow = useCallback(
+    (index: number) => {
+      const p = desk.portfolios[index]
+      if (p) navigate(`/portfolios/${encodeURIComponent(p.id)}`)
+    },
+    [navigate, desk.portfolios],
+  )
+
+  const portfolioTableKbd = useRovingTableKeyboard({
+    rowCount: desk.portfolios.length,
+    onActivate: onActivatePortfolioRow,
+  })
 
   return (
     <PageScaffold size="fluid" px={{ base: 'sm', md: 'md' }}>
@@ -38,7 +54,7 @@ export default function PortfoliosListPage() {
           </Button>
         </Paper>
       ) : (
-        <Table.ScrollContainer minWidth={720}>
+        <Table.ScrollContainer minWidth={720} {...portfolioTableKbd.scrollContainerProps}>
           <Table
             {...density}
             verticalSpacing={4}
@@ -65,10 +81,10 @@ export default function PortfoliosListPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {desk.portfolios.map((p) => {
+              {desk.portfolios.map((p, rowIndex) => {
                 const { liveSharpe, netExposure } = mockPortfolioRegistryMetrics(p.id, p.slots.length)
                 return (
-                  <Table.Tr key={p.id}>
+                  <Table.Tr key={p.id} {...portfolioTableKbd.rowProps(rowIndex)}>
                     <Table.Td py={6}>
                       <Group gap="xs" wrap="nowrap" align="baseline">
                         <Text fw={600} size="sm" lineClamp={1}>

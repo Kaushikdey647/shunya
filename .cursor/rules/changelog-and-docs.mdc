@@ -15,7 +15,7 @@ When you complete work that changes **user-visible behavior**, **public APIs**, 
 
 ## Documentation (`docs/`)
 
-- Update the **smallest set of Markdown pages** that would otherwise become wrong or incomplete (for example `docs/http-api.md`, `docs/install.md`, how-to guides, UI pages under `docs/ui/`, concept pages under `docs/concepts/`).
+- Update the **smallest set of Markdown pages** that would otherwise become wrong or incomplete (for example `docs/reference/http-api-package.md`, `docs/install.md`, how-to guides, UI pages under `docs/ui/`, concept pages under `docs/concepts/`).
 - If navigation or the site map should change, update **`mkdocs.yml`** (nav) in the same change.
 - Keep terminology aligned with **`docs/glossary.md`** when you introduce or rename user-facing terms.
 

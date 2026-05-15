@@ -302,7 +302,10 @@ def compute_data_dashboard(
     completeness_vals: list[float] = []
 
     risk_by_ticker: dict[str, TickerRiskRow] = {
-        t: TickerRiskRow(ticker=t, return_pct=None, risk_ann_pct=None, sharpe=None, sortino=None) for t in tickers_ordered
+        t: TickerRiskRow(
+            ticker=t, return_pct=None, log_return_pct=None, risk_ann_pct=None, sharpe=None, sortino=None
+        )
+        for t in tickers_ordered
     }
 
     with psycopg.connect(dsn) as conn:
@@ -322,10 +325,11 @@ def compute_data_dashboard(
             for tk, closes in cur.fetchall():
                 arr = np.asarray(closes, dtype=float)
                 close_s = pd.Series(arr)
-                ret_pct, risk_ann, sharpe, sortino = per_bar_return_stats_with_ppy(close_s, ppy)
+                ret_pct, risk_ann, sharpe, sortino, log_ret_pct = per_bar_return_stats_with_ppy(close_s, ppy)
                 risk_by_ticker[str(tk)] = TickerRiskRow(
                     ticker=str(tk),
                     return_pct=ret_pct,
+                    log_return_pct=log_ret_pct,
                     risk_ann_pct=risk_ann,
                     sharpe=sharpe,
                     sortino=sortino,
@@ -350,6 +354,7 @@ def compute_data_dashboard(
                 longest_run_buckets=longest_contiguous_run(bits),
                 coverage=bits,
                 return_pct=rk.return_pct,
+                log_return_pct=rk.log_return_pct,
                 risk_ann_pct=rk.risk_ann_pct,
                 sharpe=rk.sharpe,
                 sortino=rk.sortino,
@@ -364,6 +369,7 @@ def compute_data_dashboard(
         TickerRiskRow(
             ticker=r.ticker,
             return_pct=r.return_pct,
+            log_return_pct=r.log_return_pct,
             risk_ann_pct=r.risk_ann_pct,
             sharpe=r.sharpe,
             sortino=r.sortino,

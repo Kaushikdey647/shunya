@@ -376,6 +376,7 @@ export interface TickerNanRow {
 export interface TickerRiskRow {
   ticker: string
   return_pct: number | null
+  log_return_pct?: number | null
   risk_ann_pct: number | null
   sharpe: number | null
   sortino: number | null

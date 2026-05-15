@@ -30,5 +30,5 @@ Short definitions for terms used across Shunya docs and code.
 
 - [Concepts (finance)](concepts/index.md)
 - [Documentation (code)](documentation/system-overview.md)
-- [HTTP API](http-api.md)
+- [HTTP API (overview)](reference/http-api-package.md)
 - [Python reference](reference/library.md)

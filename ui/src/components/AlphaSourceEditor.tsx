@@ -7,6 +7,7 @@ import { postAlphaAssistBody, postAlphaLintBody } from '../api/endpoints'
 import { registerAlphaCompletions } from '../alphaEditor/completions'
 import { ALPHA_COPY_DIAGNOSTIC_CMD, registerAlphaLintCodeActions } from '../alphaEditor/codeActions'
 import { registerAlphaInlineCompletions } from '../alphaEditor/inlineCompletions'
+import { MONACO_ROOT_ATTR } from '../keyboard/domGuards'
 
 export type AlphaEditorMeta = {
   name?: string | null
@@ -187,7 +188,7 @@ export default function AlphaSourceEditor({
   }, [])
 
   return (
-    <Paper p={0} radius="sm" withBorder style={{ overflow: 'hidden' }}>
+    <Paper p={0} radius="sm" withBorder style={{ overflow: 'hidden' }} {...{ [MONACO_ROOT_ATTR]: '' }}>
       <Editor
         key={editorTheme}
         height={height}

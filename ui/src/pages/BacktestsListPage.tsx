@@ -10,8 +10,8 @@ import {
   Title,
 } from '@mantine/core'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   deleteBacktest,
   deleteBacktestsBatch,
@@ -21,6 +21,7 @@ import {
 import type { BacktestJobStatus } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import PageScaffold from '../components/PageScaffold'
+import { useRovingTableKeyboard } from '../keyboard/useRovingList'
 import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -38,6 +39,7 @@ function formatSummaryNumber(v: unknown, opts: { suffix?: string; decimals?: num
 
 export default function BacktestsListPage() {
   const density = useMantineTableDensity()
+  const navigate = useNavigate()
   const [limit, setLimit] = useState(50)
   const [offset, setOffset] = useState(0)
   const [alphaIdFilter, setAlphaIdFilter] = useState('')
@@ -71,6 +73,19 @@ export default function BacktestsListPage() {
   }, [limit, offset, alphaFilterParam, statusFilter])
 
   const rows = useMemo(() => q.data ?? [], [q.data])
+
+  const onActivateJobRow = useCallback(
+    (index: number) => {
+      const j = rows[index]
+      if (j) navigate(`/backtests/${encodeURIComponent(j.id)}`)
+    },
+    [navigate, rows],
+  )
+
+  const jobTableKbd = useRovingTableKeyboard({
+    rowCount: rows.length,
+    onActivate: onActivateJobRow,
+  })
 
   const pageIds = useMemo(() => rows.map((j) => j.id), [rows])
   const allOnPageSelected =
@@ -236,7 +251,7 @@ export default function BacktestsListPage() {
 
       {q.data && (
         <>
-          <Table.ScrollContainer minWidth={980}>
+          <Table.ScrollContainer minWidth={980} {...jobTableKbd.scrollContainerProps}>
             <Table {...density} highlightOnHover striped>
               <Table.Thead>
                 <Table.Tr>
@@ -262,7 +277,7 @@ export default function BacktestsListPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {rows.map((j) => {
+                {rows.map((j, rowIndex) => {
                   const s = j.status === 'succeeded' && j.result_summary ? j.result_summary : null
                   const cagr = s && typeof s.cagr_pct === 'number' ? formatSummaryNumber(s.cagr_pct, { suffix: '%' }) : '—'
                   const sharpe =
@@ -274,7 +289,7 @@ export default function BacktestsListPage() {
                   const endVal =
                     s && typeof s.end_value === 'number' ? formatSummaryNumber(s.end_value, { decimals: 0 }) : '—'
                   return (
-                  <Table.Tr key={j.id}>
+                  <Table.Tr key={j.id} {...jobTableKbd.rowProps(rowIndex)}>
                     <Table.Td>
                       <Checkbox
                         checked={selected.has(j.id)}

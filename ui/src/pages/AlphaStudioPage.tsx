@@ -20,7 +20,7 @@ import {
 } from '@mantine/core'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Outlet, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -48,7 +48,9 @@ import BacktestConfigPanel from '../components/BacktestConfigPanel'
 import BacktestResultCharts from '../components/BacktestResultCharts'
 import FinStratConfigForm from '../components/FinStratConfigForm'
 import PageScaffold from '../components/PageScaffold'
+import { isInsideAriaModal } from '../keyboard/domGuards'
 import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
+import { useRovingTableKeyboard } from '../keyboard/useRovingList'
 import {
   alphaDetailsSchema,
   finstratFromServer,
@@ -133,6 +135,19 @@ export function StudioAlphaHub() {
       return next
     })
   }
+
+  const onActivateAlphaRow = useCallback(
+    (index: number) => {
+      const a = rows[index]
+      if (a) navigate(`/studio/${encodeURIComponent(a.id)}`)
+    },
+    [navigate, rows],
+  )
+
+  const alphaTableKbd = useRovingTableKeyboard({
+    rowCount: rows.length,
+    onActivate: onActivateAlphaRow,
+  })
 
   const confirmDeleteAlphas = (ids: string[], label: string) => {
     if (
@@ -223,7 +238,7 @@ export function StudioAlphaHub() {
 
       {q.data && (
         <Stack gap="sm">
-          <Table.ScrollContainer minWidth={640}>
+          <Table.ScrollContainer minWidth={640} {...alphaTableKbd.scrollContainerProps}>
             <Table {...density} striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
@@ -244,8 +259,8 @@ export function StudioAlphaHub() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {rows.map((a) => (
-                  <Table.Tr key={a.id}>
+                {rows.map((a, rowIndex) => (
+                  <Table.Tr key={a.id} {...alphaTableKbd.rowProps(rowIndex)}>
                     <Table.Td>
                       <Checkbox
                         checked={selected.has(a.id)}
@@ -472,6 +487,25 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
         : DEFAULT_ALPHA_BODY,
     )
   }, [alphaQ.data, detailsForm])
+
+  useEffect(() => {
+    if (!alphaQ.data) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return
+      if (portfolioModalOpen) return
+      if (isInsideAriaModal(e.target)) return
+      const form = document.getElementById(BT_FORM_ID) as HTMLFormElement | null
+      const submitter = document.querySelector(
+        `button[type="submit"][form="${BT_FORM_ID}"]`,
+      ) as HTMLButtonElement | null
+      if (!form || !submitter || submitter.disabled) return
+      e.preventDefault()
+      e.stopPropagation()
+      form.requestSubmit(submitter)
+    }
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
+  }, [alphaQ.data, portfolioModalOpen])
 
   const detailsMut = useMutation({
     mutationFn: (body: { name?: string; description?: string | null }) =>

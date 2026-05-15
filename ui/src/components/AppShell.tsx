@@ -1,26 +1,24 @@
 import { AppShell as MantineAppShell, Box, useComputedColorScheme } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
 import SideNav from './SideNav'
 import TopNav from './TopNav'
+import type { TickerSearchHandle } from './TickerSearch'
+import { useGlobalAppShortcuts } from '../hooks/useGlobalAppShortcuts'
 
 export default function AppShell() {
   const colorScheme = useComputedColorScheme('light', { getInitialValueInEffect: false })
   const [cmdOpen, setCmdOpen] = useState(false)
   const [mobileNavOpened, { toggle: toggleMobileNav, close: closeMobileNav }] = useDisclosure()
+  const tickerSearchRef = useRef<TickerSearchHandle | null>(null)
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        setCmdOpen((o) => !o)
-      }
-    }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [])
+  useGlobalAppShortcuts({
+    commandPaletteOpen: cmdOpen,
+    setCommandPaletteOpen: setCmdOpen,
+    tickerSearchRef,
+  })
 
   return (
     <MantineAppShell
@@ -35,7 +33,11 @@ export default function AppShell() {
       transitionTimingFunction="cubic-bezier(0.4, 0, 0.2, 1)"
     >
       <MantineAppShell.Header>
-        <TopNav mobileNavOpened={mobileNavOpened} onMobileNavToggle={toggleMobileNav} />
+        <TopNav
+          mobileNavOpened={mobileNavOpened}
+          onMobileNavToggle={toggleMobileNav}
+          tickerSearchRef={tickerSearchRef}
+        />
       </MantineAppShell.Header>
       <MantineAppShell.Navbar p={0} bg={colorScheme === 'dark' ? '#080808' : undefined}>
         <SideNav onNavigate={closeMobileNav} />

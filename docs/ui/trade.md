@@ -48,4 +48,4 @@ One-shot institutional paper cycle is available at **`POST /trade/paper/cycle`**
 ## See also
 
 - [OMS, EMS, and order routing](../concepts/oms-ems-and-order-routing.md) (finance) and [Execution: OMS, EMS](../documentation/oms-ems.md) (code)
-- [HTTP API](../http-api.md)
+- [HTTP API (overview)](../reference/http-api-package.md)
