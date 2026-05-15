@@ -16,7 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **Data summary (`/data`, `DataSummaryPage.tsx`):** removed coverage heatmap and sortable ticker table; added **missing-coverage** pie (100% − completeness, top ten symbols in the legend); scatter **y** axis uses **`log_return_pct`** from **`GET /data/dashboard`** (not a client-side transform).
+- **Data summary (`/data`, `DataSummaryPage.tsx`):** removed coverage heatmap and sortable ticker table; added **missing-coverage** pie (100% − completeness, top ten symbols in the legend); scatter **y** axis uses **`log_return_pct`** from **`GET /data/dashboard`** (not a client-side transform); risk–return scatter **winsorizes** vol and log return at **P1/P99** for plotted position with raw values in tooltips.
 
 - **`README.md`:** home dashboard screenshot (`docs/dashboard.png`) next to the intro.
 - **Home / shell health:** **`GET /health`** parsing and the system health mini-card include **Alpaca** status and latency (or **`skipped`** when the API trade desk is disabled); the header dot tooltip lists Alpaca alongside backend, database, and Yahoo.

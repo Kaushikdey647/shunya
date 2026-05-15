@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **UI — Data summary (`/data`):** replaced per-ticker coverage heatmap and instruments table with a **missing-coverage pie** (inverted completeness, top ten tickers in the legend); **risk vs log total return** scatter uses **`log_return_pct`** from the API. Docs: `docs/ui/research.md`, `docs/reference/http-api-package.md`.
+- **UI — Data summary (`/data`):** replaced per-ticker coverage heatmap and instruments table with a **missing-coverage pie** (inverted completeness, top ten tickers in the legend); **risk vs log total return** scatter uses **`log_return_pct`** from the API, with **1st–99th percentile winsorization** on each axis for display (tooltips keep raw vol and log return). Docs: `docs/ui/research.md`, `docs/reference/http-api-package.md`.
 
 - **Onboarding:** new [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) doc (`docs/quickstart.md`) with paths for library-only, `./scripts/local-dev-all.sh`, and Docker Compose; MkDocs nav + docs home map row; README “above the fold” bullets and bootstrap copy; aligned “worker” wording with the in-process backtest loop in `api/main.py` across how-to and HTTP API docs; `docker-compose.yml` comment clarifying no separate worker container.
 - **READMEs:** root `README.md` and `ui/README.md` trimmed to a short intro, quickstart, single documentation-site link, contributing, and license; detailed material moved to the published docs site.

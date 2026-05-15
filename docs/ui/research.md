@@ -18,7 +18,7 @@ Ticker and instrument search; results link into instrument detail where applicab
 
 Coverage and analytics views driven by **`POST /data`**, **`GET /data/dashboard`**, and related API routes. Expect richer behavior when **`DATABASE_URL`** is configured on the API.
 
-The page shows KPIs, sector/industry pies, **risk vs log total return** (**`log_return_pct`** from the API: **`100 * ln(c_last / c_first)`** when both endpoint closes are positive), a completeness histogram, and a **missing-coverage** pie: inverted completeness (**100% − completeness %**) for the **ten** tickers with the largest gaps (no per-ticker heatmap or full instrument table).
+The page shows KPIs, sector/industry pies, **risk vs log total return** (**`log_return_pct`** from the API: **`100 * ln(c_last / c_first)`** when both endpoint closes are positive; scatter positions use **1–99% winsorization** on vol and log return so outliers do not compress the cloud), a completeness histogram, and a **missing-coverage** pie: inverted completeness (**100% − completeness %**) for the **ten** tickers with the largest gaps (no per-ticker heatmap or full instrument table).
 
 ## Settings (`/settings`)
 

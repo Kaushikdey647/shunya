@@ -60,6 +60,33 @@ const BUCKET_OPTIONS: DashboardBucketParam[] = ['auto', 'day', 'week', 'month']
 
 const MISSING_PIE_TOP_N = 10
 
+/** Inclusive linear-interpolation percentile on sorted values (`p` in 0–100). */
+function percentileLinear(sortedAsc: number[], p: number): number {
+  const n = sortedAsc.length
+  if (n === 0) return Number.NaN
+  if (n === 1) return sortedAsc[0]!
+  const u = Math.min(100, Math.max(0, p))
+  const pos = (u / 100) * (n - 1)
+  const lo = Math.floor(pos)
+  const hi = Math.ceil(pos)
+  const t = pos - lo
+  return sortedAsc[lo]! * (1 - t) + sortedAsc[hi]! * t
+}
+
+function winsor1And99Bounds(values: number[]): { lo: number; hi: number } | null {
+  const finite = values.filter((v) => Number.isFinite(v))
+  if (finite.length < 3) return null
+  const s = [...finite].sort((a, b) => a - b)
+  const lo = percentileLinear(s, 1)
+  const hi = percentileLinear(s, 99)
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo > hi) return null
+  return { lo, hi }
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n))
+}
+
 function collapseClassificationCounts(
   counts: ClassificationLabelCount[],
   maxSlices = 12,
@@ -136,28 +163,44 @@ export default function DataSummaryPage() {
 
   const scatterPoints = useMemo(() => {
     if (!tickers) return []
-    const out: {
+    type Row = {
       ticker: string
       x: number
       y: number
+      volRaw: number
+      logReturnRaw: number
       simpleReturnPct: number | null
       sharpe: number | null
       bars: number
-    }[] = []
+    }
+    const raw: Omit<Row, 'x' | 'y'>[] = []
     for (const t of tickers) {
       if (t.risk_ann_pct == null || !Number.isFinite(t.risk_ann_pct)) continue
       const logRet = t.log_return_pct
       if (logRet == null || !Number.isFinite(logRet)) continue
-      out.push({
+      raw.push({
         ticker: t.ticker,
-        x: t.risk_ann_pct,
-        y: logRet,
+        volRaw: t.risk_ann_pct,
+        logReturnRaw: logRet,
         simpleReturnPct: t.return_pct,
         sharpe: t.sharpe,
         bars: t.raw_bar_count,
       })
     }
-    return out
+    if (raw.length < 3) {
+      return raw.map((r) => ({
+        ...r,
+        x: r.volRaw,
+        y: r.logReturnRaw,
+      })) as Row[]
+    }
+    const volB = winsor1And99Bounds(raw.map((r) => r.volRaw))
+    const retB = winsor1And99Bounds(raw.map((r) => r.logReturnRaw))
+    return raw.map((r) => ({
+      ...r,
+      x: volB ? clamp(r.volRaw, volB.lo, volB.hi) : r.volRaw,
+      y: retB ? clamp(r.logReturnRaw, retB.lo, retB.hi) : r.logReturnRaw,
+    })) as Row[]
   }, [tickers])
 
   const histogramBars = useMemo(() => {
@@ -316,19 +359,31 @@ export default function DataSummaryPage() {
                       content={({ active, payload }) => {
                         if (!active || !payload?.length) return null
                         const p = payload[0].payload as (typeof scatterPoints)[0]
+                        const volC = p.volRaw !== p.x
+                        const retC = p.logReturnRaw !== p.y
                         return (
                           <div style={{ ...tooltipStyle, padding: '0.35rem 0.5rem' }}>
                             <Text fw={600} size="sm" c={strongColor}>
                               {p.ticker}
                             </Text>
-                            <Text size="xs">Log return: {p.y.toFixed(2)}%</Text>
+                            <Text size="xs">Log return (raw): {p.logReturnRaw.toFixed(2)}%</Text>
+                            {retC ? (
+                              <Text size="xs" c="dimmed">
+                                Plotted: {p.y.toFixed(2)}% (winsor cap)
+                              </Text>
+                            ) : null}
                             <Text size="xs">
                               Simple return:{' '}
                               {p.simpleReturnPct != null && Number.isFinite(p.simpleReturnPct)
                                 ? `${p.simpleReturnPct.toFixed(2)}%`
                                 : '—'}
                             </Text>
-                            <Text size="xs">Vol: {p.x.toFixed(2)}%</Text>
+                            <Text size="xs">Vol (raw): {p.volRaw.toFixed(2)}%</Text>
+                            {volC ? (
+                              <Text size="xs" c="dimmed">
+                                Plotted: {p.x.toFixed(2)}% (winsor cap)
+                              </Text>
+                            ) : null}
                             <Text size="xs">
                               Sharpe: {p.sharpe != null ? p.sharpe.toFixed(2) : '—'}
                             </Text>
@@ -361,6 +416,10 @@ export default function DataSummaryPage() {
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
+              <Text c="dimmed" size="xs" px="xs" mt={4}>
+                Volatility and log return are winsorized at the 1st and 99th percentiles for positioning only;
+                tooltips show raw values.
+              </Text>
             </Paper>
 
             <Paper withBorder p="md" radius="md">
