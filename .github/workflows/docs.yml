@@ -1,8 +1,8 @@
 # Publishes the MkDocs `site/` output (Material theme + sidebar).
 #
-# In the repo: Settings → Pages → Build and deployment → Source must be
-# **GitHub Actions**. If Source is "Deploy from branch" → `/docs`, GitHub runs
-# Jekyll on Markdown and you get a plain page with no navigation sidebar.
+# If the live site shows a plain page with no left nav: GitHub repo
+# Settings → Pages → Build and deployment → Source must be **GitHub Actions**,
+# not "Deploy from a branch" (Jekyll on Markdown). See docs/how-to/documentation-site-github-pages.md.
 name: Deploy documentation
 
 on:

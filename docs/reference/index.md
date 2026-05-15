@@ -12,4 +12,9 @@ For narrative explanations of major types (`finTs`, FinStrat, PCS, OMS/EMS), see
 
 ## HTTP API (`api`)
 
-The **`api/`** tree is **not** part of the PyPI wheel; it is developed and deployed from this repository (see [HTTP API](../http-api.md)). Route-level reference is the running service **OpenAPI** at `/docs` / `/openapi.json` when uvicorn is up.
+The **`api/`** tree is **not** part of the PyPI wheel; it is developed and deployed from this repository.
+
+- **[HTTP API package (`api/`)](http-api-package.md)** — how **`api/`** maps to FastAPI, where narrative docs vs **`api/README.md`** vs **OpenAPI** live, **`/docs`**, **`/redoc`**, **`/openapi.json`**, and a **`curl`** example for exporting the schema.
+- **[HTTP API](../http-api.md)** — route-group outline, authentication, and environment summary on this site.
+
+For per-endpoint request/response models and query parameters, use **Swagger** (`/docs`) or **`openapi.json`** from a running server; those stay in sync with `api/routers` and **`api/schemas`** automatically.

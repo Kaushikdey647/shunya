@@ -62,7 +62,7 @@ Semantics that affect every client (fixed backtest window, **index** vs **saved-
 | **`max_members`** | `500` | Integer **2–5000**; caps how many members enter the panel. |
 | **`n_pca_components`** | `5` | Integer **1–15**; SVD truncation for PCA summaries. |
 
-The JSON includes an **`alignment`** string (window, counts, thresholds) so clients can interpret sparse panels. The **Risk & structure** tab on the universe detail page uses this route; see [Studio → Universes](ui/studio.md#universes-universe-universeid).
+The JSON includes an **`alignment`** string (window, counts, thresholds) so clients can interpret sparse panels. The **Risk & structure** tab on the universe detail page uses this route; see [Studio → Risk & structure tab](ui/studio.md#risk-structure-tab).
 
 ## Authentication and privileged headers
 
@@ -85,6 +85,10 @@ The API loads a repo-root **`.env`** (if present) and **pydantic-settings** with
 | `SHUNYA_API_OLLAMA_MODEL` | Default Ollama model id |
 | `SHUNYA_DASHBOARD_MAX_TICKERS` | Optional cap for `/data/dashboard` |
 | `YFINANCE_TLS_VERIFY` | Stricter TLS for yfinance when set truthy |
+
+## OpenAPI and `api/` layout
+
+Per-route schemas and try-it-out forms: run the service and open **`/docs`**, **`/redoc`**, or **`/openapi.json`**. For a concise map of **`api/`** modules (routers, services, repositories) and a **`curl`** example to save the schema, see **[Reference → HTTP API package (`api/`)](reference/http-api-package.md)**.
 
 ## Related UI
 

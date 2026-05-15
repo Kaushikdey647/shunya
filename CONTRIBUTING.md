@@ -136,6 +136,12 @@ Use this sequence to avoid regressions:
   - `FinStrat(..., temporal_mode="elapsed_trading_time")` = advance decay by trading-time distance.
   - Ensure execution orchestrators pass `execution_date` into `FinStrat.pass_` (already wired in `FinBT`).
 
+## Documentation site (MkDocs)
+
+Guides live under **`docs/`** with navigation in **`mkdocs.yml`**. Before pushing doc changes, run **`uv run mkdocs build --strict`** from the repo root (with the **`docs`** dependency group installed via **`uv sync --group docs`**).
+
+The live site is built by **`.github/workflows/docs.yml`** and must be served from **GitHub Pages → Build and deployment → Source: GitHub Actions**. If Source is set to **Deploy from a branch**, GitHub runs **Jekyll** on the Markdown tree and the **Material sidebar disappears** (plain centered layout). See **`docs/how-to/documentation-site-github-pages.md`** for the fix and local preview commands.
+
 ## Testing expectations
 
 Run (same as [`README.md`](README.md); add `-q` for quieter output):
@@ -168,6 +174,7 @@ When changing critical paths, add tests in relevant files:
 - [ ] Reconciliation behavior tested for residual and remediation paths when you change execution code.
 - [ ] Tests added/updated and passing.
 - [ ] [`README.md`](README.md) updated for user-facing changes.
+- [ ] User-facing **`docs/`** updates and **`mkdocs.yml` → `nav`** when navigation or behavior changes; **`uv run mkdocs build --strict`** passes.
 
 ## Notes on market data and fundamentals
 
