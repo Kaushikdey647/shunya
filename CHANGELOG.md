@@ -29,6 +29,10 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **API + UI:** **`GET /universes/{id}/return-analytics`** — Timescale daily OHLCV panel for members: simple and log return **correlation matrices**, **cross-sectional volatility** time series, **PCA** (variance share, PC1 scores, PC1–PC2 loadings scatter), and **HHI / CR5 / CR10** from latest market-cap weights (equal-weight fallback). Universe detail page adds **Risk & structure** tab (period 1y / 2y / 5y).
+
+- **Timescale:** migration **`015_api_universe_sp100.sql`** seeds saved universe **`SP100`** in **`api_universes`** and fills **`api_universe_members`** from **`symbol_index_membership`** where **`index_code = 'SP100'`** (idempotent). Run **`sync-index-memberships`** before or after migrate so membership rows exist; re-run **`migrate`** after sync to attach constituents.
+
 - **Documentation:** [Bootstrap scripts (API + UI + DB)](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/) (`docs/how-to/bootstrap-scripts.md`) — when to run `scripts/bootstrap_*` and `local-dev-all.sh` after API + UI + DB setup; `scripts/README.md` index; MkDocs nav; cross-links from Quickstart, local dev how-to, Timescale checklist, root `README.md`, `api/README.md`, and `ui/README.md`.
 
 - **Documentation:** embed UI screenshots from `docs/*.png` in the root and `ui/` READMEs, [Web application overview](docs/ui/overview.md), [Research](docs/ui/research.md), [Studio](docs/ui/studio.md), [Trade](docs/ui/trade.md), [Backtest from the web UI](docs/how-to/backtest-from-ui.md), and [Execution: OMS, EMS](docs/documentation/oms-ems.md).

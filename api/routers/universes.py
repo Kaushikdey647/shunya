@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 
 from api.repositories import universes as universes_repo
+from api.routers.instruments import ALLOWED_PERIODS
 from api.schemas.models import (
     UniverseCreate,
     UniverseMembersAddRequest,
@@ -16,9 +18,11 @@ from api.schemas.models import (
     UniverseMemberOut,
     UniverseOut,
     UniversePatch,
+    UniverseReturnAnalyticsOut,
     UniverseSummaryOut,
     UniverseTickerListOut,
 )
+from api.services.universe_return_analytics import compute_universe_return_analytics
 from shunya.errors import ErrorCode, ShunyaError
 
 router = APIRouter(prefix="/universes", tags=["universes"])
@@ -98,7 +102,7 @@ def list_universe_tickers(universe_id: str) -> UniverseTickerListOut:
 @router.get("/{universe_id}/members", response_model=list[UniverseMemberOut])
 def list_universe_members(
     universe_id: str,
-    limit: int = Query(default=200, ge=1, le=2000),
+    limit: int = Query(default=200, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
 ) -> list[UniverseMemberOut]:
     uid = _require_uuid(universe_id)
@@ -179,6 +183,35 @@ def replace_universe_members(universe_id: str, body: UniverseMembersReplaceReque
     fresh = universes_repo.get_universe(uid)
     mc = fresh.member_count if fresh else 0
     return UniverseMembersMutationOut(changed=len(body.tickers), member_count=mc)
+
+
+@router.get("/{universe_id}/return-analytics", response_model=UniverseReturnAnalyticsOut)
+async def get_universe_return_analytics(
+    universe_id: str,
+    period: str = Query("1y", description="Lookback (same values as instrument OHLCV ``period``)."),
+    interval: str = Query("1d", description="Only ``1d`` is supported."),
+    source: str = Query("yfinance", min_length=1, max_length=64),
+    max_members: int = Query(500, ge=2, le=5000),
+    n_pca_components: int = Query(5, ge=1, le=15),
+) -> UniverseReturnAnalyticsOut:
+    """Correlations, cross-sectional volatility, PCA, and cap-weight concentration from Timescale OHLCV."""
+    uid = _require_uuid(universe_id)
+    if period not in ALLOWED_PERIODS:
+        raise ShunyaError(
+            "Invalid period.",
+            code=ErrorCode.VALIDATION_ERROR,
+            http_status=400,
+            context={"allowed": sorted(ALLOWED_PERIODS)},
+        )
+    return await asyncio.to_thread(
+        compute_universe_return_analytics,
+        uid,
+        period=period,
+        interval=interval,
+        source=source,
+        max_members=max_members,
+        n_pca_components=n_pca_components,
+    )
 
 
 @router.get("/{universe_id}/summary", response_model=UniverseSummaryOut)

@@ -22,6 +22,7 @@
 | Run a backtest from the browser | [How-to → Backtest from UI](how-to/backtest-from-ui.md) |
 | Call the paper cycle HTTP route | [How-to → Paper cycle](how-to/paper-cycle-api.md) |
 | Configure Alpha Studio AI / DSL | [How-to → Alpha Studio](how-to/alpha-studio-ai-dsl.md) |
+| Fix missing doc sidebar on GitHub Pages / publish MkDocs correctly | [How-to → Documentation site & GitHub Pages](how-to/documentation-site-github-pages.md) |
 | Use the web app by area (with UI screenshots) | [Web application](ui/overview.md) |
 | Browse FastAPI route groups | [HTTP API](http-api.md) |
 | Read auto-generated Python API | [Reference → Library](reference/library.md) |

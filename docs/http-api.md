@@ -36,7 +36,7 @@ Typical backtest flow:
 |--------|---------|
 | **`/alphas`** | CRUD on alpha definitions: optional inline **`source_code`** (executed in worker) or module **`import_ref`** (allow-listed). Stored **`finstrat_config`**. |
 | **`/indices`** | Equity indexes from Timescale for benchmark / membership flows. |
-| **`/universes`** | CRUD saved equity universes, membership, flat ticker list, sector/industry + fundamentals summary. |
+| **`/universes`** | CRUD saved equity universes, membership, flat ticker list, sector/industry + fundamentals summary, **`GET /universes/{id}/return-analytics`** (aligned daily OHLCV: correlation of simple and log returns, cross-sectional volatility, PCA, cap-weight concentration). |
 | **`/backtests`** | Enqueue async jobs, list/get status, fetch JSON results when succeeded (FinBT-shaped payload plus optional benchmark). |
 | **`POST /data`** | Panel diagnostics from `finTs` (NaNs, vol, Sharpe, Sortino, …). |
 | **`GET /data/dashboard`** | Database-wide coverage heatmaps and risk/return aggregates. |
@@ -47,6 +47,22 @@ Typical backtest flow:
 | **`PATCH /settings/app`** | Merge non-secret tunables into overlay (requires DB + migration; auth when trade-desk token is set). |
 
 Semantics that affect every client (fixed backtest window, **index** vs **saved-universe** jobs, `include_test_period_in_results`): authoritative bullet list in **[api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md)**.
+
+## Universe return analytics
+
+- **`GET /universes/{universe_id}/return-analytics`** — Builds an aligned **daily** close panel from **`ohlcv_bars`** for universe members (up to **`max_members`**, default **500**, max **5000**), then returns simple and log **return correlation** matrices, **cross-sectional volatility** of simple returns, **PCA** summaries (explained variance, component scores, loadings for scatter), and **cap-weight concentration** (HHI, CR5, CR10, top holdings) with equal-weight fallback when market caps are missing.
+
+**Query parameters**
+
+| Parameter | Default | Notes |
+|-----------|---------|--------|
+| **`period`** | `1y` | Same allowlist as instrument OHLCV history: `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`, `ytd`, `max`. |
+| **`interval`** | `1d` | Only **`1d`** is supported. |
+| **`source`** | `yfinance` | Provider tag stored on bars (non-empty string, length ≤ 64). |
+| **`max_members`** | `500` | Integer **2–5000**; caps how many members enter the panel. |
+| **`n_pca_components`** | `5` | Integer **1–15**; SVD truncation for PCA summaries. |
+
+The JSON includes an **`alignment`** string (window, counts, thresholds) so clients can interpret sparse panels. The **Risk & structure** tab on the universe detail page uses this route; see [Studio → Universes](ui/studio.md#universes-universe-universeid).
 
 ## Authentication and privileged headers
 

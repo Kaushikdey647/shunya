@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   Badge,
   Button,
   Card,
@@ -7,7 +6,7 @@ import {
   Paper,
   SimpleGrid,
   Stack,
-  Table,
+  Tabs,
   Text,
   TextInput,
   Title,
@@ -20,14 +19,12 @@ import {
   addUniverseMembers,
   getUniverse,
   getUniverseSummary,
-  listUniverseMembers,
-  removeUniverseMembers,
   searchInstruments,
 } from '../api/endpoints'
 import type { InstrumentSearchQuote } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import PageScaffold from '../components/PageScaffold'
-import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
+import UniverseRiskStructurePanel from '../components/UniverseRiskStructurePanel'
 import {
   Legend,
   Pie,
@@ -41,20 +38,14 @@ const PIE_COLORS = ['#f59f00', '#228be6', '#40c057', '#845ef7', '#fd7e14', '#15a
 export default function UniverseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
-  const density = useMantineTableDensity()
   const [qInput, setQInput] = useState('')
   const [debounced] = useDebouncedValue(qInput.trim(), 280)
+  const [mainTab, setMainTab] = useState<string | null>('overview')
   const [pick, setPick] = useState<InstrumentSearchQuote | null>(null)
 
   const universeQ = useQuery({
     queryKey: ['universe', id],
     queryFn: () => getUniverse(id!),
-    enabled: Boolean(id),
-  })
-
-  const membersQ = useQuery({
-    queryKey: ['universe', id, 'members'],
-    queryFn: () => listUniverseMembers(id!, { limit: 5000, offset: 0 }),
     enabled: Boolean(id),
   })
 
@@ -83,18 +74,10 @@ export default function UniverseDetailPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['universe', id] })
       void qc.invalidateQueries({ queryKey: ['universe', id, 'summary'] })
+      void qc.invalidateQueries({ queryKey: ['universe', id, 'return-analytics'] })
       void qc.invalidateQueries({ queryKey: ['universes'] })
       setPick(null)
       setQInput('')
-    },
-  })
-
-  const removeMut = useMutation({
-    mutationFn: (sym: string) => removeUniverseMembers(id!, [sym]),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['universe', id] })
-      void qc.invalidateQueries({ queryKey: ['universe', id, 'summary'] })
-      void qc.invalidateQueries({ queryKey: ['universes'] })
     },
   })
 
@@ -149,6 +132,14 @@ export default function UniverseDetailPage() {
             </div>
           </Group>
 
+          <Tabs value={mainTab} onChange={setMainTab}>
+            <Tabs.List>
+              <Tabs.Tab value="overview">Overview</Tabs.Tab>
+              <Tabs.Tab value="risk">Risk & structure</Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="overview" pt="md">
+              <Stack gap="lg">
           <Paper withBorder p="md" radius="md" maw={560}>
             <Text fw={600} size="sm" mb="xs">
               Add ticker
@@ -284,52 +275,13 @@ export default function UniverseDetailPage() {
               </SimpleGrid>
             )}
           </Card>
+              </Stack>
+            </Tabs.Panel>
 
-          <Title order={3} size="h4">
-            Members
-          </Title>
-          <ApiErrorAlert error={membersQ.error} />
-          {membersQ.isLoading && <Text c="dimmed" size="sm">Loading members…</Text>}
-          {(membersQ.data?.length ?? 0) > 0 && (
-            <Table.ScrollContainer minWidth={480}>
-              <Table {...density} striped>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Ticker</Table.Th>
-                    <Table.Th>Name</Table.Th>
-                    <Table.Th>Sector</Table.Th>
-                    <Table.Th w="3rem" />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {(membersQ.data ?? []).map((m) => (
-                    <Table.Tr key={m.ticker}>
-                      <Table.Td ff="monospace">{m.ticker}</Table.Td>
-                      <Table.Td>{m.long_name ?? '—'}</Table.Td>
-                      <Table.Td>{m.sector_disp ?? '—'}</Table.Td>
-                      <Table.Td>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          aria-label={`Remove ${m.ticker}`}
-                          disabled={removeMut.isPending}
-                          onClick={() => removeMut.mutate(m.ticker)}
-                        >
-                          ×
-                        </ActionIcon>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          )}
-          {!membersQ.isLoading && (membersQ.data?.length ?? 0) === 0 && (
-            <Text c="dimmed" size="sm">
-              No members yet. Use the search box above or add from an instrument page.
-            </Text>
-          )}
-          <ApiErrorAlert error={removeMut.error} />
+            <Tabs.Panel value="risk" pt="md">
+              <UniverseRiskStructurePanel universeId={id!} />
+            </Tabs.Panel>
+          </Tabs>
         </Stack>
       )}
     </PageScaffold>

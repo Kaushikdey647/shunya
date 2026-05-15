@@ -24,6 +24,17 @@ See [Alpha Studio: AI assist and DSL](../how-to/alpha-studio-ai-dsl.md) for Olla
 
 Create and maintain saved universes (**`/universes`** API): members, sector/industry breakdown, fundamentals summary. Use them from **Backtests → New** (saved universe + benchmark) or add symbols from **Instrument** detail.
 
+Universe detail splits into:
+
+- **Overview** — membership and summary cards as before.
+- **Risk & structure** — calls **`GET /universes/{id}/return-analytics`** (Timescale daily OHLCV, aligned window in the card subtitle). Pick lookback **1y / 2y / 5y** (UI); other periods exist on the API. Contents:
+  - **Return correlations** — tabs for **simple** vs **log** returns; square heatmap sized to the viewport **without** per-ticker row/column labels (hover a cell for the pair and Pearson **ρ**).
+  - **Cross-sectional volatility** — time series of cross-sectional standard deviation of simple returns.
+  - **PCA** — explained-variance bar, PC1 score over time, and **PC1 vs PC2 loadings** scatter (hover shows **ticker** and loadings).
+  - **Concentration** — HHI, CR5, CR10, weight mode; **top holdings** as one header row of tickers and one row of weights (scrolls horizontally when needed).
+
+Query knobs on the API (not all exposed in the UI) include **`interval`** ( **`1d`** only ), **`source`**, **`max_members`** (cap on names pulled into the panel), and **`n_pca_components`**. See [HTTP API — Universe return analytics](../http-api.md#universe-return-analytics).
+
 ## Backtests (`/backtests`, `/backtests/new`, `/backtests/:jobId`)
 
 - **List** — job status and navigation to detail.

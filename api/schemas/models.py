@@ -191,6 +191,69 @@ class UniverseSummaryOut(BaseModel):
     median_beta: Optional[float] = None
 
 
+class UniverseTickerWeight(BaseModel):
+    ticker: str
+    weight: float
+
+
+class UniverseConcentrationOut(BaseModel):
+    """HHI and concentration ratios on market-cap weights (equal-weight fallback)."""
+
+    hhi: float
+    cr5: float
+    cr10: float
+    weight_mode: Literal["mcap", "equal"] = "mcap"
+    mcap_weights_partial: bool = False
+    top_holdings: list[UniverseTickerWeight] = Field(default_factory=list)
+
+
+class UniverseXsVolPoint(BaseModel):
+    date: str
+    xs_vol: float
+
+
+class UniversePcaScorePoint(BaseModel):
+    date: str
+    score: float
+
+
+class UniverseTickerLoading(BaseModel):
+    ticker: str
+    loading: float
+
+
+class UniversePcaLoadingsScatterPoint(BaseModel):
+    ticker: str
+    pc1_loading: float
+    pc2_loading: float
+
+
+class UniverseReturnAnalyticsOut(BaseModel):
+    """Panel analytics from aligned daily closes (Timescale ``ohlcv_bars``)."""
+
+    universe_id: str
+    period: str
+    interval: str
+    source: str
+    start_date: str
+    end_date_exclusive: str
+    tickers: list[str]
+    n_observations: int
+    alignment: str = Field(
+        default="inner_dates_all_tickers_have_finite_close",
+        description="Rows kept only where every ticker has a valid close before returns.",
+    )
+    correlation_simple: list[list[float]]
+    correlation_log: list[list[float]]
+    cross_sectional_vol: list[UniverseXsVolPoint]
+    pca_explained_variance_ratio: list[float]
+    pca_pc1_loadings: list[UniverseTickerLoading]
+    pca_pc2_loadings: list[UniverseTickerLoading] = Field(default_factory=list)
+    pca_pc1_scores: list[UniversePcaScorePoint]
+    pca_loadings_scatter: list[UniversePcaLoadingsScatterPoint] = Field(default_factory=list)
+    concentration: UniverseConcentrationOut
+
+
 class BacktestCreate(BaseModel):
     alpha_id: str
     index_code: Optional[str] = Field(default=None, max_length=64)

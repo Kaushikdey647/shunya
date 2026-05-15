@@ -211,6 +211,62 @@ export interface UniverseSummaryOut {
   median_beta?: number | null
 }
 
+export interface UniverseTickerWeight {
+  ticker: string
+  weight: number
+}
+
+export interface UniverseConcentrationOut {
+  hhi: number
+  cr5: number
+  cr10: number
+  weight_mode: 'mcap' | 'equal'
+  mcap_weights_partial: boolean
+  top_holdings: UniverseTickerWeight[]
+}
+
+export interface UniverseXsVolPoint {
+  date: string
+  xs_vol: number
+}
+
+export interface UniversePcaScorePoint {
+  date: string
+  score: number
+}
+
+export interface UniverseTickerLoading {
+  ticker: string
+  loading: number
+}
+
+export interface UniversePcaLoadingsScatterPoint {
+  ticker: string
+  pc1_loading: number
+  pc2_loading: number
+}
+
+export interface UniverseReturnAnalyticsOut {
+  universe_id: string
+  period: string
+  interval: string
+  source: string
+  start_date: string
+  end_date_exclusive: string
+  tickers: string[]
+  n_observations: number
+  alignment: string
+  correlation_simple: number[][]
+  correlation_log: number[][]
+  cross_sectional_vol: UniverseXsVolPoint[]
+  pca_explained_variance_ratio: number[]
+  pca_pc1_loadings: UniverseTickerLoading[]
+  pca_pc2_loadings: UniverseTickerLoading[]
+  pca_pc1_scores: UniversePcaScorePoint[]
+  pca_loadings_scatter: UniversePcaLoadingsScatterPoint[]
+  concentration: UniverseConcentrationOut
+}
+
 export interface UniverseTickerListOut {
   tickers: string[]
 }

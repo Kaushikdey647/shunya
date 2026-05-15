@@ -44,6 +44,7 @@ import type {
   UniverseMembersMutationOut,
   UniverseOut,
   UniversePatch,
+  UniverseReturnAnalyticsOut,
   UniverseSummaryOut,
   UniverseTickerListOut,
   MarketHeadlinesResponse,
@@ -252,6 +253,29 @@ export async function getUniverseTickers(universeId: string): Promise<UniverseTi
 export async function getUniverseSummary(universeId: string): Promise<UniverseSummaryOut> {
   return apiFetch<UniverseSummaryOut>(
     `/universes/${encodeURIComponent(universeId)}/summary`,
+    { method: 'GET' },
+  )
+}
+
+export async function getUniverseReturnAnalytics(
+  universeId: string,
+  params?: {
+    period?: string
+    interval?: string
+    source?: string
+    max_members?: number
+    n_pca_components?: number
+  },
+): Promise<UniverseReturnAnalyticsOut> {
+  const sp = new URLSearchParams()
+  if (params?.period != null) sp.set('period', params.period)
+  if (params?.interval != null) sp.set('interval', params.interval)
+  if (params?.source != null) sp.set('source', params.source)
+  if (params?.max_members != null) sp.set('max_members', String(params.max_members))
+  if (params?.n_pca_components != null) sp.set('n_pca_components', String(params.n_pca_components))
+  const q = sp.toString()
+  return apiFetch<UniverseReturnAnalyticsOut>(
+    `/universes/${encodeURIComponent(universeId)}/return-analytics${q ? `?${q}` : ''}`,
     { method: 'GET' },
   )
 }
