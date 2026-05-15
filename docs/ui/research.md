@@ -2,9 +2,13 @@
 
 Routes under **Research** in the UI shell (`ui/src/components/SideNav.tsx`).
 
-## Home (`/`)
+## Service root (`/`) — landing
 
-![Home dashboard](../dashboard.png)
+The root URL is a **static** landing screen (no sidebar, no API calls): Matrix-style presentation, feature copy, a link to the [documentation site](https://kaushikdey647.github.io/shunya/), and a call-to-action into the app shell at **`/dashboard`**.
+
+## Dashboard (`/dashboard`)
+
+![Research dashboard](../dashboard.png)
 
 Dashboard cards: macro strip, movers, market headlines, recent backtests feed, health mini-card, and a **watchlist**.
 

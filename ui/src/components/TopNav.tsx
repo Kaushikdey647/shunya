@@ -35,7 +35,7 @@ export default function TopNav({ mobileNavOpened, onMobileNavToggle, tickerSearc
             aria-label={mobileNavOpened ? 'Close navigation' : 'Open navigation'}
           />
         )}
-        <Anchor component={Link} to="/" fw={700} underline="never" c="var(--mantine-color-text)">
+        <Anchor component={Link} to="/dashboard" fw={700} underline="never" c="var(--mantine-color-text)">
           Shunya
         </Anchor>
       </Group>

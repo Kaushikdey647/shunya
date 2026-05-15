@@ -5,7 +5,7 @@ export type PrimaryNavItem = { to: string; label: string; end?: boolean }
 export type PrimaryNavSection = { title: string; items: PrimaryNavItem[] }
 
 export const PRIMARY_NAV_RESEARCH: PrimaryNavItem[] = [
-  { to: '/', label: 'Home', end: true },
+  { to: '/dashboard', label: 'Dashboard', end: true },
   { to: '/search', label: 'Search', end: true },
   { to: '/data', label: 'Data summary', end: true },
   { to: '/settings', label: 'Settings', end: true },

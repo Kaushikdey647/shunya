@@ -9,11 +9,12 @@ import AlphaStudioLayout, {
 import BacktestDetailPage from './pages/BacktestDetailPage'
 import BacktestNewPage from './pages/BacktestNewPage'
 import BacktestsListPage from './pages/BacktestsListPage'
+import DashboardPage from './pages/DashboardPage'
 import DataSummaryPage from './pages/DataSummaryPage'
 import ExecutionHubPage from './pages/ExecutionHubPage'
 import ExecutionTracerPage from './pages/ExecutionTracerPage'
-import HomePage from './pages/HomePage'
 import InstrumentDetailPage from './pages/InstrumentDetailPage'
+import LandingPage from './pages/LandingPage'
 import LiveCockpitPage from './pages/LiveCockpitPage'
 import PortfoliosListPage from './pages/PortfoliosListPage'
 import PortfolioWorkspacePage from './pages/PortfolioWorkspacePage'
@@ -32,8 +33,9 @@ function RedirectLegacyAlphaToStudio() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<AppShell />}>
-        <Route index element={<HomePage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route element={<AppShell />}>
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="search" element={<SearchResultsPage />} />
         <Route path="instruments/:symbol" element={<InstrumentDetailPage />} />
         <Route path="studio" element={<AlphaStudioLayout />}>

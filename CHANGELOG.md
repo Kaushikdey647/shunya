@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **UI routing:** **`/`** is a **static landing page** (Matrix-style marketing, no app shell, no API calls from that screen). The research **dashboard** moved to **`/dashboard`** with sidebar label **Dashboard**, command palette entry, and header brand link targeting the desk. Docs: `docs/ui/overview.md`, `docs/ui/research.md`, `docs/ui/keyboard-shortcuts.md`.
+
 - **UI — Data summary (`/data`):** replaced per-ticker coverage heatmap and instruments table with a **missing-coverage pie** (inverted completeness, top ten tickers in the legend); **risk vs log total return** scatter uses **`log_return_pct`** from the API, with **1st–99th percentile winsorization** on each axis for display (tooltips keep raw vol and log return). Docs: `docs/ui/research.md`, `docs/reference/http-api-package.md`.
 
 - **Onboarding:** new [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) doc (`docs/quickstart.md`) with paths for library-only, `./scripts/local-dev-all.sh`, and Docker Compose; MkDocs nav + docs home map row; README “above the fold” bullets and bootstrap copy; aligned “worker” wording with the in-process backtest loop in `api/main.py` across how-to and HTTP API docs; `docker-compose.yml` comment clarifying no separate worker container.

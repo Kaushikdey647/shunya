@@ -8,9 +8,9 @@
 
 **React + Vite** front-end for [Shunya](https://github.com/Kaushikdey647/shunya): Alpha Studio (Monaco), backtests, data and instrument views, and trade-oriented screens backed by the repo’s FastAPI service (no backtest execution in the browser).
 
-Home dashboard (Research → Home):
+Research dashboard (Research → Dashboard at `/dashboard`; `/` is a static landing):
 
-![Shunya UI — home dashboard](docs/dashboard.png)
+![Shunya UI — research dashboard](docs/dashboard.png)
 
 **Documentation** (setup paths, API, web app overview, env and proxy notes):
 

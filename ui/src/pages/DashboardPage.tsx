@@ -6,7 +6,7 @@ import MoversPanel from '../components/home/MoversPanel'
 import RecentBacktestsFeed from '../components/home/RecentBacktestsFeed'
 import WatchlistCard from '../components/home/WatchlistCard'
 
-export default function HomePage() {
+export default function DashboardPage() {
   return (
     <Container size="xl" px={{ base: 'sm', sm: 'md' }}>
       <Stack gap="lg">

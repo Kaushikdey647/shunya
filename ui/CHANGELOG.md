@@ -14,7 +14,11 @@ All notable changes to this project are documented in this file.
 - Trade-focused UI building blocks under [`src/components/trade/`](src/components/trade/) (for example add-to-portfolio flow, correlation heatmap, order stream line, distance cell).
 - Optional mock metrics helper [`src/lib/tradeDeskMockMetrics.ts`](src/lib/tradeDeskMockMetrics.ts) for demos.
 
+- **Landing (`/`):** static marketing screen (matrix rain, feature list, docs link, **Enter the desk** → **`/dashboard`**); no shell and no API traffic on initial load. **`/dashboard`** holds the former home dashboard (`LandingPage.tsx`, `DashboardPage.tsx`, `App.tsx`).
+
 ### Changed
+
+- **Primary nav:** first Research item is **Dashboard** at **`/dashboard`** (was **Home** at **`/`**). Command palette **Go to → Dashboard**; header brand and data-summary crumb link to **`/dashboard`**.
 
 - **Data summary (`/data`, `DataSummaryPage.tsx`):** removed coverage heatmap and sortable ticker table; added **missing-coverage** pie (100% − completeness, top ten symbols in the legend); scatter **y** axis uses **`log_return_pct`** from **`GET /data/dashboard`** (not a client-side transform); risk–return scatter **winsorizes** vol and log return at **P1/P99** for plotted position with raw values in tooltips.
 

@@ -1,0 +1,28 @@
+.wrap {
+  width: 100%;
+  min-height: min(680px, 78vh);
+  max-width: min(680px, min(54vw, 100%));
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas {
+  width: 100%;
+  height: min(680px, 78vh);
+  display: block;
+  image-rendering: crisp-edges;
+}
+
+@media (max-width: 56em) {
+  .wrap {
+    max-width: none;
+    margin-left: 0;
+    min-height: min(340px, 50vh);
+  }
+
+  .canvas {
+    height: min(340px, 50vh);
+  }
+}

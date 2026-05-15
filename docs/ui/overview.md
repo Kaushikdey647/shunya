@@ -6,11 +6,11 @@ The **`ui/`** directory is a **React + Vite** front end for the Shunya **FastAPI
 
 Static captures live under `docs/*.png` in the repository (MkDocs serves them on the doc site).
 
-![Home: macro strip, movers, and recent backtests](../dashboard.png)
+![Dashboard: macro strip, movers, and recent backtests](../dashboard.png)
 
 | Area | Screenshot walkthrough |
 |------|-------------------------|
-| Research (home, data, settings) | [Research](research.md) — dashboard on **Home** |
+| Research (dashboard, data, settings) | [Research](research.md) — desk at **`/dashboard`**; **`/`** is a static landing |
 | Alpha Studio, universes, backtests | [Studio](studio.md) — workspace and result charts |
 | Running a simulation from the browser | [Backtest from the web UI](../how-to/backtest-from-ui.md) |
 | Portfolios, live desk, execution | [Trade](trade.md) — blend workspace, Sentinel, EMS slicer |
@@ -19,7 +19,7 @@ Static captures live under `docs/*.png` in the repository (MkDocs serves them on
 
 | Area | What you get |
 |------|----------------|
-| **Home** | Macro strip, movers, headlines, recent backtests, browser watchlist, health |
+| **Dashboard** (`/dashboard`) | Macro strip, movers, headlines, recent backtests, browser watchlist, health |
 | **Alpha Studio** | Monaco editor, lint and optional AI assist (Ollama via API), inline DSL hints, backtest enqueue, results below the editor (metrics, optional AI review, Recharts / lightweight-charts) |
 | **Backtests** | Create jobs, list, detail pages with charts |
 | **Data** | Coverage and dashboard views backed by the API |
@@ -33,6 +33,10 @@ Keyboard shortcuts for the web app are summarized on the docs site: **[Keyboard 
 ## Design
 
 Bloomberg-inspired dark terminal chrome: amber primary, warm neutrals, IBM Plex Mono for monospace (see `ui/src/mantine/theme.ts`).
+
+## Service root
+
+**`/`** serves a **static landing page** (no app chrome, no backend calls from that screen). Signed-in-style work happens under **`/dashboard`** and the other shell routes below.
 
 ## Legacy routes
 

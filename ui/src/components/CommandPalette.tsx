@@ -119,7 +119,7 @@ export default function CommandPalette({ open, onClose }: Props) {
     const out: PaletteAction[] = []
     if (!needle) {
       out.push(
-        { key: 'goto-home', section: 'Go to', onSelect: () => go('/'), label: 'Home' },
+        { key: 'goto-dashboard', section: 'Go to', onSelect: () => go('/dashboard'), label: 'Dashboard' },
         {
           key: 'goto-studio',
           section: 'Go to',

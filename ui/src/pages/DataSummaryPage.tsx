@@ -215,8 +215,8 @@ export default function DataSummaryPage() {
 
   return (
     <PageScaffold>
-      <Anchor component={Link} to="/" size="sm">
-        ← Home
+      <Anchor component={Link} to="/dashboard" size="sm">
+        ← Dashboard
       </Anchor>
 
       <Stack gap="xs">

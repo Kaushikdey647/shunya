@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { FLAT_PRIMARY_NAV, findPrimaryNavIndex, navItemMatchesPathname } from './primaryNav'
 
 describe('findPrimaryNavIndex', () => {
-  it('resolves home', () => {
-    expect(findPrimaryNavIndex('/')).toBe(0)
+  it('resolves dashboard', () => {
+    expect(findPrimaryNavIndex('/dashboard')).toBe(0)
   })
 
   it('resolves studio child routes to Studio nav item', () => {
@@ -18,9 +18,9 @@ describe('findPrimaryNavIndex', () => {
 })
 
 describe('navItemMatchesPathname', () => {
-  it('matches exact home', () => {
-    const home = FLAT_PRIMARY_NAV[0]
-    expect(navItemMatchesPathname(home, '/')).toBe(true)
-    expect(navItemMatchesPathname(home, '/search')).toBe(false)
+  it('matches exact dashboard', () => {
+    const dashboard = FLAT_PRIMARY_NAV[0]
+    expect(navItemMatchesPathname(dashboard, '/dashboard')).toBe(true)
+    expect(navItemMatchesPathname(dashboard, '/search')).toBe(false)
   })
 })

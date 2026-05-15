@@ -10,7 +10,7 @@ The Shunya web UI supports **keyboard-first** navigation: global chords, list mo
 |----------|--------|
 | **⌘K** / **Ctrl+K** | Open or close the **command palette** (jump to pages, symbols, alphas, recent backtests). |
 | **⇧Space** (Shift+Space) | Focus **ticker search** in the header (no ⌘/Ctrl). Skipped in modals, inside the ticker widget, in editable fields, and in Monaco. |
-| **⇧↑** / **⇧↓** (Shift+Arrow, no ⌘/Ctrl/⌥) | Move to the **previous / next** primary sidebar destination (same order as the nav: Research → Studio → Trade). Same skip rules as **⇧Space**. |
+| **⇧↑** / **⇧↓** (Shift+Arrow, no ⌘/Ctrl/⌥) | Move to the **previous / next** primary sidebar destination (same order as the nav: Research → Studio → Trade; first Research item is **Dashboard** at **`/dashboard`**). Same skip rules as **⇧Space**. Not active on the static **`/`** landing (no shell). |
 
 Plain **Arrow Up / Down** (without Shift) are **not** used for global nav or table row moves so the **Monaco** editor and normal field behavior stay predictable.
 

@@ -12,7 +12,7 @@
 
 Home dashboard (macro strip, movers, recent backtests) when the UI is pointed at a running API:
 
-![Shunya web UI — home dashboard](docs/dashboard.png)
+![Shunya web UI — research dashboard](docs/dashboard.png)
 
 Long-form guides, concepts, HTTP API outline, Timescale, and the generated Python reference are on the documentation site:
 
