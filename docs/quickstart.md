@@ -50,6 +50,8 @@ cd shunya
 
 The script creates **`.env`** from [`.env.example`](https://github.com/Kaushikdey647/shunya/blob/main/.env.example) if missing, starts **TimescaleDB**, migrates, runs **uvicorn** on port **8000**, then **Vite** in **`ui/`**. See [Local development: API, worker, and UI](how-to/local-dev-api-ui.md) for manual steps and Ctrl+C behavior.
 
+**Optional database seeding** (OHLCV for index backtests, example alpha rows): use the repo **`scripts/`** helpers and the ordering in [Bootstrap scripts (API + UI + DB)](how-to/bootstrap-scripts.md). Ingest is not run by **`local-dev-all.sh`** by default (network-heavy); **`--seed-alphas`** only inserts **`api_alphas`** examples after migrate.
+
 **Smoke checks**
 
 ```bash

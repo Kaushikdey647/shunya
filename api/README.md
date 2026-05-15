@@ -34,7 +34,7 @@ npm run dev
 
 Vite prints a local URL (default **http://localhost:5173**); dev mode proxies **`/api`** to **`http://127.0.0.1:8000`**. See [`ui/README.md`](../ui/README.md) and the docs **[Quickstart](https://kaushikdey647.github.io/shunya/quickstart/)** / **[Local development: API, worker, and UI](https://kaushikdey647.github.io/shunya/how-to/local-dev-api-ui/)**.
 
-Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrations (including **`013_api_runtime_config.sql`** for `GET`/`PATCH /settings/app`), then start the app:
+Set `DATABASE_URL` (or `SHUNYA_DATABASE_URL`) to your Postgres URL, apply migrations (including **`013_api_runtime_config.sql`** for `GET`/`PATCH /settings/app`), optionally seed data and alphas (see **[Bootstrap scripts (API + UI + DB)](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/)** or [`scripts/README.md`](../scripts/README.md)), then start the app:
 
 ```bash
 export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
@@ -43,6 +43,8 @@ shunya-timescale sync-index-memberships
 uv run python scripts/bootstrap_example_alphas.py
 uv run uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+For **SP100** or **full index-union** OHLCV and fundamentals ingest, use **`scripts/bootstrap_sp100_timescale.py`** or **`scripts/bootstrap_ts_data.py`** (ordering and flags in the bootstrap guide above).
 
 ### TimescaleDB (local, optional)
 
@@ -96,7 +98,7 @@ WHERE ts < TIMESTAMPTZ '2020-01-01'
    OR ts >= TIMESTAMPTZ '2026-01-01';
 ```
 
-Re-bootstrap with `scripts/bootstrap_ts_data.py` (defaults use the same window) to refill the canonical range.
+Re-bootstrap with `scripts/bootstrap_ts_data.py` (defaults use the same window) to refill the canonical range. See [Bootstrap scripts (API + UI + DB)](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/) for ingest choices and `scripts/bootstrap_sp100_timescale.py`.
 
 ## Tests
 

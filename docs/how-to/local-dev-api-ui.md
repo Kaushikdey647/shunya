@@ -6,9 +6,13 @@ From the repository root:
 
 ```bash
 ./scripts/local-dev-all.sh
+# optional: after migrate, insert bundled example alphas (GET /alphas / Studio)
+# ./scripts/local-dev-all.sh --seed-alphas
 ```
 
 The script checks for Docker, `uv`, and Node.js 20+, creates or augments a root **`.env`** with a default **`DATABASE_URL`** when none is set, starts the **TimescaleDB** service from **`docker compose`**, runs **`uv sync`** (dev, API, Timescale extras), applies **`shunya-timescale migrate`**, starts **`uvicorn`** on port **8000**, installs UI dependencies with **`npm ci`** when **`ui/node_modules`** is missing, then runs **`npm run dev`** in **`ui/`**. Stopping the UI (Ctrl+C) stops the API process started by the script.
+
+For **OHLCV / index membership** ingest and the full **bootstrap script** order (API + UI + DB), see [Bootstrap scripts (API + UI + DB)](bootstrap-scripts.md) and [`scripts/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/scripts/README.md) in the repo.
 
 **Backtest jobs** run **in the same process as `uvicorn`**: the API lifespan starts an asyncio task that polls Postgres and executes queued backtests. You do **not** need a separate worker daemon for normal development (Docker Compose runs the same layout: one **`api`** container, no extra `worker` service).
 
@@ -85,5 +89,6 @@ Set **`VITE_API_BASE`** at **build** time if the UI is not served behind the sam
 
 ## See also
 
+- [Bootstrap scripts (API + UI + DB)](bootstrap-scripts.md) — `scripts/` ingest and example alphas after migrate.
 - [HTTP API](../http-api.md) — route groups and OpenAPI.
 - [Backtest from the web UI](backtest-from-ui.md).

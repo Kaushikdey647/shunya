@@ -99,6 +99,7 @@ nav:
       - Operators and cross-section: documentation/operators.md
   - How-to guides:
       - "Local dev: API, worker, and UI": how-to/local-dev-api-ui.md
+      - "Bootstrap scripts (API + UI + DB)": how-to/bootstrap-scripts.md
       - Timescale first-run checklist: how-to/timescale-checklist.md
       - Backtest from the web UI: how-to/backtest-from-ui.md
       - Paper trading cycle (API): how-to/paper-cycle-api.md

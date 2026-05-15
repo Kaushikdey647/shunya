@@ -463,7 +463,7 @@ def _run_batch_followup(
             cur.execute(
                 """
                 INSERT INTO ingestion_runs (job, provider, params, status)
-                VALUES ('bootstrap_sp500_followup', %s, %s, 'running')
+                VALUES ('bootstrap_ts_data_followup', %s, %s, 'running')
                 RETURNING id
                 """,
                 (
@@ -616,7 +616,7 @@ def _upsert_batch(
             cur.execute(
                 """
                 INSERT INTO ingestion_runs (job, provider, params, status)
-                VALUES ('bootstrap_sp500_ohlcv', %s, %s, 'running')
+                VALUES ('bootstrap_ts_data_ohlcv', %s, %s, 'running')
                 RETURNING id
                 """,
                 (source, json.dumps({"tickers": symbols, "interval": interval_key})),

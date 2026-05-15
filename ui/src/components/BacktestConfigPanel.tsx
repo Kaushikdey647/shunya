@@ -282,7 +282,8 @@ export default function BacktestConfigPanel({
                 Timescale has index catalog rows but no{' '}
                 <Code>symbol_index_membership</Code> data. From the repo:{' '}
                 <Code>shunya-timescale sync-index-memberships</Code> (or run{' '}
-                <Code>scripts/bootstrap_sp500_ohlcv.py</Code>
+                <Code>scripts/bootstrap_sp100_timescale.py</Code> /{' '}
+                <Code>scripts/bootstrap_ts_data.py</Code>
                 ), then refresh this page.
               </Text>
             )}

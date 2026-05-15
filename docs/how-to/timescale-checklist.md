@@ -45,6 +45,8 @@ Use this checklist alongside the full guide [Local Timescale](../data_timescale.
 
    (Also referenced in [api/README.md](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md) bootstrap.)
 
+For **repo `scripts/`** ingest (SP100, full index union, example alphas) and ordering with the API + UI, see [Bootstrap scripts (API + UI + DB)](bootstrap-scripts.md).
+
 ## Per-invocation override
 
 Pass **`--database-url ...`** to `shunya-timescale` subcommands if you do not want to rely on the environment for a single run.

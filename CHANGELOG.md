@@ -9,9 +9,13 @@ All notable changes to this project are documented in this file.
 - **Onboarding:** new [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) doc (`docs/quickstart.md`) with paths for library-only, `./scripts/local-dev-all.sh`, and Docker Compose; MkDocs nav + docs home map row; README “above the fold” bullets and bootstrap copy; aligned “worker” wording with the in-process backtest loop in `api/main.py` across how-to and HTTP API docs; `docker-compose.yml` comment clarifying no separate worker container.
 - **READMEs:** root `README.md` and `ui/README.md` trimmed to a short intro, quickstart, single documentation-site link, contributing, and license; detailed material moved to the published docs site.
 - **GitHub Pages:** document that the site must be published from **GitHub Actions** (MkDocs `site/` artifact). Publishing the `/docs` folder from a branch runs **Jekyll** on Markdown, which looks like a plain centered page with no Material sidebar; the docs workflow now adds **`site/.nojekyll`** after build so the uploaded artifact is never Jekyll-processed.
+- **`scripts/local-dev-all.sh`:** optional **`--seed-alphas`** (runs `bootstrap_example_alphas.py` after migrate) and **`--help`**.
+- **`scripts/bootstrap_example_alphas.py`:** **`--database-url`** for explicit Postgres URL (sets `DATABASE_URL` before API repository imports).
+- **`scripts/bootstrap_ts_data.py`:** ingestion run **`job`** labels use **`bootstrap_ts_data_*`** instead of legacy **`bootstrap_sp500_*`** names.
 
 ### Fixed
 
+- **UI:** backtest index empty-state hint pointed at a removed script name; it now references `scripts/bootstrap_sp100_timescale.py` / `scripts/bootstrap_ts_data.py`.
 - MkDocs math: load **MathJax** via `extra_javascript` and `docs/javascripts/mathjax.js` so **Arithmatex** `\(…\)` / `\[…\]` renders (previously only the extension was enabled).
 - MathJax config: use **`ignoreHtmlClass: ".*"`** (per PyMdown Arithmatex docs); **`".*|"`** breaks scanning so TeX stayed visible.
 - MkDocs Mermaid: register **`pymdownx.superfences` → `custom_fences` → `mermaid2.fence_mermaid_custom`** so ` ```mermaid ` blocks are not converted to generic Pygments code fences (which prevented **mkdocs-mermaid2** from running).
@@ -24,6 +28,8 @@ All notable changes to this project are documented in this file.
 - `tests/test_streaming_pipeline.py` and `tests/test_fintrade.py`.
 
 ### Added
+
+- **Documentation:** [Bootstrap scripts (API + UI + DB)](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/) (`docs/how-to/bootstrap-scripts.md`) — when to run `scripts/bootstrap_*` and `local-dev-all.sh` after API + UI + DB setup; `scripts/README.md` index; MkDocs nav; cross-links from Quickstart, local dev how-to, Timescale checklist, root `README.md`, `api/README.md`, and `ui/README.md`.
 
 - **Documentation:** embed UI screenshots from `docs/*.png` in the root and `ui/` READMEs, [Web application overview](docs/ui/overview.md), [Research](docs/ui/research.md), [Studio](docs/ui/studio.md), [Trade](docs/ui/trade.md), [Backtest from the web UI](docs/how-to/backtest-from-ui.md), and [Execution: OMS, EMS](docs/documentation/oms-ems.md).
 - **Custom universes (Timescale + API + UI):** migration **`014_api_universes.sql`** (`api_universes`, `api_universe_members`, `api_alphas.default_universe_id`); **`/universes`** CRUD, members, flat tickers, summary analytics; **`POST /backtests`** supports **`universe_id`** + **`benchmark_ticker`** (mutually exclusive with **`index_code`**); job list exposes **`universe_id`**; yfinance OHLCV backfill treats index and saved-universe jobs the same; **`POST /trade/paper/cycle`** accepts optional **`universe_resolution_note`** echoed in **`messages`**.

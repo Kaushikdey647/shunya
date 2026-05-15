@@ -38,6 +38,8 @@ cd shunya
 
 Smoke-check the API: `curl -sSf http://127.0.0.1:8000/healthz`. Open the URL Vite prints (default **http://localhost:5173**). Queued backtests run **in the same process as uvicorn** ([`api/main.py`](api/main.py)); you do not need a second “worker” process for normal local use.
 
+After migrate, optional **database seeding** (example alphas, OHLCV ingest) uses the repo **`scripts/`** helpers; see the docs guide **[Bootstrap scripts (API + UI + DB)](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/)** or [`scripts/README.md`](scripts/README.md). Example: `./scripts/local-dev-all.sh --seed-alphas` inserts bundled **`api_alphas`** rows for **`GET /alphas`**.
+
 **Clone: run tests**
 
 ```bash

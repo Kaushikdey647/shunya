@@ -18,7 +18,7 @@ Home dashboard (Research → Home):
 
 ## Local development
 
-Start the API first (for example `./scripts/local-dev-all.sh` from the repo root, or follow the Quickstart). Then:
+Start the API first (for example `./scripts/local-dev-all.sh` from the repo root, optionally `./scripts/local-dev-all.sh --seed-alphas`, or follow the [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) and [Bootstrap scripts](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/) guide). Then:
 
 ```bash
 cd ui

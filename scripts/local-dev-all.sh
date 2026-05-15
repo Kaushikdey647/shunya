@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Start local TimescaleDB (Docker), sync Python deps, migrate, then API + Vite UI.
+# Optional: --seed-alphas inserts example alpha rows (see docs/how-to/bootstrap-scripts.md).
 # Requires: Docker (with compose), uv, Node.js 20+, npm. Frees port 5432 for the compose service.
 set -euo pipefail
 
@@ -9,6 +10,37 @@ cd "$ROOT"
 info() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+SEED_ALPHAS=0
+while [[ $# -gt 0 && "${1}" == -* ]]; do
+  case "${1}" in
+    --seed-alphas)
+      SEED_ALPHAS=1
+      ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: local-dev-all.sh [options]
+
+Starts Docker TimescaleDB, uv sync (dev + api + timescale), migrations, FastAPI
+on http://127.0.0.1:8000, then the Vite UI in ui/.
+
+Options:
+  --seed-alphas   After migrate, run scripts/bootstrap_example_alphas.py so GET /alphas
+                  lists the bundled example alphas (idempotent skips existing names).
+  -h, --help      Show this message
+
+Data ingest (OHLCV, index jobs) is not run automatically; see bootstrap-scripts
+in the docs site (how-to) or scripts/README.md in the repo.
+EOF
+      exit 0
+      ;;
+    *)
+      die "unknown option: ${1} (try --help)"
+      ;;
+  esac
+  shift
+done
+[[ $# -eq 0 ]] || die "unexpected arguments: $*"
 
 command -v docker >/dev/null 2>&1 || die "docker not found; install Docker Desktop or the engine."
 docker compose version >/dev/null 2>&1 || die "docker compose not available."
@@ -68,6 +100,11 @@ uv sync --extra dev --extra api --extra timescale
 export DATABASE_URL="$(pick_database_url)"
 info "running Timescale migrations"
 uv run shunya-timescale migrate
+
+if [[ "${SEED_ALPHAS}" -eq 1 ]]; then
+  info "seeding example alphas (scripts/bootstrap_example_alphas.py)"
+  uv run python scripts/bootstrap_example_alphas.py
+fi
 
 API_PID=""
 cleanup() {

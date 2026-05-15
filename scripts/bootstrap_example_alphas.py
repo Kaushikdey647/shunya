@@ -12,12 +12,14 @@ Example::
 
     export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shunya
     uv run python scripts/bootstrap_example_alphas.py
+    uv run python scripts/bootstrap_example_alphas.py --database-url postgresql://...
     uv run python scripts/bootstrap_example_alphas.py --dry-run
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -38,6 +40,11 @@ _ALPHA_DESCRIPTIONS: dict[str, str] = {
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    p.add_argument(
+        "--database-url",
+        default=None,
+        help="Postgres URL (default: DATABASE_URL / SHUNYA_DATABASE_URL; ignored with --dry-run).",
+    )
     p.add_argument(
         "--dry-run",
         action="store_true",
@@ -77,6 +84,15 @@ def main() -> int:
             print(f"would insert: name={name!r} import_ref={ref!r}{extra}")
         print(f"dry-run: {len(rows)} alpha(s)")
         return 0
+
+    durl = (args.database_url or os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL") or "").strip()
+    if not durl:
+        print(
+            "Set DATABASE_URL or SHUNYA_DATABASE_URL, or pass --database-url",
+            file=sys.stderr,
+        )
+        return 2
+    os.environ["DATABASE_URL"] = durl
 
     from api.repositories.alphas import insert_alpha, list_alphas
     from api.schemas.models import AlphaCreate
