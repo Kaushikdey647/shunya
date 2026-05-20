@@ -78,8 +78,11 @@ Use this if you want the **full stack in containers** without installing **uv** 
 ```bash
 git clone https://github.com/Kaushikdey647/shunya.git
 cd shunya
+cp .env.example .env   # optional: Alpaca, Ollama, etc.; omit if you only need defaults
 docker compose up --build
 ```
+
+Optional repo-root **`.env`** is loaded into the **`api`** container via **`env_file`** in [docker-compose.yml](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml) (Compose 2.24+; file may be absent). **`DATABASE_URL`** is still set in Compose to **`timescaledb:5432`**, so it overrides a host-style **`localhost`** URL from `.env` — use that override for Docker networking.
 
 - **UI (nginx + static build):** [http://localhost:8080](http://localhost:8080) — the browser calls **`/api/...`** on the same origin; nginx proxies to FastAPI.
 - **API (direct):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) and **`curl -sSf http://127.0.0.1:8000/healthz`**, or through the UI proxy: **`curl -sSf http://127.0.0.1:8080/api/healthz`**.

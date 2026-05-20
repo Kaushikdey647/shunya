@@ -41,10 +41,11 @@ cd shunya
 ```bash
 git clone https://github.com/Kaushikdey647/shunya.git
 cd shunya
+cp .env.example .env   # optional: Alpaca, Ollama, SHUNYA_API_*; skip if defaults are enough
 docker compose up --build
 ```
 
-Open **http://localhost:8080** (nginx UI; **`/api`** proxies to FastAPI). API directly: **http://127.0.0.1:8000/docs**. The API container runs **`shunya-timescale migrate`** on start when **`RUN_MIGRATIONS=1`** (default in Compose). See [Quickstart — Path C](https://kaushikdey647.github.io/shunya/quickstart/) for details.
+Open **http://localhost:8080** (nginx UI; **`/api`** proxies to FastAPI). API directly: **http://127.0.0.1:8000/docs**. The API container runs **`shunya-timescale migrate`** on start when **`RUN_MIGRATIONS=1`** (default in Compose). Compose passes optional repo-root **`.env`** into the **`api`** service; **`DATABASE_URL`** in Compose still overrides `.env` so the API uses the **`timescaledb`** hostname inside Docker. See [Quickstart — Path C](https://kaushikdey647.github.io/shunya/quickstart/) for details.
 
 Smoke-check the API: `curl -sSf http://127.0.0.1:8000/healthz` (or `curl -sSf http://127.0.0.1:8080/api/healthz` through the UI proxy). With **`local-dev-all.sh`**, open the URL Vite prints (default **http://localhost:5173**). Queued backtests run **in the same process as uvicorn** ([`api/main.py`](api/main.py)); you do not need a second “worker” process for normal local use.
 

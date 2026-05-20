@@ -1,5 +1,7 @@
 # Full stack: TimescaleDB + FastAPI (uvicorn + in-process backtest worker) + static UI (nginx → /api).
 # Run: docker compose up --build
+# Optional: cp .env.example .env — api service uses env_file (.env, required: false) for SHUNYA_API_*, APCA_*, etc.
+# DATABASE_URL in this file overrides .env so the API targets the timescaledb service inside the network.
 # UI: http://localhost:8080  (nginx proxies /api to the api service)
 # API direct: http://localhost:8000  (optional; use for /docs or curl without nginx)
 services:
@@ -23,6 +25,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # Optional: repo-root .env (e.g. Alpaca, Ollama). Compose 2.24+; ignored if .env is missing.
+    env_file:
+      - path: .env
+        required: true
     ports:
       - "8000:8000"
     environment:
