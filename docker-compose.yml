@@ -1,6 +1,7 @@
-# Local TimescaleDB for shunya market data + fundamentals (see docs/data_timescale.md).
-# The `api` service runs uvicorn only; backtest jobs are processed by an asyncio loop
-# started inside the FastAPI app lifespan (same process — no separate worker container).
+# Full stack: TimescaleDB + FastAPI (uvicorn + in-process backtest worker) + static UI (nginx → /api).
+# Run: docker compose up --build
+# UI: http://localhost:8080  (nginx proxies /api to the api service)
+# API direct: http://localhost:8000  (optional; use for /docs or curl without nginx)
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg16
@@ -19,25 +20,26 @@ services:
       retries: 10
 
   api:
-    image: python:3.12-bookworm
-    working_dir: /workspace
-    volumes:
-      - .:/workspace
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/shunya
+      RUN_MIGRATIONS: "1"
     depends_on:
       timescaledb:
         condition: service_healthy
-    command:
-      - bash
-      - -lc
-      - |
-        pip install --no-cache-dir uv &&
-        cd /workspace &&
-        uv sync --frozen --extra api --extra timescale &&
-        uv run uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
 
 volumes:
   shunya_ts_data:

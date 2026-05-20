@@ -4,7 +4,7 @@ Pick **one** path. Prerequisites are called out in each section.
 
 !!! note "Backtest jobs and the API"
 
-    When you run **`uv run uvicorn api.main:app`**, the FastAPI app starts an **in-process async loop** that claims and runs backtest jobs from Postgres ([`api/main.py` lifespan](https://github.com/Kaushikdey647/shunya/blob/main/api/main.py)). You do **not** need a second terminal running a separate “worker” daemon for normal local development. [Docker Compose](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml) also runs only **`uvicorn`**; the same embedded loop applies.
+    When you run **`uv run uvicorn api.main:app`**, the FastAPI app starts an **in-process async loop** that claims and runs backtest jobs from Postgres ([`api/main.py` lifespan](https://github.com/Kaushikdey647/shunya/blob/main/api/main.py)). You do **not** need a second terminal running a separate “worker” daemon for normal local development. [Docker Compose](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml) runs **`uvicorn`** in the **`api`** image the same way; the same embedded loop applies.
 
 ---
 
@@ -58,8 +58,10 @@ The script creates **`.env`** from [`.env.example`](https://github.com/Kaushikde
 curl -sSf http://127.0.0.1:8000/healthz    # expect HTTP 200
 ```
 
+With **Docker Compose** (Path C), you can also check **`curl -sSf http://127.0.0.1:8080/api/healthz`** (through the UI nginx proxy).
+
 - **API docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **UI:** URL printed by Vite (default [http://localhost:5173](http://localhost:5173))
+- **UI:** with **`local-dev-all.sh`**, the URL Vite prints (default [http://localhost:5173](http://localhost:5173)); with **Docker Compose**, open [http://localhost:8080](http://localhost:8080)
 
 **First five minutes in the UI**
 
@@ -69,19 +71,26 @@ curl -sSf http://127.0.0.1:8000/healthz    # expect HTTP 200
 
 ---
 
-## Path C — Docker Compose (API + Timescale only)
+## Path C — Docker Compose (Timescale + API + UI)
 
-Use this if you want the API in Docker without running **`local-dev-all.sh`** on the host.
+Use this if you want the **full stack in containers** without installing **uv** or **Node.js** on the host (Docker only).
 
 ```bash
 git clone https://github.com/Kaushikdey647/shunya.git
 cd shunya
-docker compose up -d
-docker compose exec api uv run shunya-timescale migrate
-curl -sSf http://127.0.0.1:8000/healthz
+docker compose up --build
 ```
 
-The **`api`** service runs **`uvicorn`** only; the **backtest worker loop still runs inside that process** (no separate `worker` container). The compose file is [docker-compose.yml](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml).
+- **UI (nginx + static build):** [http://localhost:8080](http://localhost:8080) — the browser calls **`/api/...`** on the same origin; nginx proxies to FastAPI.
+- **API (direct):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) and **`curl -sSf http://127.0.0.1:8000/healthz`**, or through the UI proxy: **`curl -sSf http://127.0.0.1:8080/api/healthz`**.
+
+The **`api`** image runs **`shunya-timescale migrate`** before **`uvicorn`** when **`RUN_MIGRATIONS=1`** (set by default in [docker-compose.yml](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml)). Set **`RUN_MIGRATIONS=0`** on the **`api`** service if you prefer to migrate manually, then run:
+
+```bash
+docker compose run --rm api uv run shunya-timescale migrate
+```
+
+The **`api`** service runs **`uvicorn`** only; the **backtest worker loop still runs inside that process** (no separate `worker` container). Images are built from the repo-root **`Dockerfile`** (API) and **`ui/Dockerfile`** (UI).
 
 ---
 

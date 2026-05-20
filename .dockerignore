@@ -1,0 +1,38 @@
+# Git and CI
+.git
+.github
+
+# Python caches and local envs
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.venv
+venv
+*.egg-info
+
+# Frontend (API image does not need ui/)
+ui/node_modules
+ui/dist
+
+# Docs and site build (not required at API runtime)
+docs
+site
+mkdocs.yml
+
+# Local secrets and editor
+.env
+.env.*
+!.env.example
+.cursor
+.idea
+.vscode
+
+# Tests and notebooks (runtime image)
+tests
+notebooks
+
+# OS junk
+.DS_Store
+Thumbs.db

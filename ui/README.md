@@ -18,7 +18,7 @@ Research dashboard (Research → Dashboard at `/dashboard`; `/` is a static land
 
 ## Local development
 
-Start the API first (for example `./scripts/local-dev-all.sh` from the repo root, optionally `./scripts/local-dev-all.sh --seed-alphas`, or follow the [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) and [Bootstrap scripts](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/) guide). Then:
+Start the API first (for example **`docker compose up --build`** from the repo root for the full stack UI at **http://localhost:8080**, **`./scripts/local-dev-all.sh`**, optionally **`./scripts/local-dev-all.sh --seed-alphas`**, or follow the [Quickstart](https://kaushikdey647.github.io/shunya/quickstart/) and [Bootstrap scripts](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/) guide). Then:
 
 ```bash
 cd ui
@@ -26,7 +26,7 @@ npm ci
 npm run dev
 ```
 
-Confirm the API: `curl -sSf http://127.0.0.1:8000/healthz`. In dev, Vite proxies `/api` to port **8000** by default ([`vite.config.ts`](vite.config.ts) → adjust `server.proxy` if needed). See [`.env.example`](.env.example) for `VITE_*` variables.
+Confirm the API: `curl -sSf http://127.0.0.1:8000/healthz`. In dev, Vite proxies `/api` to **`API_PROXY_TARGET`** (default **`http://127.0.0.1:8000`**; see [`vite.config.ts`](vite.config.ts)). See [`.env.example`](.env.example) for `VITE_*` and proxy variables.
 
 | Command | Purpose |
 |---------|---------|

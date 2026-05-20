@@ -64,7 +64,7 @@ If the installer creates only the default `postgres` database, either use that U
 
 Without Timescale (or with the DB down), instrument OHLCV and related paths still work via **yfinance**; see **Environment** below for TLS (`curl-cffi` / `YFINANCE_TLS_VERIFY`).
 
-Alternatively, use Docker Compose in this repo (`api` service mounts the repo and can target a `timescaledb` service) if you already use that layout.
+Alternatively, use **Docker Compose** in this repo: **`docker compose up --build`** builds **`timescaledb`**, **`api`**, and **`ui`** (see the root **`docker-compose.yml`** and **`docs/quickstart.md`**).
 
 ## Environment
 

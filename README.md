@@ -36,7 +36,17 @@ cd shunya
 ./scripts/local-dev-all.sh
 ```
 
-Smoke-check the API: `curl -sSf http://127.0.0.1:8000/healthz`. Open the URL Vite prints (default **http://localhost:5173**). Queued backtests run **in the same process as uvicorn** ([`api/main.py`](api/main.py)); you do not need a second “worker” process for normal local use.
+**Clone: full stack in Docker only** (Docker only; no host Python/Node required)
+
+```bash
+git clone https://github.com/Kaushikdey647/shunya.git
+cd shunya
+docker compose up --build
+```
+
+Open **http://localhost:8080** (nginx UI; **`/api`** proxies to FastAPI). API directly: **http://127.0.0.1:8000/docs**. The API container runs **`shunya-timescale migrate`** on start when **`RUN_MIGRATIONS=1`** (default in Compose). See [Quickstart — Path C](https://kaushikdey647.github.io/shunya/quickstart/) for details.
+
+Smoke-check the API: `curl -sSf http://127.0.0.1:8000/healthz` (or `curl -sSf http://127.0.0.1:8080/api/healthz` through the UI proxy). With **`local-dev-all.sh`**, open the URL Vite prints (default **http://localhost:5173**). Queued backtests run **in the same process as uvicorn** ([`api/main.py`](api/main.py)); you do not need a second “worker” process for normal local use.
 
 After migrate, optional **database seeding** (example alphas, OHLCV ingest) uses the repo **`scripts/`** helpers; see the docs guide **[Bootstrap scripts (API + UI + DB)](https://kaushikdey647.github.io/shunya/how-to/bootstrap-scripts/)** or [`scripts/README.md`](scripts/README.md). Example: `./scripts/local-dev-all.sh --seed-alphas` inserts bundled **`api_alphas`** rows for **`GET /alphas`**.
 

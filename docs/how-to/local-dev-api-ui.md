@@ -44,12 +44,18 @@ Many features (alpha CRUD, backtest queue, `/data/dashboard`, `PATCH /settings/a
 
 ## 3. Start the API
 
-**Docker Compose** (Timescale + API on `http://127.0.0.1:8000`):
+**Docker Compose** (Timescale + API + UI — images built from the repo **`Dockerfile`** and **`ui/Dockerfile`**):
 
 ```bash
-docker compose up -d
-docker compose exec api uv run shunya-timescale migrate
+docker compose up --build
 curl -sSf http://127.0.0.1:8000/healthz
+curl -sSf http://127.0.0.1:8080/api/healthz
+```
+
+Open **http://localhost:8080** for the web UI (nginx serves the Vite build and proxies **`/api/`** to the **`api`** container). By default the API entrypoint runs **`shunya-timescale migrate`** before uvicorn (**`RUN_MIGRATIONS=1`** in Compose). To migrate manually instead, set **`RUN_MIGRATIONS=0`** on the **`api`** service and run:
+
+```bash
+docker compose run --rm api uv run shunya-timescale migrate
 ```
 
 **Local uvicorn:**
@@ -81,11 +87,11 @@ npm ci
 npm run dev
 ```
 
-Open the URL Vite prints (default **http://localhost:5173**). In development, **`ui/vite.config.ts`** proxies **`/api`** to **`http://127.0.0.1:8000`**, so the API should listen on port **8000** unless you change the proxy.
+Open the URL Vite prints (default **http://localhost:5173**). In development, **`ui/vite.config.ts`** proxies **`/api`** to **`API_PROXY_TARGET`** (defaults to **`http://127.0.0.1:8000`**), so the API should listen on port **8000** unless you change the proxy (for example **`API_PROXY_TARGET=http://api:8000`** when running Vite inside Docker Compose).
 
 ## 5. Production UI build
 
-Set **`VITE_API_BASE`** at **build** time if the UI is not served behind the same host as `/api`. See [Web application: Configuration](../ui/configuration.md).
+The **`ui/Dockerfile`** build sets **`VITE_API_BASE=/api`** so the bundle matches the nginx **`/api/`** reverse proxy in Compose. For other hosts, set **`VITE_API_BASE`** at **`npm run build`** time. See [Web application: Configuration](../ui/configuration.md).
 
 ## See also
 

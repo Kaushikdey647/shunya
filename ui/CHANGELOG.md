@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Docker:** **`ui/Dockerfile`** (multi-stage **`npm run build`** with **`VITE_API_BASE=/api`**, **nginx** runtime with **`ui/docker/nginx.conf`** reverse proxy for **`/api/`** → FastAPI). **`ui/.dockerignore`** trims build context.
+
 - **Keyboard:** **⌘/Ctrl+K** command palette (row highlight with **⇧↑⇧↓**, **Enter**); **⇧Space** ticker search; **⇧↑⇧↓** primary nav order; roving **⇧↑⇧↓** / **Home**/**End** and **⌘/Ctrl+Enter** on data tables (Studio hub, Backtests, Universes, Portfolios); **⌘/Ctrl+Enter** in alpha workspace submits **Run backtest** when enabled. Sidebar active route uses **yellow** label styling. Settings page summarizes shortcuts; Monaco host marked for guard logic (`ui/src/keyboard/`).
 
 - **Universes** (`/universe`, `/universe/:id`): list and edit saved equity universes (API **`/universes`**), sector/industry and fundamentals summary; **Alpha Studio** optional **default universe** per alpha; **Backtest** panel can enqueue with **`universe_id`** + benchmark; **Instrument** detail **Add to universe** for equities; **Portfolio** workspace shows union of slot alphas’ default-universe tickers and snapshots **last portfolio universe** for the Execution hub.
@@ -17,6 +19,8 @@ All notable changes to this project are documented in this file.
 - **Landing (`/`):** static marketing screen (matrix rain, feature list, docs link, **Enter the desk** → **`/dashboard`**); no shell and no API traffic on initial load. **`/dashboard`** holds the former home dashboard (`LandingPage.tsx`, `DashboardPage.tsx`, `App.tsx`).
 
 ### Changed
+
+- **Vite dev proxy:** **`API_PROXY_TARGET`** environment variable (default **`http://127.0.0.1:8000`**) replaces a hard-coded proxy target in **`vite.config.ts`**.
 
 - **Primary nav:** first Research item is **Dashboard** at **`/dashboard`** (was **Home** at **`/`**). Command palette **Go to → Dashboard**; header brand and data-summary crumb link to **`/dashboard`**.
 
