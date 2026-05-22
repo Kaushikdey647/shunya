@@ -20,6 +20,8 @@ from ..timeframes import (
     normalize_history_index,
 )
 from .dbutil import get_database_url
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
+
 from .intervals import bar_spec_to_interval_key
 
 
@@ -87,7 +89,7 @@ class TimescaleMarketDataProvider:
         self,
         *,
         dsn: Optional[str] = None,
-        source: str = "yfinance",
+        source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
         enforce_cache_ttl: bool | None = None,
     ) -> None:
         self._dsn = dsn or get_database_url()

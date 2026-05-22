@@ -47,6 +47,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 import pandas as pd
 
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
 from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_index_policy, default_bar_spec
 from shunya.data.timescale.cli import (
@@ -229,7 +230,7 @@ def _coverage_summary(
 INDEX_CODE = "SP100"
 # Must match ``api.index_catalog.RAW_INDEX_TICKER_BY_CODE["SP100"]``.
 BENCHMARK_TICKER = "^OEX"
-_OHLCV_SOURCE = "yfinance"
+# Yahoo OHLCV rows in ``ohlcv_bars`` use ``STORED_OHLCV_DEFAULT_UPSTREAM_ID`` (see ``api/index_universe``).
 _DEFAULT_CHUNK = 35
 _FUND_LOOKBACK_YEARS = 2
 # Default OHLCV window: full history from 2020 through today (index backtests / ^OEX alignment).
@@ -306,7 +307,7 @@ def _ohlcv_bar_counts_in_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = _OHLCV_SOURCE,
+    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
 ) -> dict[str, int]:
     import psycopg
 
@@ -472,7 +473,7 @@ def _ingest_ohlcv_chunked(
                         dsn,
                         sliced,
                         interval_key,
-                        _OHLCV_SOURCE,
+                        STORED_OHLCV_DEFAULT_UPSTREAM_ID,
                         flat_symbol=t if not isinstance(sliced.columns, pd.MultiIndex) else None,
                     )
                     total += n
@@ -489,7 +490,7 @@ def _ingest_ohlcv_chunked(
                     flat_sym = str(batch[0])
                 else:
                     flat_sym = None
-                total += _upsert_ohlcv_batch(dsn, sliced, interval_key, _OHLCV_SOURCE, flat_symbol=flat_sym)
+                total += _upsert_ohlcv_batch(dsn, sliced, interval_key, STORED_OHLCV_DEFAULT_UPSTREAM_ID, flat_symbol=flat_sym)
 
         if sleep_s > 0 and bi + 1 < len(batches):
             time.sleep(sleep_s)
@@ -720,7 +721,7 @@ def main(argv: list[str] | None = None) -> int:
         start_date=start_s,
         end_date=end_s,
         interval=interval_key,
-        source=_OHLCV_SOURCE,
+        source=STORED_OHLCV_DEFAULT_UPSTREAM_ID,
     )
     _coverage_summary(console, counts, constituents=constituents, benchmark=BENCHMARK_TICKER)
 

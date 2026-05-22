@@ -16,6 +16,9 @@ from api.services.ohlcv_yfinance_backfill import (
     tickers_for_ohlcv_backfill,
 )
 from api.tunable_config import get_effective_tunables
+
+# TODO(market-data-router): Index/universe job recovery always backfills via Yahoo; align with
+# market_router execute + provenance when Alpaca or other upstreams can satisfy the window.
 from shunya.errors import ErrorCode
 
 

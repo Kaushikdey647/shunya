@@ -76,6 +76,9 @@ from shunya.data.timescale.index_membership_sync import (
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
 from shunya.data.timescale.market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
 
+# TODO(market-data-router): Large parallel bootstrap (Yahoo OHLCV + classifications + optional
+# examples/yfinance_fundamental_provider); consolidate with timescale CLI ingest and registry lanes.
+
 _LOG = logging.getLogger(__name__)
 
 

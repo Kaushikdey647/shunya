@@ -514,8 +514,17 @@ class OhlcvBar(BaseModel):
     volume: Optional[float] = None
 
 
-InstrumentOhlcvDataSourceLiteral = Literal["timescale", "yfinance"]
 InstrumentOhlcvStorageStatusLiteral = Literal["none", "ok", "failed", "deferred"]
+
+
+class OhlcvProvenance(BaseModel):
+    """How OHLCV was resolved: storage read path vs upstream semantics (canonical client contract)."""
+
+    read_path: Literal["timescale", "live_fetch"]
+    upstream_source_id: str
+    route_rule_id: Optional[str] = None
+    attempted_sources: Optional[list[str]] = None
+    partial_coverage: Optional[bool] = None
 
 
 class InstrumentOhlcvResponse(BaseModel):
@@ -523,7 +532,7 @@ class InstrumentOhlcvResponse(BaseModel):
     interval: str
     period: str
     bars: list[OhlcvBar]
-    data_source: InstrumentOhlcvDataSourceLiteral = "yfinance"
+    provenance: Optional[OhlcvProvenance] = None
     storage_status: InstrumentOhlcvStorageStatusLiteral = "none"
     storage_error: Optional[str] = None
     storage_job_id: Optional[int] = None
@@ -777,6 +786,7 @@ class MarketSnapshotRow(BaseModel):
     pct_change_1d: Optional[float] = None
     volume: Optional[float] = None
     sparkline_close: list[float] = Field(default_factory=list)
+    provenance: Optional[OhlcvProvenance] = None
 
 
 class MarketSnapshotRequest(BaseModel):

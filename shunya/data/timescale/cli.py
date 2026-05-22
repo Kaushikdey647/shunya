@@ -280,9 +280,7 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
         UPSERT_FUND_QUARTERLY_SQL,
         UPSERT_INSIDER_TRANSACTIONS_SQL,
     )
-    from shunya.data.yfinance_session import build_yfinance_session
-
-    import yfinance as yf
+    from shunya.integration.yahoo_public import YahooPublicAdapter
 
     fund = YFinanceFundamentalDataProvider(session=session, enable_fetch_cache=False)
     if args.fields and str(args.fields).strip():
@@ -307,7 +305,7 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
     dsn = get_database_url()
     n = 0
     fields_full = list(FUNDAMENTAL_FIELDS)
-    yf_sess = build_yfinance_session()
+    yahoo = YahooPublicAdapter(session=session)
     with psycopg.connect(dsn) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -359,10 +357,11 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
                     if wq:
                         cur.executemany(UPSERT_FUND_QUARTERLY_SQL, wq)
 
+            # TODO(market-data-router): Narrow exceptions or add debug logging for optional yfinance tables; avoid silent pass.
             as_of_info = datetime.now(timezone.utc)
             for sym in symbols:
                 sid = tmap[str(sym)]
-                t = yf.Ticker(str(sym), session=yf_sess)
+                t = yahoo.ticker(str(sym))
                 try:
                     info = t.info or {}
                 except Exception:

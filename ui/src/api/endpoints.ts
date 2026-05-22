@@ -744,12 +744,15 @@ export async function getInstrumentNews(
 
 export async function getInstrumentOhlcv(
   symbol: string,
-  params: { interval: string; period: string },
+  params: { interval: string; period: string; route?: string },
 ): Promise<InstrumentOhlcvResponse> {
   const qs = new URLSearchParams({
     interval: params.interval,
     period: params.period,
   })
+  if (params.route) {
+    qs.set('route', params.route)
+  }
   return apiFetch<InstrumentOhlcvResponse>(
     `/instruments/${encodeURIComponent(symbol)}/ohlcv?${qs.toString()}`,
     { method: 'GET' },

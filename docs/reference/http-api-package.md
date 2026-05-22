@@ -50,7 +50,7 @@ Typical backtest flow:
 | **`/backtests`** | Enqueue async jobs, list/get status, fetch JSON results when succeeded (FinBT-shaped payload plus optional benchmark). |
 | **`POST /data`** | Panel diagnostics from `finTs` (NaNs, vol, Sharpe, Sortino, …). |
 | **`GET /data/dashboard`** | Database-wide coverage metrics (per-ticker completeness, bucket flags, histograms), classification counts, and risk metrics for the UI data summary: each ticker includes **`return_pct`**, **`log_return_pct`** (`100 * ln(c_last / c_first)` when valid), annualized vol, Sharpe, and Sortino from stored closes. |
-| **`/instruments/...`** | Search, OHLCV, fundamentals-style panels; prefers Timescale when coverage is complete. |
+| **`/instruments/...`** | Search, OHLCV (optional **`route`** query: `auto`, `best_effort`, or explicit upstream id; response includes **`provenance`** with **`read_path`** vs **`upstream_source_id`**), fundamentals-style panels; prefers Timescale when coverage is complete. |
 | **`/market/...`** | **`POST /market/snapshot`**, **`GET /market/movers`**, **`GET /market/headlines`**, … |
 | **`/trade/...`** | Alpaca-backed account and paper-cycle routes when enabled (see auth below). |
 | **`GET /settings/app`** | Effective runtime tunables (env merged with optional DB overlay). |

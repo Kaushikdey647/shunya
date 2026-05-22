@@ -31,6 +31,8 @@ Do not commit secrets; use compose defaults locally or your own credentials.
 
    When you run the API via **Docker Compose** in this repo, the **`api`** container runs **`migrate`** on startup by default (**`RUN_MIGRATIONS=1`**); you can still run the commands above from the host against **`localhost:5432`** when the **`timescaledb`** service is up.
 
+   Migration **`016_ohlcv_bars_metadata.sql`** adds optional **`ohlcv_bars.metadata`** JSONB for feed/tier/adjustment flags (see **`docs/market_data_routing.md`**).
+
 3. Ingest OHLCV (Yahoo path, normalized the same way as `finTs` defaults):
 
    `shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 2024-01-01`

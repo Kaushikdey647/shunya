@@ -1,16 +1,16 @@
 """Broad financial headlines via Yahoo Search (yfinance ``Search``)."""
 
+# TODO(market-data-router): Keep headlines on a non-OHLCV dataset lane; still centralize Yahoo session + labeling.
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 from typing import Any
 
-import yfinance as yf
-
 from api.schemas.models import MarketHeadlineItem
 from api.services.market_exceptions import MarketProviderError
-from shunya.data.yfinance_session import build_yfinance_session
+from shunya.integration.yahoo_public import YahooPublicAdapter
 
 _log = logging.getLogger(__name__)
 
@@ -45,17 +45,9 @@ def _headline_from_raw(item: dict[str, Any]) -> MarketHeadlineItem | None:
 
 def fetch_market_headlines(limit: int, *, session: Any | None = None) -> list[MarketHeadlineItem]:
     cap = max(1, min(limit, 100))
-    sess = session if session is not None else build_yfinance_session()
+    adapter = YahooPublicAdapter(session=session)
     try:
-        s = yf.Search(
-            _DEFAULT_QUERY,
-            max_results=8,
-            news_count=cap,
-            include_nav_links=False,
-            timeout=25,
-            raise_errors=True,
-            session=sess,
-        )
+        s = adapter.search_headlines(_DEFAULT_QUERY, news_count=cap)
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance Search headlines failed: %s", exc)
         raise MarketProviderError("news provider unavailable") from exc

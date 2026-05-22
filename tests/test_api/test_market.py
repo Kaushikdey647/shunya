@@ -52,6 +52,8 @@ def test_build_snapshot_single_ticker(monkeypatch: pytest.MonkeyPatch) -> None:
     assert rows[0].last == pytest.approx(10.5)
     assert rows[0].pct_change_1d is not None
     assert pytest.approx(rows[0].pct_change_1d, rel=1e-6) == (10.5 - 10.2) / 10.2 * 100.0
+    assert rows[0].provenance is not None
+    assert rows[0].provenance.upstream_source_id == "yfinance"
 
 
 def test_build_snapshot_raises_when_empty(monkeypatch: pytest.MonkeyPatch) -> None:

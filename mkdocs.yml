@@ -114,6 +114,7 @@ nav:
       - "Keyboard shortcuts": ui/keyboard-shortcuts.md
   - Data & integrations:
       - Local Timescale: data_timescale.md
+      - "Market data routing": market_data_routing.md
       - Alpha Vantage: alpha-vantage.md
       - "ADR 001: layering": adr/001-architecture-layers.md
   - Reference:

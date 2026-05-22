@@ -9,23 +9,28 @@ from dataclasses import dataclass
 import pandas as pd
 from fastapi import HTTPException
 
-from api.schemas.models import InstrumentOhlcvResponse, OhlcvBar
+from api.schemas.models import (
+    InstrumentOhlcvResponse,
+    OhlcvBar,
+    OhlcvProvenance,
+)
 from api.tunable_config import get_effective_tunables
-from shunya.data.providers import YFinanceMarketDataProvider, env_yfinance_repair_default
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
+from shunya.data.market_data.context import MarketDataRouteContext
+from shunya.data.market_data.decision import MarketRouteDecision
+from shunya.data.market_data.errors import MarketRouteError
+from shunya.data.market_data.resolve import resolve_market_route
+from shunya.data.market_data.types import is_upstream_source_id
+from shunya.data.market_router import try_timescale_then_live_ohlcv
+from shunya.data.ohlcv_multindex import flatten_ohlcv_for_symbol as _flatten_ohlcv_for_symbol
 from shunya.data.timeframes import bar_spec_is_intraday, default_bar_index_policy
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
-from shunya.data.timescale.market_cache_lib import (
-    fetch_ohlcv_manifest_last_refresh_sync,
-    ohlcv_manifest_is_fresh,
-)
 from shunya.data.timescale.ohlcv_window import period_to_utc_bounds, yfinance_interval_to_bar_spec
 from shunya.data.timescale.ohlcv_writeback import replace_ohlcv_range_sync
-from shunya.data.validation import validate_core_ohlcv_coverage
 from shunya.data.yfinance_session import build_yfinance_session
 
 _log = logging.getLogger(__name__)
 
-OHLCV_SOURCE = "yfinance"
 MAX_OHLCV_ROWS = 5000
 
 
@@ -69,39 +74,30 @@ def _validation_window(
     return s.normalize(), e.normalize()
 
 
-_OHLCV_FIELD_NAMES = frozenset({"Open", "High", "Low", "Close", "Volume", "Adj Close"})
+def _normalize_instrument_route(route: str) -> str:
+    r = str(route).strip().lower()
+    if r in ("auto", "best_effort", "timescale"):
+        return r
+    if is_upstream_source_id(r):
+        return r
+    raise HTTPException(status_code=400, detail="invalid market route")
 
 
-def _flatten_ohlcv_for_symbol(df: pd.DataFrame, symbol: str) -> pd.DataFrame:
-    """
-    yfinance ``download`` may return MultiIndex columns either as ``(Ticker, Field)``
-    (``group_by='ticker'``) or ``(Field, Ticker)`` / ``('Price','Ticker')`` with field names
-    on level 0 (``group_by='column'`` / library default). Downstream expects flat ``Open``/…
-    columns.
-    """
-    if df is None or df.empty or not isinstance(df.columns, pd.MultiIndex):
-        return df
-    sym_u = symbol.upper()
-    lev0_names = {str(x) for x in df.columns.get_level_values(0).unique()}
-    if lev0_names & _OHLCV_FIELD_NAMES:
-        for lev in (1, 0):
-            if lev >= df.columns.nlevels:
-                continue
-            for raw in df.columns.get_level_values(lev).unique():
-                if str(raw).upper() != sym_u:
-                    continue
-                out = df.xs(raw, axis=1, level=lev, drop_level=True)
-                if isinstance(out.columns, pd.MultiIndex):
-                    return df
-                return out.copy()
-        return df
-    tickers = [str(t) for t in df.columns.get_level_values(0).unique()]
-    for t in tickers:
-        if t.upper() == sym_u:
-            return df[t].copy()
-    if len(tickers) == 1:
-        return df[tickers[0]].copy()
-    return df
+def _provenance_from(
+    *,
+    read_path: str,
+    upstream_source_id: str,
+    decision: MarketRouteDecision,
+    attempted: tuple[str, ...],
+    partial_coverage: bool,
+) -> OhlcvProvenance:
+    return OhlcvProvenance(
+        read_path=read_path,  # type: ignore[arg-type]
+        upstream_source_id=upstream_source_id,
+        route_rule_id=decision.rule_id,
+        attempted_sources=list(attempted) if attempted else None,
+        partial_coverage=partial_coverage if partial_coverage else None,
+    )
 
 
 def _dataframe_to_bars(df: pd.DataFrame, *, max_rows: int) -> list[OhlcvBar]:
@@ -133,28 +129,13 @@ def _dataframe_to_bars(df: pd.DataFrame, *, max_rows: int) -> list[OhlcvBar]:
     return bars
 
 
-def _fetch_yfinance_ohlcv(
-    symbol: str,
-    bar_spec,
-    start: pd.Timestamp,
-    end_exclusive: pd.Timestamp,
-    session: object | None,
-) -> pd.DataFrame:
-    policy = default_bar_index_policy()
-    prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
-    try:
-        return prov.download([symbol], start, end_exclusive, bar_spec=bar_spec, bar_index_policy=policy)
-    except Exception as exc:  # noqa: BLE001
-        _log.warning("yfinance download failed for %s: %s", symbol, exc)
-        raise HTTPException(status_code=502, detail="market data unavailable") from exc
-
-
 def resolve_instrument_ohlcv_sync(
     symbol: str,
     interval: str,
     period: str,
     *,
     defer_storage: bool = False,
+    route: str = "auto",
 ) -> InstrumentOhlcvResult:
     bar_spec = yfinance_interval_to_bar_spec(interval)
     interval_key = bar_spec_to_interval_key(bar_spec)
@@ -163,8 +144,17 @@ def resolve_instrument_ohlcv_sync(
     intraday = bar_spec_is_intraday(bar_spec)
     val_start, val_end = _validation_window(start_inclusive, end_exclusive, intraday=intraday)
     cache_ttl_days = get_effective_tunables().market_data_cache_ttl_days
-
     session = build_yfinance_session()
+
+    mode = _normalize_instrument_route(route)
+    ctx = MarketDataRouteContext(symbols=(symbol,), bar_spec=bar_spec, dataset="ohlcv", demo_relaxed=False)
+    try:
+        decision = resolve_market_route(ctx, mode)
+    except MarketRouteError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
 
     dsn: str | None = None
     if os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL"):
@@ -184,75 +174,41 @@ def resolve_instrument_ohlcv_sync(
                 conn.execute("SELECT 1")
             timescale_ok = True
         except Exception as exc:  # noqa: BLE001
-            _log.info("timescale unavailable, using yfinance only: %s", exc)
+            _log.info("timescale unavailable, using live fetch only: %s", exc)
             timescale_ok = False
 
-    if timescale_ok and dsn is not None:
-        try:
-            from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
+    flat_df, outcome, read_path, upstream = try_timescale_then_live_ohlcv(
+        symbol=symbol,
+        bar_spec=bar_spec,
+        start_inclusive=start_inclusive,
+        end_exclusive=end_exclusive,
+        decision=decision,
+        dsn=dsn,
+        timescale_ok=timescale_ok,
+        val_start=val_start,
+        val_end=val_end,
+        intraday=intraday,
+        cache_ttl_days=int(max(1, round(cache_ttl_days))),
+        bar_index_policy=policy,
+        yfinance_session=session,
+    )
 
-            ts_prov = TimescaleMarketDataProvider(dsn=dsn, source=OHLCV_SOURCE)
-            ts_df = ts_prov.download(
-                [symbol],
-                start_inclusive,
-                end_exclusive,
-                bar_spec=bar_spec,
-                bar_index_policy=policy,
-            )
-            if ts_df is not None and not ts_df.empty:
-                last_refresh = fetch_ohlcv_manifest_last_refresh_sync(
-                    dsn, ticker=symbol, interval=interval_key, source=OHLCV_SOURCE
-                )
-                if not ohlcv_manifest_is_fresh(last_refresh, ttl_days=cache_ttl_days):
-                    _log.info(
-                        "timescale ohlcv skipped (manifest missing/stale) for %s interval=%s",
-                        symbol,
-                        interval_key,
-                    )
-                else:
-                    try:
-                        validate_core_ohlcv_coverage(
-                            ts_df,
-                            ticker_list=[symbol],
-                            start=val_start,
-                            end=val_end,
-                            bar_spec=bar_spec,
-                            strict_provider_universe=True,
-                            strict_ohlcv=True,
-                            strict_empty=True,
-                            strict_trading_grid=True,
-                            bar_index_policy=policy,
-                        )
-                        bars = _dataframe_to_bars(
-                            _flatten_ohlcv_for_symbol(ts_df, symbol), max_rows=MAX_OHLCV_ROWS
-                        )
-                        return InstrumentOhlcvResult(
-                            response=InstrumentOhlcvResponse(
-                                symbol=symbol,
-                                interval=interval,
-                                period=period,
-                                bars=bars,
-                                data_source="timescale",
-                                storage_status="none",
-                                storage_error=None,
-                                storage_job_id=None,
-                                storage_skipped=False,
-                            )
-                        )
-                    except ValueError as exc:
-                        _log.info("timescale ohlcv incomplete for %s: %s", symbol, exc)
-        except Exception as exc:  # noqa: BLE001
-            _log.info("timescale read failed for %s: %s", symbol, exc)
+    prov = _provenance_from(
+        read_path=read_path,
+        upstream_source_id=upstream,
+        decision=decision,
+        attempted=outcome.attempted,
+        partial_coverage=outcome.partial_coverage,
+    )
 
-    yf_df = _fetch_yfinance_ohlcv(symbol, bar_spec, start_inclusive, end_exclusive, session)
-    if yf_df is None or yf_df.empty:
+    if flat_df is None or flat_df.empty:
         return InstrumentOhlcvResult(
             response=InstrumentOhlcvResponse(
                 symbol=symbol,
                 interval=interval,
                 period=period,
                 bars=[],
-                data_source="yfinance",
+                provenance=prov,
                 storage_status="none",
                 storage_error=None,
                 storage_job_id=None,
@@ -260,8 +216,23 @@ def resolve_instrument_ohlcv_sync(
             )
         )
 
-    _flat_yf = _flatten_ohlcv_for_symbol(yf_df, symbol)
-    bars = _dataframe_to_bars(_flat_yf, max_rows=MAX_OHLCV_ROWS)
+    bars = _dataframe_to_bars(flat_df, max_rows=MAX_OHLCV_ROWS)
+    write_source = outcome.satisfied_source or upstream
+
+    if read_path == "timescale":
+        return InstrumentOhlcvResult(
+            response=InstrumentOhlcvResponse(
+                symbol=symbol,
+                interval=interval,
+                period=period,
+                bars=bars,
+                provenance=prov,
+                storage_status="none",
+                storage_error=None,
+                storage_job_id=None,
+                storage_skipped=False,
+            )
+        )
 
     if not timescale_ok or dsn is None:
         return InstrumentOhlcvResult(
@@ -270,7 +241,7 @@ def resolve_instrument_ohlcv_sync(
                 interval=interval,
                 period=period,
                 bars=bars,
-                data_source="yfinance",
+                provenance=prov,
                 storage_status="none",
                 storage_error=None,
                 storage_job_id=None,
@@ -285,7 +256,7 @@ def resolve_instrument_ohlcv_sync(
                 interval=interval,
                 period=period,
                 bars=bars,
-                data_source="yfinance",
+                provenance=prov,
                 storage_status="deferred",
                 storage_error=None,
                 storage_job_id=None,
@@ -295,10 +266,10 @@ def resolve_instrument_ohlcv_sync(
                 dsn=dsn,
                 symbol=symbol,
                 interval_key=interval_key,
-                source=OHLCV_SOURCE,
+                source=write_source,
                 start_inclusive=start_inclusive,
                 end_exclusive=end_exclusive,
-                ohlcv_df=_flat_yf.copy(),
+                ohlcv_df=flat_df.copy(),
             ),
         )
 
@@ -307,10 +278,10 @@ def resolve_instrument_ohlcv_sync(
             dsn,
             symbol=symbol,
             interval_key=interval_key,
-            source=OHLCV_SOURCE,
+            source=write_source,
             start_inclusive=start_inclusive,
             end_exclusive=end_exclusive,
-            ohlcv_df=_flat_yf,
+            ohlcv_df=flat_df,
         )
         return InstrumentOhlcvResult(
             response=InstrumentOhlcvResponse(
@@ -318,7 +289,7 @@ def resolve_instrument_ohlcv_sync(
                 interval=interval,
                 period=period,
                 bars=bars,
-                data_source="yfinance",
+                provenance=prov,
                 storage_status="ok",
                 storage_error=None,
                 storage_job_id=None,
@@ -332,7 +303,7 @@ def resolve_instrument_ohlcv_sync(
                 interval=interval,
                 period=period,
                 bars=bars,
-                data_source="yfinance",
+                provenance=prov,
                 storage_status="failed",
                 storage_error=str(exc)[:2048],
                 storage_job_id=None,

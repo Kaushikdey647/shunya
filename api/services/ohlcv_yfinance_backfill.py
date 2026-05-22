@@ -1,5 +1,8 @@
 """Upsert Yahoo Finance daily OHLCV into Timescale for index backtest recovery."""
 
+# TODO(market-data-router): Recovery uses Yahoo-only OHLCV; when router + multi-upstream ingest
+# land, choose upstream from decision / env instead of hard-coding yfinance here and in worker.
+
 from __future__ import annotations
 
 import json
@@ -10,6 +13,7 @@ import pandas as pd
 from api.settings import env_yfinance_repair_default
 from shunya.data.providers import YFinanceMarketDataProvider
 from shunya.data.timeframes import BarSpec, BarUnit, default_bar_index_policy
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
 from shunya.data.timescale.ingest_lib import UPSERT_OHLCV_SQL, ensure_symbols, rows_from_provider_ohlcv
 from shunya.data.timescale.intervals import bar_spec_to_interval_key
 from shunya.data.timescale.market_cache_lib import touch_ohlcv_refresh_manifest_on_cursor
@@ -62,7 +66,7 @@ def backfill_ohlcv_from_yfinance(
     *,
     start_date: str,
     end_date_exclusive: str,
-    source: str = "yfinance",
+    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
     batch_size: int = 40,
 ) -> tuple[int, str | None]:
     """

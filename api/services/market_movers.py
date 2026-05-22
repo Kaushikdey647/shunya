@@ -1,15 +1,15 @@
 """Yahoo Finance predefined equity screeners (gainers / losers / most active)."""
 
+# TODO(market-data-router): Route screeners through registry-labeled Yahoo adapter for provenance parity.
+
 from __future__ import annotations
 
 import logging
 from typing import Any, Literal
 
-import yfinance as yf
-
 from api.schemas.models import MarketMoverRow
 from api.services.market_exceptions import MarketProviderError
-from shunya.data.yfinance_session import build_yfinance_session
+from shunya.integration.yahoo_public import YahooPublicAdapter
 
 _log = logging.getLogger(__name__)
 
@@ -31,9 +31,9 @@ def fetch_movers(
     if key is None:
         raise ValueError("invalid movers kind")
     cap = max(1, min(limit, 250))
-    sess = session if session is not None else build_yfinance_session()
+    adapter = YahooPublicAdapter(session=session)
     try:
-        result = yf.screen(key, count=cap, session=sess)
+        result = adapter.predefined_screen(key, count=cap)
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance screen failed kind=%s: %s", kind, exc)
         raise MarketProviderError("screener unavailable") from exc

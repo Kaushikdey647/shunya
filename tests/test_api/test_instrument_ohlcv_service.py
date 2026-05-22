@@ -10,9 +10,9 @@ import pytest
 
 from api.services.instrument_ohlcv import (
     _dataframe_to_bars,
-    _flatten_ohlcv_for_symbol,
     resolve_instrument_ohlcv_sync,
 )
+from shunya.data.ohlcv_multindex import flatten_ohlcv_for_symbol as _flatten_ohlcv_for_symbol
 
 
 def _sample_ohlcv_df() -> pd.DataFrame:
@@ -44,12 +44,14 @@ def test_case3_no_database_uses_yfinance(no_database: None, monkeypatch: pytest.
     mock_prov = MagicMock()
     mock_prov.download.return_value = df
     monkeypatch.setattr(
-        "api.services.instrument_ohlcv.YFinanceMarketDataProvider",
+        "shunya.data.market_router.YFinanceMarketDataProvider",
         lambda session=None, **kwargs: mock_prov,
     )
 
     out = resolve_instrument_ohlcv_sync("ZZZ", "1d", "1mo")
-    assert out.response.data_source == "yfinance"
+    assert out.response.provenance is not None
+    assert out.response.provenance.read_path == "live_fetch"
+    assert out.response.provenance.upstream_source_id == "yfinance"
     assert out.response.storage_skipped is True
     assert len(out.response.bars) == 2
     assert out.pending_deferred_writeback is None
@@ -76,23 +78,24 @@ def test_case1_timescale_complete(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     monkeypatch.setattr(
-        "api.services.instrument_ohlcv.validate_core_ohlcv_coverage",
+        "shunya.data.market_router.validate_core_ohlcv_coverage",
         lambda *a, **k: None,
     )
 
     monkeypatch.setattr(
-        "api.services.instrument_ohlcv.fetch_ohlcv_manifest_last_refresh_sync",
+        "shunya.data.market_router.fetch_ohlcv_manifest_last_refresh_sync",
         lambda *a, **k: datetime.now(timezone.utc),
     )
 
     mock_yf = MagicMock()
     monkeypatch.setattr(
-        "api.services.instrument_ohlcv.YFinanceMarketDataProvider",
+        "shunya.data.market_router.YFinanceMarketDataProvider",
         lambda session=None, **kwargs: mock_yf,
     )
 
     out = resolve_instrument_ohlcv_sync("ZZZ", "1d", "1mo")
-    assert out.response.data_source == "timescale"
+    assert out.response.provenance is not None
+    assert out.response.provenance.read_path == "timescale"
     assert len(out.response.bars) == 2
     mock_yf.download.assert_not_called()
 
@@ -119,6 +122,26 @@ def test_case2_timescale_incomplete_triggers_yfinance_writeback(
         lambda dsn=None, source="yfinance": ts_prov,
     )
 
+    def _manifest_now(*_a: object, **_k: object) -> datetime:
+        return datetime.now(timezone.utc)
+
+    monkeypatch.setattr(
+        "shunya.data.market_router.fetch_ohlcv_manifest_last_refresh_sync",
+        _manifest_now,
+    )
+    monkeypatch.setattr(
+        "shunya.data.timescale.market_cache_lib.fetch_ohlcv_manifest_last_refresh_sync",
+        _manifest_now,
+    )
+
+    def _validate_incomplete(*_a: object, **_k: object) -> None:
+        raise ValueError("incomplete")
+
+    monkeypatch.setattr(
+        "shunya.data.market_router.validate_core_ohlcv_coverage",
+        _validate_incomplete,
+    )
+
     cols = pd.MultiIndex.from_tuples(
         [
             ("Open", "ZZZ"),
@@ -135,14 +158,16 @@ def test_case2_timescale_incomplete_triggers_yfinance_writeback(
     mock_yf = MagicMock()
     mock_yf.download.return_value = df_yf_price_first
     monkeypatch.setattr(
-        "api.services.instrument_ohlcv.YFinanceMarketDataProvider",
+        "shunya.data.market_router.YFinanceMarketDataProvider",
         lambda session=None, **kwargs: mock_yf,
     )
 
     with patch("api.services.instrument_ohlcv.replace_ohlcv_range_sync") as wr:
         wr.return_value = (1, 2)
         out = resolve_instrument_ohlcv_sync("ZZZ", "1d", "1mo", defer_storage=False)
-    assert out.response.data_source == "yfinance"
+    assert out.response.provenance is not None
+    assert out.response.provenance.read_path == "live_fetch"
+    assert out.response.provenance.upstream_source_id == "yfinance"
     assert out.response.storage_status == "ok"
     assert len(out.response.bars) == 2
     wr.assert_called_once()

@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Literal, Optional, Protocol, Union, runtime_
 import pandas as pd
 import requests
 import yfinance as yf
+from alpaca.data.enums import DataFeed
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
@@ -39,6 +40,29 @@ from .timeframes import (
 )
 
 _LOG = logging.getLogger(__name__)
+
+
+def data_feed_for_alpaca_upstream(upstream_id: str) -> DataFeed | None:
+    """Map registry :class:`~shunya.data.market_data` upstream ids to Alpaca ``DataFeed``."""
+    u = str(upstream_id).strip().lower()
+    if u == "alpaca_sip":
+        return DataFeed.SIP
+    if u == "alpaca_iex":
+        return DataFeed.IEX
+    if u == "alpaca_delayed_sip":
+        return DataFeed.DELAYED_SIP
+    return None
+
+
+def default_alpaca_data_feed_from_env() -> DataFeed:
+    """Alpaca stock bar feed from ``SHUNYA_ALPACA_BAR_FEED`` (``sip`` | ``iex`` | ``delayed_sip``)."""
+    raw = (os.environ.get("SHUNYA_ALPACA_BAR_FEED") or "sip").strip().lower()
+    if raw == "iex":
+        return DataFeed.IEX
+    if raw in ("delayed_sip", "delayed-sip"):
+        return DataFeed.DELAYED_SIP
+    return DataFeed.SIP
+
 
 _OHLCV_COLS: tuple[str, ...] = ("Open", "High", "Low", "Close", "Volume")
 _REPAIRED_META = "Repaired?"
@@ -161,6 +185,8 @@ def _alpaca_request_bounds(
 class YFinanceMarketDataProvider:
     """Yahoo Finance path; ``interval`` derives from :class:`~.timeframes.BarSpec`."""
 
+    # TODO(market-data-router): Return structured provenance alongside DataFrame (router Phase B/C) for HTTP and ingest.
+
     def __init__(
         self,
         session: Optional[requests.Session] = None,
@@ -231,12 +257,17 @@ class AlpacaHistoricalMarketDataProvider:
     data may differ by symbol universe; handle API errors at call time.
     """
 
+    # TODO(market-data-router): Drive bar_feed_upstream / _data_feed from capability registry;
+    # persist matching SourceId on ohlcv_bars.source (no drift vs router).
+
     def __init__(
         self,
         *,
         api_key: Optional[str] = None,
         secret_key: Optional[str] = None,
         paper: bool = True,
+        data_feed: Optional[DataFeed] = None,
+        bar_feed_upstream: Optional[str] = None,
     ) -> None:
         if (api_key or secret_key) and not (api_key and secret_key):
             raise ValueError("Pass both api_key and secret_key, or omit both to load from the environment.")
@@ -245,6 +276,13 @@ class AlpacaHistoricalMarketDataProvider:
         else:
             settings = load_alpaca_settings_from_env(default_paper=paper)
         self._client = build_stock_historical_data_client(settings)
+        if bar_feed_upstream is not None:
+            mapped = data_feed_for_alpaca_upstream(bar_feed_upstream)
+            self._data_feed: DataFeed = mapped if mapped is not None else default_alpaca_data_feed_from_env()
+        elif data_feed is not None:
+            self._data_feed = data_feed
+        else:
+            self._data_feed = default_alpaca_data_feed_from_env()
 
     def download(
         self,
@@ -283,6 +321,7 @@ class AlpacaHistoricalMarketDataProvider:
             timeframe=timeframe,
             start=start_ts.to_pydatetime(),
             end=end_ts.to_pydatetime(),
+            feed=self._data_feed,
         )
         try:
             barset = self._client.get_stock_bars(req)
@@ -730,6 +769,8 @@ def fetch_yfinance_classifications(
     Returns per ticker a dict with lowercase DB keys (``sector``, ``industry``, …),
     ``full_time_employees`` when present, and finTs keys ``Sector`` / ``Industry``.
     """
+    # TODO(market-data-router): Parallel yf.Ticker path vs YFinanceMarketDataProvider.download;
+    # align session, repair policy, and provenance with shared Yahoo adapter.
     out: Dict[str, Dict[str, Any]] = {}
     for sym in ticker_list:
         info: dict = {}

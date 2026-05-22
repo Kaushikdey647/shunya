@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 BarUnitLiteral = Literal["SECONDS", "MINUTES", "HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"]
 FeatureModeLiteral = Literal["full", "ohlcv_only"]
 TradingAxisModeLiteral = Literal["observed", "canonical"]
-MarketDataProviderLiteral = Literal["auto", "timescale", "yfinance"]
+MarketDataProviderLiteral = Literal["auto", "timescale", "yfinance", "alpaca", "best_effort"]
 
 DecayModeLiteral = Literal["ema", "linear"]
 NanPolicyLiteral = Literal["strict", "zero_fill"]
@@ -25,6 +25,7 @@ class BarSpecModel(BaseModel):
 
 
 class FinTsRequest(BaseModel):
+    schema_version: int = Field(default=1, ge=1, description="Bump when persisted FinTs job JSON shape changes.")
     start_date: str
     end_date: str
     ticker_list: list[str] = Field(default_factory=list)

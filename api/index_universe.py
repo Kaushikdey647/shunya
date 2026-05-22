@@ -9,9 +9,7 @@ from psycopg.rows import dict_row
 
 from api.db import resolve_database_url
 from api.index_catalog import RAW_INDEX_TICKER_BY_CODE, known_index_codes
-
-# Matches TimescaleMarketDataProvider default daily bars.
-_OHLCV_SOURCE = "yfinance"
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
 
 
 def index_exists(index_code: str) -> bool:
@@ -85,7 +83,7 @@ def ohlcv_bar_counts_in_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = _OHLCV_SOURCE,
+    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
 ) -> dict[str, int]:
     """Return ``ticker -> bar count`` for ``[start_date, end_date)`` (``0`` if symbol or bars missing)."""
     if not tickers:
@@ -133,7 +131,7 @@ def tickers_with_ohlcv_in_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = _OHLCV_SOURCE,
+    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
 ) -> list[str]:
     """Constituents that have at least one OHLCV bar in the window (stable sort)."""
     counts = ohlcv_bar_counts_in_window(
@@ -148,7 +146,7 @@ def validate_ohlcv_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = _OHLCV_SOURCE,
+    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
 ) -> None:
     """
     Ensure each ticker has at least one bar in [start, end).

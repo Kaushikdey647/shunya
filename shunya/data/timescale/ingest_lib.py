@@ -107,19 +107,20 @@ def _append_ticker_bars(
             continue
         if v < 0.0:
             continue
-        rows.append((symbol_id, ts.to_pydatetime(), interval, o, h, l, c, v, source))
+        rows.append((symbol_id, ts.to_pydatetime(), interval, o, h, l, c, v, source, None))
 
 
 UPSERT_OHLCV_SQL = """
-INSERT INTO ohlcv_bars (symbol_id, ts, interval, open, high, low, close, volume, source)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+INSERT INTO ohlcv_bars (symbol_id, ts, interval, open, high, low, close, volume, source, metadata)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (symbol_id, ts, interval, source) DO UPDATE SET
     open = EXCLUDED.open,
     high = EXCLUDED.high,
     low = EXCLUDED.low,
     close = EXCLUDED.close,
     volume = EXCLUDED.volume,
-    ingested_at = now()
+    ingested_at = now(),
+    metadata = COALESCE(EXCLUDED.metadata, ohlcv_bars.metadata)
 """
 
 

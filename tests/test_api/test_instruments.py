@@ -21,6 +21,7 @@ from api.schemas.models import (
     InstrumentTickerNewsResponse,
     InstrumentValuationMetrics,
     OhlcvBar,
+    OhlcvProvenance,
 )
 from api.services.instrument_ohlcv import InstrumentOhlcvResult
 
@@ -57,7 +58,9 @@ def test_ohlcv_invalid_symbol() -> None:
 
 
 def test_ohlcv_returns_bars(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _fake(sym: str, interval: str, period: str, *, defer_storage: bool = False) -> InstrumentOhlcvResult:
+    def _fake(
+        sym: str, interval: str, period: str, *, defer_storage: bool = False, route: str = "auto"
+    ) -> InstrumentOhlcvResult:
         return InstrumentOhlcvResult(
             response=InstrumentOhlcvResponse(
                 symbol=sym,
@@ -73,7 +76,11 @@ def test_ohlcv_returns_bars(monkeypatch: pytest.MonkeyPatch) -> None:
                         volume=100.0,
                     ),
                 ],
-                data_source="yfinance",
+                provenance=OhlcvProvenance(
+                    read_path="live_fetch",
+                    upstream_source_id="yfinance",
+                    route_rule_id="test",
+                ),
                 storage_status="none",
             )
         )
@@ -86,7 +93,8 @@ def test_ohlcv_returns_bars(monkeypatch: pytest.MonkeyPatch) -> None:
     assert data["symbol"] == "AAPL"
     assert len(data["bars"]) == 1
     assert data["bars"][0]["close"] == 1.5
-    assert data["data_source"] == "yfinance"
+    assert data["provenance"]["read_path"] == "live_fetch"
+    assert data["provenance"]["upstream_source_id"] == "yfinance"
 
 
 def test_ingestion_run_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:

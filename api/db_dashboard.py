@@ -18,6 +18,7 @@ from api.schemas.models import (
     TickerDashboardRow,
     TickerRiskRow,
 )
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
 from shunya.data.timescale.dbutil import get_database_url
 from shunya.data.timescale.ohlcv_window import yfinance_interval_to_bar_spec
 
@@ -383,6 +384,7 @@ def compute_data_dashboard(
     industry_counts: list[ClassificationLabelCount] = []
     with psycopg.connect(dsn) as conn:
         with conn.cursor() as cur:
+            # FIXME(market-data-router): Dashboard sector/industry counts ignore non-yfinance classification sources.
             cur.execute(
                 """
                 WITH latest AS (
@@ -391,7 +393,7 @@ def compute_data_dashboard(
                         sc.sector,
                         sc.industry
                     FROM symbol_classifications sc
-                    WHERE sc.source = 'yfinance'
+                    WHERE sc.source = %s
                     ORDER BY sc.symbol_id, sc.as_of DESC
                 )
                 SELECT
@@ -401,7 +403,7 @@ def compute_data_dashboard(
                 LEFT JOIN latest l ON l.symbol_id = s.id
                 WHERE s.ticker = ANY(%s)
                 """,
-                (tickers_ordered,),
+                (STORED_OHLCV_DEFAULT_UPSTREAM_ID, tickers_ordered),
             )
             cls_rows = cur.fetchall()
     sec_c: Counter[str] = Counter()

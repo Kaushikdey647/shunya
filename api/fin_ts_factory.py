@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from shunya.data.fints import finTs
+from shunya.data.market_data.fints_bridge import resolve_market_data_provider
 from shunya.data.providers import MarketDataProvider
 
 from shunya.schemas import FinTsRequest, bar_spec_model_to_bar_spec
@@ -12,40 +12,9 @@ from shunya.errors import ErrorCode, FinTsConfigurationError
 from api.timescale_classifications import load_classifications_for_tickers
 
 
-def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvider]:
-    mode = req.market_data_provider
-    if mode == "yfinance":
-        return None
-    if mode == "timescale":
-        try:
-            from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
-        except ImportError as exc:
-            raise FinTsConfigurationError(
-                "Timescale provider requires: pip install 'shunya-py[timescale]'",
-                code=ErrorCode.FIN_TS_TIMESCALE_DEPENDENCY,
-                status_code=503,
-            ) from exc
-        try:
-            return TimescaleMarketDataProvider()
-        except ValueError as exc:
-            raise FinTsConfigurationError(
-                "Timescale provider requires DATABASE_URL or SHUNYA_DATABASE_URL.",
-                code=ErrorCode.FIN_TS_TIMESCALE_DSN_REQUIRED,
-                status_code=503,
-            ) from exc
-    if os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL"):
-        try:
-            from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
-
-            return TimescaleMarketDataProvider()
-        except (ImportError, ValueError):
-            return None
-    return None
-
-
 def build_fin_ts(req: FinTsRequest) -> finTs:
     bar_spec = bar_spec_model_to_bar_spec(req.bar_spec)
-    md = resolve_market_data_provider(req)
+    md: MarketDataProvider | None = resolve_market_data_provider(req)
     if req.market_data_provider == "timescale" and md is None:
         raise FinTsConfigurationError(
             "market_data_provider=timescale but Timescale is not available (DSN or psycopg).",

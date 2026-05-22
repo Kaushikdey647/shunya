@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **Instrument OHLCV API:** **`GET /instruments/{symbol}/ohlcv`** responses no longer include **`data_source`**; clients should use **`provenance`** (`read_path`, `upstream_source_id`, `route_rule_id`, …). TypeScript types updated accordingly.
+
+- **FinTs market data:** **`resolve_market_data_provider`** delegates to **`shunya.data.market_data.fints_bridge`** so eligibility matches **`resolve_market_route`** before choosing **`TimescaleMarketDataProvider`** / **`AlpacaHistoricalMarketDataProvider`**. **`resolve_market_route`** accepts **`timescale`** as a FinTs-oriented mode (stored Yahoo upstream in Timescale).
+
 - **UI routing:** **`/`** is a **static landing page** (Matrix-style marketing, no app shell, no API calls from that screen). The research **dashboard** moved to **`/dashboard`** with sidebar label **Dashboard**, command palette entry, and header brand link targeting the desk. Docs: `docs/ui/overview.md`, `docs/ui/research.md`, `docs/ui/keyboard-shortcuts.md`.
 
 - **UI — Data summary (`/data`):** replaced per-ticker coverage heatmap and instruments table with a **missing-coverage pie** (inverted completeness, top ten tickers in the legend); **risk vs log total return** scatter uses **`log_return_pct`** from the API, with **1st–99th percentile winsorization** on each axis for display (tooltips keep raw vol and log return). Docs: `docs/ui/research.md`, `docs/reference/http-api-package.md`.
@@ -31,6 +35,8 @@ All notable changes to this project are documented in this file.
 - `tests/test_streaming_pipeline.py` and `tests/test_fintrade.py`.
 
 ### Added
+
+- **Market data routing:** `shunya.data.market_data` (pure `resolve_market_route` + `MarketRouteDecision`), `shunya.data.market_router.try_timescale_then_live_ohlcv`, explicit Alpaca **`StockBarsRequest.feed`** (`SHUNYA_ALPACA_BAR_FEED` / `bar_feed_upstream`), **`GET /instruments/{symbol}/ohlcv?route=`**, **`provenance`** on instrument OHLCV and market snapshot rows, FinTs **`market_data_provider`** **`alpaca`** / **`best_effort`**, **`FinTsRequest.schema_version`**, migration **`016_ohlcv_bars_metadata.sql`**, **`STORED_OHLCV_DEFAULT_UPSTREAM_ID`** for stored Yahoo **`ohlcv_bars.source`**, and **`shunya.integration.yahoo_public.YahooPublicAdapter`** for non-router Yahoo HTTP reads. Doc: **`docs/market_data_routing.md`**.
 
 - **Docker Compose / bootstrap:** one-shot **`bootstrap`** runs **`migrate`**, **`docker/compose_bootstrap_probe.py`**, then **`scripts/gapfill_sp100_universe_metadata.py`** when OHLCV is already present, or **`scripts/bootstrap_sp100_timescale.py --skip-migrate`**, **`bootstrap_example_alphas.py`**, **`bootstrap_ts_data.py`**, and **`gapfill_sp100_universe_metadata.py`** on a fresh/partial DB. **`api`** **`depends_on`** **`bootstrap`** (**`service_completed_successfully`**). Probe: **`SHUNYA_COMPOSE_BOOTSTRAP_MIN_SP100_BARS`**. **`Dockerfile`** copies **`scripts/`** and **`examples/`**. Docs: **`docs/data_timescale.md`**, **`docs/how-to/bootstrap-scripts.md`**.
 

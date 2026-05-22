@@ -1,5 +1,7 @@
 """Replace OHLCV rows in a UTC window after a yfinance refresh (instrument API path)."""
 
+# TODO(market-data-router): Refresh docstring + invariants for multi-upstream writes (no silent cross-source overwrite).
+
 from __future__ import annotations
 
 import json

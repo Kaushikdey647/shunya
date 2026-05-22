@@ -7,8 +7,8 @@ Exit status for Docker Compose one-shot bootstrap (see docker/compose-bootstrap.
 - 2: Unexpected error (connection, missing env).
 
 Criteria match ``scripts/bootstrap_sp100_timescale.py`` defaults: ``interval`` = ``1d``,
-``source`` = ``yfinance`` (see ``bar_spec_to_interval_key(default_bar_spec())`` and
-``_OHLCV_SOURCE`` in that script). Requires benchmark ``^OEX`` bars and at least
+``source`` = ``STORED_OHLCV_DEFAULT_UPSTREAM_ID`` (Yahoo OHLCV rows in ``ohlcv_bars``).
+Requires benchmark ``^OEX`` bars and at least
 ``SHUNYA_COMPOSE_BOOTSTRAP_MIN_SP100_BARS`` distinct SP100 members with at least one
 such bar (default 50).
 """
@@ -18,9 +18,11 @@ from __future__ import annotations
 import os
 import sys
 
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
+
 # Keep in sync with scripts/bootstrap_sp100_timescale.py
 _DEFAULT_INTERVAL = "1d"
-_DEFAULT_SOURCE = "yfinance"
+_DEFAULT_SOURCE = STORED_OHLCV_DEFAULT_UPSTREAM_ID
 _BENCHMARK = "^OEX"
 _DEFAULT_MIN_SP100 = 50
 

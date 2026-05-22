@@ -20,6 +20,7 @@ def load_classifications_for_tickers(ticker_list: list[str]) -> Mapping[str, Map
     out: dict[str, dict[str, str]] = {}
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor() as cur:
+            # FIXME(market-data-router): SQL hardcodes c.source = 'yfinance'; other upstream rows are invisible to finTs.
             cur.execute(
                 """
                 SELECT DISTINCT ON (s.ticker)

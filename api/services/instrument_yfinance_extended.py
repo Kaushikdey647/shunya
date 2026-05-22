@@ -1,5 +1,7 @@
 """Cached yfinance Ticker getters beyond overview (analyst, estimates, insider, etc.)."""
 
+# TODO(market-data-router): Align extended Ticker fetch with capability registry (fundamentals lane, provenance).
+
 from __future__ import annotations
 
 import logging
@@ -20,6 +22,7 @@ from api.services.instrument_cache_store import (
     instrument_yfinance_document_get,
     instrument_yfinance_document_put,
 )
+from shunya.integration.yahoo_public import YahooPublicAdapter
 from shunya.data.timescale.fundamentals_upsert import (
     sync_calendar_dict_to_earnings_db,
     sync_insider_transactions_table_to_db,
@@ -46,7 +49,6 @@ from shunya.data.timescale.market_cache_lib import (
     DOC_UPGRADES_DOWNGRADES,
     DOC_VALUATION_MEASURES,
 )
-from shunya.data.yfinance_session import build_yfinance_session
 
 _log = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ def _float_opt(val: Any) -> float | None:
 
 
 def _ticker(symbol: str) -> yf.Ticker:
-    return yf.Ticker(symbol, session=build_yfinance_session())
+    return YahooPublicAdapter().ticker(symbol)
 
 
 def _table_response(symbol: str, df: pd.DataFrame | None) -> InstrumentYfinanceTableResponse:

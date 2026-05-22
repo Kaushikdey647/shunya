@@ -632,12 +632,21 @@ export type AlpacaAccountConfigurationsPatch = Partial<
 
 export type MoversKind = 'gainers' | 'losers' | 'active'
 
+export interface OhlcvProvenance {
+  read_path: 'timescale' | 'live_fetch'
+  upstream_source_id: string
+  route_rule_id?: string | null
+  attempted_sources?: string[] | null
+  partial_coverage?: boolean | null
+}
+
 export interface MarketSnapshotRow {
   symbol: string
   last: number | null
   pct_change_1d: number | null
   volume: number | null
   sparkline_close: number[]
+  provenance?: OhlcvProvenance | null
 }
 
 export interface MarketSnapshotResponse {
@@ -727,8 +736,6 @@ export interface OhlcvBar {
   volume?: number | null
 }
 
-export type InstrumentOhlcvDataSource = 'timescale' | 'yfinance'
-
 export type InstrumentOhlcvStorageStatus = 'none' | 'ok' | 'failed' | 'deferred'
 
 export interface InstrumentOhlcvResponse {
@@ -736,7 +743,7 @@ export interface InstrumentOhlcvResponse {
   interval: string
   period: string
   bars: OhlcvBar[]
-  data_source?: InstrumentOhlcvDataSource
+  provenance?: OhlcvProvenance | null
   storage_status?: InstrumentOhlcvStorageStatus
   storage_error?: string | null
   storage_job_id?: number | null

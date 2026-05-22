@@ -1,5 +1,7 @@
 """yfinance-backed instrument dashboard payloads (overview, statements, holders, options)."""
 
+# TODO(market-data-router): Dashboard yfinance calls should not bypass shared adapter / future fundamentals registry.
+
 from __future__ import annotations
 
 import logging
@@ -11,6 +13,8 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 from fastapi import HTTPException
+
+from shunya.integration.yahoo_public import YahooPublicAdapter
 
 from shunya.data.timescale.market_cache_lib import (
     DOC_FINANCIALS_BALANCE,
@@ -57,8 +61,6 @@ from api.services.yfinance_tables import (
     merge_valuation_metrics,
     valuation_measures_to_metrics,
 )
-from shunya.data.yfinance_session import build_yfinance_session
-
 _log = logging.getLogger(__name__)
 
 
@@ -333,9 +335,9 @@ def fetch_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
     if hit is not None:
         return hit
 
-    session = build_yfinance_session()
+    adapter = YahooPublicAdapter()
     try:
-        t = yf.Ticker(symbol, session=session)
+        t = adapter.ticker(symbol)
         info = t.get_info()
         vm_df: pd.DataFrame | None = None
         try:
@@ -437,9 +439,9 @@ def fetch_instrument_financials(
     if hit is not None:
         return hit
 
-    session = build_yfinance_session()
+    adapter = YahooPublicAdapter()
     try:
-        t = yf.Ticker(symbol, session=session)
+        t = adapter.ticker(symbol)
         attr = _statement_attr(statement, frequency)
         df = getattr(t, attr, None)
     except Exception as exc:  # noqa: BLE001
@@ -510,9 +512,9 @@ def fetch_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
     if hit is not None:
         return hit
 
-    session = build_yfinance_session()
+    adapter = YahooPublicAdapter()
     try:
-        t = yf.Ticker(symbol, session=session)
+        t = adapter.ticker(symbol)
         inst = t.institutional_holders
         mf = t.mutualfund_holders
     except Exception as exc:  # noqa: BLE001
@@ -542,9 +544,9 @@ def fetch_option_expirations(symbol: str) -> InstrumentOptionExpirationsResponse
     if hit is not None:
         return hit
 
-    session = build_yfinance_session()
+    adapter = YahooPublicAdapter()
     try:
-        t = yf.Ticker(symbol, session=session)
+        t = adapter.ticker(symbol)
         opts = getattr(t, "options", None)
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance option expirations failed for %s: %s", symbol, exc)
@@ -602,9 +604,9 @@ def fetch_option_chain(symbol: str, expiry: str) -> InstrumentOptionChainRespons
     if hit is not None:
         return hit
 
-    session = build_yfinance_session()
+    adapter = YahooPublicAdapter()
     try:
-        t = yf.Ticker(symbol, session=session)
+        t = adapter.ticker(symbol)
         oc = t.option_chain(expiry_clean)
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance option chain failed for %s %s: %s", symbol, expiry_clean, exc)

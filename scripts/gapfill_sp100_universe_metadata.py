@@ -124,6 +124,7 @@ def main() -> int:
         return 2
     os.environ["DATABASE_URL"] = durl
 
+    from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
     from shunya.data.timescale.cli import cmd_ingest_classifications, cmd_ingest_fundamentals
     from shunya.data.timescale.dbutil import get_database_url
 
@@ -155,7 +156,8 @@ def main() -> int:
 
     sym_arg = " ".join(constituents)
 
-    ns_c = argparse.Namespace(symbols=sym_arg, source="yfinance", insecure_curl=False)
+    # TODO(market-data-router): Hardcoded classification/fundamental source strings; tie to shared SourceId / CLI defaults.
+    ns_c = argparse.Namespace(symbols=sym_arg, source=STORED_OHLCV_DEFAULT_UPSTREAM_ID, insecure_curl=False)
     print("gapfill_sp100_universe_metadata: ingest-classifications …")
     rc = cmd_ingest_classifications(ns_c)
     if rc != 0:

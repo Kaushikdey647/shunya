@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+# TODO(market-data-router): Instrument routes using yfinance directly should delegate to router/adapter stack.
+
 import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-import yfinance as yf
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from api.schemas.models import (
@@ -60,7 +61,7 @@ from api.services.instrument_yfinance_extended import (
 )
 from api.services.instrument_ohlcv import PendingOhlcvWriteback, resolve_instrument_ohlcv_sync
 from api.services.market_symbols import SYMBOL_RE, normalize_market_symbol
-from shunya.data.yfinance_session import build_yfinance_session
+from shunya.integration.yahoo_public import YahooPublicAdapter
 from shunya.data.timescale.ohlcv_writeback import (
     create_deferred_ingestion_run_sync,
     get_ingestion_run_sync,
@@ -262,7 +263,8 @@ def _news_item_from_ticker_news_dict(item: dict[str, Any]) -> InstrumentTickerNe
 
 def _run_ticker_news(symbol: str, limit: int) -> InstrumentTickerNewsResponse:
     try:
-        t = yf.Ticker(symbol, session=build_yfinance_session())
+        adapter = YahooPublicAdapter()
+        t = adapter.ticker(symbol)
         raw_list = t.news or []
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance ticker news failed for %s: %s", symbol, exc)
@@ -290,15 +292,8 @@ def _nav_from_raw(item: dict[str, Any]) -> InstrumentNavLink | None:
 
 def _run_search(q: str) -> InstrumentSearchResponse:
     try:
-        s = yf.Search(
-            q,
-            max_results=16,
-            news_count=12,
-            include_nav_links=True,
-            timeout=25,
-            raise_errors=True,
-            session=build_yfinance_session(),
-        )
+        adapter = YahooPublicAdapter()
+        s = adapter.search_instruments(q)
     except Exception as exc:  # noqa: BLE001
         _log.warning("yfinance search failed: %s", exc)
         raise HTTPException(status_code=502, detail="search provider unavailable") from exc
@@ -566,6 +561,10 @@ async def get_instrument_ohlcv(
         "1y"
     ),
     defer_storage: bool = Query(False, description="If true, queue Timescale writeback and poll ingestion-runs"),
+    route: str = Query(
+        "auto",
+        description="Market route: auto, best_effort, or explicit upstream (yfinance, alpaca_sip, …).",
+    ),
 ) -> InstrumentOhlcvResponse:
     sym = _normalize_symbol(symbol)
     if interval not in ALLOWED_INTERVALS:
@@ -573,7 +572,9 @@ async def get_instrument_ohlcv(
     if period not in ALLOWED_PERIODS:
         raise HTTPException(status_code=400, detail="invalid period")
 
-    result = await asyncio.to_thread(resolve_instrument_ohlcv_sync, sym, interval, period, defer_storage=defer_storage)
+    result = await asyncio.to_thread(
+        resolve_instrument_ohlcv_sync, sym, interval, period, defer_storage=defer_storage, route=route
+    )
 
     if result.pending_deferred_writeback is not None:
         pw = result.pending_deferred_writeback
