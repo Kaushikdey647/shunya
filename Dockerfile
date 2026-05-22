@@ -14,8 +14,12 @@ COPY api/ api/
 
 RUN uv sync --frozen --no-dev --extra api --extra timescale
 
+COPY scripts/ scripts/
+COPY examples/ examples/
 COPY docker/api-entrypoint.sh /api-entrypoint.sh
-RUN chmod +x /api-entrypoint.sh
+COPY docker/compose-bootstrap.sh docker/compose-bootstrap.sh
+COPY docker/compose_bootstrap_probe.py docker/compose_bootstrap_probe.py
+RUN chmod +x /api-entrypoint.sh docker/compose-bootstrap.sh
 
 EXPOSE 8000
 ENTRYPOINT ["/api-entrypoint.sh"]

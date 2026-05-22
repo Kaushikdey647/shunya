@@ -49,6 +49,21 @@ uv run python scripts/bootstrap_sp100_timescale.py
 
 See **`python scripts/bootstrap_sp100_timescale.py --help`** for **`--start`**, **`--end`**, **`--strict`**, and skips.
 
+## `gapfill_sp100_universe_metadata.py`
+
+Lightweight backfill for the **saved universe SP100** overview in the UI: **`symbol_classifications`** (sector / industry) and **`fundamentals_daily`** (e.g. market cap, trailing P/E, beta). Uses the same Yahoo paths as **`shunya-timescale ingest-classifications`** / **`ingest-fundamentals`** (requires **`examples/yfinance_fundamental_provider`** on **`PYTHONPATH`** — use repo root).
+
+By default the script **no-ops** when every SP100 member (except **`GS-PK`**) already has at least one classification row and at least one **`fundamentals_daily`** row with **`market_cap > 0`**. Use **`--force`** to refresh from Yahoo anyway.
+
+```bash
+uv sync --extra api --extra timescale
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/shunya
+uv run python scripts/gapfill_sp100_universe_metadata.py --dry-run
+uv run python scripts/gapfill_sp100_universe_metadata.py
+```
+
+Docker Compose **`bootstrap`** runs this after the OHLCV probe passes (metadata-only) and again after the full ingest chain (safety net).
+
 ## `bootstrap_ts_data.py`
 
 Larger ingest: daily OHLCV for the **union of all indices** resolved via PyTickerSymbols, with incremental passes, fundamentals, classifications, and **`symbol_index_membership`** sync. Default date window is aligned with the HTTP backtest policy documented in the API (**`[2020-01-01, 2026-01-01)`** end exclusive); override with **`--start`** / **`--end`**.

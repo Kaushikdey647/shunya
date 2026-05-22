@@ -1,4 +1,4 @@
-"""Pydantic models shared by the Shunya library and the backtest API (FinTS / FinStrat / FinBT)."""
+"""Pydantic models shared by the Shunya library and the HTTP API (`api`) (FinTS / FinStrat / FinBT)."""
 
 from __future__ import annotations
 

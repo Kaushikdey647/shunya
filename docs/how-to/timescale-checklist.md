@@ -13,7 +13,7 @@ Use this checklist alongside the full guide [Local Timescale](../data_timescale.
 
    `postgresql://postgres:postgres@localhost:5432/shunya`
 
-2. **Start Postgres** — for example `docker compose up -d` from the repo root (starts **TimescaleDB**, **API**, and **UI**; the API image applies migrations on startup unless **`RUN_MIGRATIONS=0`**).
+2. **Start Postgres** — for example `docker compose up -d` from the repo root (starts **TimescaleDB**, a one-shot **`bootstrap`** ingest/migrate job, **API**, and **UI**; **`bootstrap`** and **`api`** both run **`migrate`**; **`api`** applies migrations on every start unless **`RUN_MIGRATIONS=0`**). See [Local Timescale — Docker Compose bootstrap](../data_timescale.md#docker-compose-bootstrap).
 
 3. **Apply migrations:**
 
@@ -23,7 +23,7 @@ Use this checklist alongside the full guide [Local Timescale](../data_timescale.
 
    Equivalent: `python -m shunya.data.timescale.cli migrate`
 
-   If you use **Docker Compose** for the **API** service, migrations normally run automatically when the **`api`** container starts (**`RUN_MIGRATIONS=1`** in [docker-compose.yml](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml)). Use the commands above when running **`shunya-timescale`** from the host against **`localhost:5432`**, or after disabling auto-migrate.
+   If you use **Docker Compose** for the **API** service, migrations normally run automatically when the **`bootstrap`** and **`api`** containers start (**`RUN_MIGRATIONS=1`** on **`api`** in [docker-compose.yml](https://github.com/Kaushikdey647/shunya/blob/main/docker-compose.yml)). Use the commands above when running **`shunya-timescale`** from the host against **`localhost:5432`**, or after disabling auto-migrate.
 
 4. **Ingest OHLCV** (Yahoo-backed loader, normalized like default `finTs`):
 

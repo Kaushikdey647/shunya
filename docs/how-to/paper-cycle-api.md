@@ -15,7 +15,7 @@ The FastAPI route **`POST /trade/paper/cycle`** runs one **paper** cycle through
 - **`execution_date`** — `YYYY-MM-DD`.
 - Either **`use_demo_pcs: true`** (built-in SPY/QQQ stub book) **or** **`targets_usd` + `universe` + `prices`** for a fixed-target run.
 
-Full field list and semantics: [api/README.md — Backtest API](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md) and `api/routers/trade_desk.py` in the repository.
+Full field list and semantics: [api/README.md — Shunya HTTP API](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md) and `api/routers/trade_desk.py` in the repository.
 
 ## UI parity
 

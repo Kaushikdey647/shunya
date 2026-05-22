@@ -45,6 +45,21 @@ Do not commit secrets; use compose defaults locally or your own credentials.
 
 Override the DSN per invocation with `--database-url ...` (the CLI also sets `DATABASE_URL` for the process).
 
+### Docker Compose bootstrap
+
+On **`docker compose up`**, a one-shot **`bootstrap`** service (same image as **`api`**) runs **before** **`api`**:
+
+1. **`shunya-timescale migrate`**
+2. If **`SHUNYA_COMPOSE_AUTO_BOOTSTRAP=0`**, it stops after migrate (no Yahoo traffic).
+3. Otherwise it runs **`docker/compose_bootstrap_probe.py`**. If the probe exits **0**, **full OHLCV ingest scripts are skipped**, but **`scripts/gapfill_sp100_universe_metadata.py`** still runs so **`symbol_classifications`** and **`fundamentals_daily`** stay filled for the **SP100** universe overview.
+4. If the probe exits **1**, it runs **`scripts/bootstrap_sp100_timescale.py --skip-migrate`**, then **`scripts/bootstrap_example_alphas.py`**, then **`scripts/bootstrap_ts_data.py`**, then **`scripts/gapfill_sp100_universe_metadata.py`** again as a safety net (idempotent upserts if a prior run stopped after OHLCV).
+
+**Population heuristic:** at least one daily (**`interval = '1d'`**) OHLCV row for benchmark **`^OEX`** with **`source = 'yfinance'`**, and at least **`SHUNYA_COMPOSE_BOOTSTRAP_MIN_SP100_BARS`** distinct **SP100** members with at least one such bar (default **50**). This matches **`default_bar_spec()`** → **`bar_spec_to_interval_key`** and **`bootstrap_sp100_timescale`’s** Yahoo source label.
+
+**Why `api` still migrates:** skipping **`migrate`** when data exists is unsafe if a later release adds SQL migrations. **`RUN_MIGRATIONS=1`** on **`api`** keeps schema upgrades automatic; SQL files are written to be re-runnable.
+
+**`bootstrap_ts_data.py`** ingests the **union of PyTickerSymbols catalog indices**, not SP100-only; first boot can be very slow.
+
 ## Reading in `finTs`
 
 Use the DB-backed providers with the same contracts as Yahoo:
@@ -73,7 +88,7 @@ Technicals (`SMA_*`, `RSI_*`, …) are still computed in memory from stored OHLC
 - Integration tests are marked **`timescale`**:
   - With a running DB: set `DATABASE_URL` and run `pytest -m timescale`.
   - With Docker and no local DB: `SHUNYA_RUN_TIMESCALE_CONTAINER=1 pytest -m timescale` (pulls the Timescale image on first run).
-- FastAPI backtest API integration (`tests/test_api/test_api_integration.py`) uses the same marker and skips if Docker is unavailable when using the testcontainer path.
+- FastAPI HTTP API integration (`tests/test_api/test_api_integration.py`) uses the same marker and skips if Docker is unavailable when using the testcontainer path.
 
 ## Migrations directory override
 

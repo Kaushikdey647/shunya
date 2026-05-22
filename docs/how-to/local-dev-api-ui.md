@@ -52,7 +52,9 @@ curl -sSf http://127.0.0.1:8000/healthz
 curl -sSf http://127.0.0.1:8080/api/healthz
 ```
 
-Open **http://localhost:8080** for the web UI (nginx serves the Vite build and proxies **`/api/`** to the **`api`** container). By default the API entrypoint runs **`shunya-timescale migrate`** before uvicorn (**`RUN_MIGRATIONS=1`** in Compose). To migrate manually instead, set **`RUN_MIGRATIONS=0`** on the **`api`** service and run:
+Compose runs a **`bootstrap`** service first (same API image): **`migrate`**, then optional Yahoo ingest scripts unless the database already passes the probe (see [Local Timescale — Docker Compose bootstrap](../data_timescale.md#docker-compose-bootstrap)). **`SHUNYA_COMPOSE_AUTO_BOOTSTRAP=0`** limits that container to **migrate only**. **`api`** still runs **`migrate`** before uvicorn when **`RUN_MIGRATIONS=1`** so new SQL migrations always apply.
+
+Open **http://localhost:8080** for the web UI (nginx serves the Vite build and proxies **`/api/`** to the **`api`** container). To migrate manually instead, set **`RUN_MIGRATIONS=0`** on the **`api`** service and run:
 
 ```bash
 docker compose run --rm api uv run shunya-timescale migrate

@@ -1,1 +1,1 @@
-"""Backtest API service layer."""
+"""HTTP API service layer (`api` package)."""

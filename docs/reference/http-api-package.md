@@ -26,6 +26,7 @@ Use that file with **[openapi-generator](https://openapi-generator.tech/)**, **[
 
 - **HTTP process** — FastAPI app (`api.main:app`).
 - **Background worker** — by default **not** a separate OS process: an **asyncio** task started from the app lifespan polls the Postgres job queue for backtests, using the same **`DATABASE_URL`** as the HTTP handlers. A dedicated worker process is optional for deployment isolation.
+- **Design diagrams (Mermaid)** — High-level design (HLD), low-level design (LLD), component flows, job sequences, and an ER overview of Timescale/API tables live in **[`api/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md)**. The published docs site enables Mermaid via **`mkdocs.yml`** (`mermaid2` + `pymdownx.superfences`); `api/README.md` is not under `docs/` nav by default—open it in the repository or on GitHub for those sections.
 
 Typical backtest flow:
 

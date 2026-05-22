@@ -1,4 +1,4 @@
-# Backtest API
+# Shunya HTTP API (`api/` package)
 
 **`api`** is distributed inside the **`shunya-py`** wheel (same install as the **`shunya`** library). The **`[api]`** optional extra adds **FastAPI**, **uvicorn**, and related dependencies needed to **run** the HTTP process (`pip install "shunya-py[api,timescale]"` is typical). Clone-only workflows use **`uv sync --extra api --extra timescale`** from the repository root.
 
@@ -64,7 +64,7 @@ If the installer creates only the default `postgres` database, either use that U
 
 Without Timescale (or with the DB down), instrument OHLCV and related paths still work via **yfinance**; see **Environment** below for TLS (`curl-cffi` / `YFINANCE_TLS_VERIFY`).
 
-Alternatively, use **Docker Compose** in this repo: **`docker compose up --build`** builds **`timescaledb`**, **`api`**, and **`ui`** (see the root **`docker-compose.yml`** and **`docs/quickstart.md`**).
+Alternatively, use **Docker Compose** in this repo: **`docker compose up --build`** builds **`timescaledb`**, runs a one-shot **`bootstrap`** (migrate + optional Yahoo ingest when the DB is empty), then **`api`** and **`ui`** (see the root **`docker-compose.yml`** and **`docs/quickstart.md`** / **`docs/data_timescale.md`**).
 
 ## Environment
 
@@ -87,6 +87,271 @@ At process start the API loads a **repo-root `.env`** (if present) via `python-d
 | `SHUNYA_API_WORKER_POLL_INTERVAL_SECONDS` | Worker poll interval (default `1.0`) |
 | `SHUNYA_API_INDEX_OHLCV_BACKFILL_BATCH_SIZE` | Tickers per Yahoo batch when the worker backfills OHLCV after a recoverable index backtest data error (default `40`). |
 | `YFINANCE_TLS_VERIFY` | If set to `1` / `true` / `yes` / `on`, yfinance uses default TLS verification instead of the `curl_cffi` session with `verify=False` (useful outside corporate TLS inspection). |
+
+## High-level design (HLD)
+
+**Diagram rendering:** Mermaid blocks below render on GitHub and in editors with Mermaid preview. The published docs site enables **Mermaid** via [`mkdocs.yml`](../mkdocs.yml) (`mermaid2` + `pymdownx.superfences`); this file is **`api/README.md`** (not under `docs/` nav by default—browse it in the repo or on GitHub).
+
+### System context
+
+One **`uvicorn`** OS process runs **FastAPI** and an **asyncio** background task that polls Postgres for queued backtest jobs ([`api/main.py`](main.py) lifespan → `backtest_worker_loop`). HTTP handlers and the worker share the same **`DATABASE_URL`** and Python interpreter.
+
+```mermaid
+flowchart TB
+  subgraph clients [Clients]
+    UI[Web_UI]
+    CLI[API_clients]
+  end
+  subgraph uvicorn [Single_uvicorn_process]
+    HTTP[FastAPI_routers]
+    WL[backtest_worker_async_task]
+  end
+  PG[(Postgres_Timescale)]
+  YF[Yahoo_yfinance]
+  ALP[Alpaca_optional]
+  OLL[Ollama_optional]
+
+  UI --> HTTP
+  CLI --> HTTP
+  HTTP --> PG
+  HTTP --> YF
+  HTTP --> ALP
+  HTTP --> OLL
+  WL --> PG
+  WL --> YF
+```
+
+### Logical components
+
+Routers validate requests and delegate to **repositories** (SQL) or **services** (Timescale analytics, market helpers). **`api/db.py`** opens short-lived **psycopg** connections. Backtest execution flows through **`api/worker.py`** → **`api/worker_job.py`** → **`api/runner.py`**, which builds **`finTs`** via **`api/fin_ts_factory.py`**: optional **`TimescaleMarketDataProvider`** (reads OHLCV from Postgres) or Yahoo-backed bars inside **`shunya`** when the provider is unset / `auto` without a DSN. Simulation uses **`shunya`** (**FinStrat**, **FinBT** / `BacktraderBacktestEngine`).
+
+```mermaid
+flowchart TB
+  R[api_routers] --> Rep[api_repositories]
+  R --> Svc[api_services]
+  Rep --> DBL[api_db]
+  Svc --> DBL
+  DBL --> PG[(Postgres)]
+  WL[api_worker_loop] --> Rep
+  WL --> WJ[worker_job]
+  WJ --> Run[runner]
+  Run --> FTS[fin_ts_factory]
+  FTS --> TS[TimescaleMarketDataProvider]
+  TS --> PG
+  Run --> SH[shunya_FinStrat_FinBT]
+  FTS --> FinTs[finTs_yfinance_or_auto]
+```
+
+### Market data provider selection
+
+`FinTsRequest.market_data_provider` controls how **`build_fin_ts`** resolves OHLCV: explicit **`timescale`** or **`yfinance`**, or **`auto`** (Timescale when DSN + dependency resolve, else Yahoo). See [`api/fin_ts_factory.py`](fin_ts_factory.py) and [`shunya/data/timescale/market_provider.py`](../shunya/data/timescale/market_provider.py).
+
+```mermaid
+flowchart LR
+  M[market_data_provider]
+  M --> T[timescale]
+  M --> Y[yfinance]
+  M --> A[auto]
+  T --> TS[TimescaleMarketDataProvider]
+  A --> D{DSN_and_psycopg}
+  D -->|ok| TS
+  D -->|fail| FinTs[finTs_no_provider_Yahoo]
+  Y --> FinTs
+```
+
+### Component architecture
+
+Routers are grouped by URL prefix; **trade desk** and **alpha assist** touch optional external brokers and Ollama. The in-process **worker** only runs **backtest** jobs; it does not serve HTTP.
+
+```mermaid
+flowchart TB
+  subgraph http [HTTP_routers]
+    alphas[alphas]
+    backtests[backtests]
+    data[data]
+    market[market]
+    instruments[instruments]
+    universes[universes]
+    indices[indices]
+    app_settings[app_settings]
+    trade_desk[trade_desk]
+  end
+  subgraph orch [Job_orchestration]
+    worker_py[worker.py]
+    worker_job_py[worker_job.py]
+    runner_py[runner.py]
+  end
+  subgraph persistence [Persistence]
+    repos[repositories]
+    dbmod[db.py]
+  end
+  subgraph svc [Services]
+    services[api_services]
+  end
+  subgraph md [Market_data_in_finTs]
+    fts[fin_ts_factory]
+    tsmd[TimescaleMarketDataProvider]
+  end
+
+  http --> repos
+  http --> services
+  services --> dbmod
+  repos --> dbmod
+  dbmod --> PG[(Postgres)]
+  worker_py --> repos
+  worker_py --> worker_job_py
+  worker_job_py --> runner_py
+  runner_py --> fts
+  fts --> tsmd
+  tsmd --> PG
+  runner_py --> ExtYF[Yahoo_yfinance]
+  trade_desk --> Alpaca[Alpaca_HTTP]
+  alphas --> Ollama[Ollama_HTTP]
+```
+
+## Low-level design (LLD)
+
+### Layers and modules
+
+| Layer | Path | Role |
+|-------|------|------|
+| **Routers** | [`api/routers/`](routers/) | HTTP boundary; query/body models from [`api/schemas/`](schemas/). |
+| **Repositories** | [`api/repositories/`](repositories/) | Parameterized SQL: alphas, `api_backtest_jobs` queue, universes, runtime config overlay. |
+| **Services** | [`api/services/`](services/) | Instrument OHLCV orchestration, market snapshot/movers/headlines, universe return analytics, yfinance backfill ([`api/services/ohlcv_yfinance_backfill.py`](services/ohlcv_yfinance_backfill.py)), dashboard-oriented Timescale queries used by routers. |
+| **Data / dashboard** | [`api/data_service.py`](data_service.py), [`api/db_dashboard.py`](db_dashboard.py) | `POST /data` summaries vs `GET /data/dashboard` DB-wide coverage. |
+| **Orchestration** | [`api/runner.py`](runner.py), [`api/worker_job.py`](worker_job.py), [`api/worker.py`](worker.py) | Serialize FinBT results; claim/execute jobs; async poll loop. |
+| **Resolution** | [`api/resolver.py`](resolver.py), [`api/index_universe.py`](index_universe.py), [`api/universe_resolve.py`](universe_resolve.py), [`api/backtest_resolve.py`](backtest_resolve.py) | Alpha import vs inline code; index/universe membership for job payloads. |
+
+Deeper package outline: [HTTP API package — Reference](../docs/reference/http-api-package.md).
+
+### Settings resolution
+
+Effective tunables merge **environment** (`SHUNYA_API_*` / `.env` loaded at startup) with the optional **`api_runtime_config`** JSON row (**`PATCH /settings/app`**). Secrets never go in the overlay; changing `.env` requires process restart. See the **Environment** table above and [`api/tunable_config.py`](tunable_config.py).
+
+### Sequence — async backtest job
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant API as FastAPI_routers_backtests
+  participant JR as repositories_backtests
+  participant PG as Postgres
+  participant WL as worker_loop
+  participant WJ as worker_job
+  participant RN as runner
+  participant FTS as fin_ts_factory
+
+  C->>API: POST /backtests
+  API->>JR: insert queued job
+  JR->>PG: INSERT api_backtest_jobs
+  loop Poll_until_stop
+    WL->>JR: claim_next_queued_job
+    JR->>PG: UPDATE SKIP_LOCKED
+  end
+  WL->>WJ: execute_claimed_backtest_job
+  WJ->>RN: run_backtest_from_payload
+  RN->>FTS: build_fin_ts
+  FTS->>PG: Timescale OHLCV optional
+  RN-->>WJ: serialized plus summary
+  WJ->>JR: mark_job_succeeded_or_failed
+  JR->>PG: UPDATE api_backtest_jobs
+```
+
+Optional retry: for Timescale-backed jobs and recoverable `finTs` strictness errors, [`worker_job`](worker_job.py) may **yfinance-backfill** OHLCV then retry once.
+
+### Sequence — dashboard read path
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant R as routers_data
+  participant DD as db_dashboard
+  participant PG as Postgres
+
+  C->>R: GET /data/dashboard
+  R->>DD: compute_data_dashboard
+  DD->>PG: SQL on ohlcv_bars symbols
+  PG-->>DD: aggregates
+  DD-->>R: DataDashboardResponse
+  R-->>C: JSON
+```
+
+### Data model
+
+Schema is defined by SQL migrations under [`shunya/data/timescale/migrations/`](../shunya/data/timescale/migrations/). The diagram below shows **primary keys and foreign keys** only; hypertables include **`ohlcv_bars`** (time `ts`) and **`fundamentals_daily`** (`as_of_ts`). Full column lists live in **`001_init.sql`** through **`015_*.sql`**.
+
+**API tables:** `api_alphas` (optional `default_universe_id` → `api_universes`), `api_backtest_jobs` (`alpha_id`, `request_payload`, `result_payload`, `status`, `execution_log`, `error_code`, …), `api_universe_members` (composite PK `universe_id` + `symbol_id`), `api_runtime_config` (singleton `id = 1`).
+
+**Market / research tables:** `symbols`, `ohlcv_bars`, `equity_indexes`, `symbol_index_membership`, `symbol_classifications`, wide fundamentals (`fundamentals_daily`, `fundamentals_quarterly`, `fundamentals_annual`), events (`corporate_actions`, `insider_transactions`, `earnings_dates`), legacy EAV `fundamentals_field_values`, cache `ohlcv_symbol_interval_refresh`, `instrument_yfinance_documents`, `ingestion_runs`.
+
+```mermaid
+erDiagram
+  api_alphas ||--o{ api_backtest_jobs : alpha_id
+  api_universes ||--o{ api_universe_members : universe_id
+  api_alphas }o--o| api_universes : default_universe_id
+  symbols ||--o{ api_universe_members : symbol_id
+  symbols ||--o{ ohlcv_bars : symbol_id
+  symbols ||--o{ symbol_classifications : symbol_id
+  symbols ||--o{ fundamentals_field_values : symbol_id
+  symbols ||--o{ fundamentals_daily : symbol_id
+  symbols ||--o{ fundamentals_quarterly : symbol_id
+  symbols ||--o{ fundamentals_annual : symbol_id
+  symbols ||--o{ corporate_actions : symbol_id
+  symbols ||--o{ insider_transactions : symbol_id
+  symbols ||--o{ earnings_dates : symbol_id
+  symbols ||--o{ ohlcv_symbol_interval_refresh : symbol_id
+  symbols ||--o{ instrument_yfinance_documents : symbol_id
+  equity_indexes ||--o{ symbol_index_membership : index_code
+  symbols ||--o{ symbol_index_membership : symbol_id
+
+  api_alphas {
+    uuid id PK
+    text name UK
+    text import_ref
+    text source_code
+    jsonb finstrat_config
+    uuid default_universe_id FK
+  }
+  api_backtest_jobs {
+    uuid id PK
+    uuid alpha_id FK
+    text status
+    jsonb request_payload
+    jsonb result_payload
+    jsonb execution_log
+    text error_code
+  }
+  api_universes {
+    uuid id PK
+    text name UK
+  }
+  api_universe_members {
+    uuid universe_id PK_FK
+    bigint symbol_id PK_FK
+  }
+  api_runtime_config {
+    int id PK
+    jsonb payload
+  }
+  symbols {
+    bigint id PK
+    text ticker UK
+  }
+  ohlcv_bars {
+    bigint symbol_id FK
+    timestamptz ts
+    text interval
+    text source
+  }
+  equity_indexes {
+    text code PK
+    text display_name UK
+  }
+  symbol_index_membership {
+    bigint symbol_id PK_FK
+    text index_code PK_FK
+  }
+```
 
 ## Optional: prune stored OHLCV to the HTTP backtest window
 

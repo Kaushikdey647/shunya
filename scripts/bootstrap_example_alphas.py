@@ -4,7 +4,7 @@ Insert example alphas from ``examples.alphas.ALL_ALPHAS`` into ``api_alphas``.
 
 After ``shunya-timescale migrate`` and with ``DATABASE_URL`` set, these rows
 show up on the Shunya UI alphas list (the UI calls ``GET /alphas`` on the
-backtest API, which reads the same table).
+HTTP API, which reads the same table).
 
 Requires: ``uv sync --extra api --extra timescale`` from the repo root.
 

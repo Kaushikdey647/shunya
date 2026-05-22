@@ -1,7 +1,7 @@
 """FastAPI application factory and ASGI entrypoint for the Shunya HTTP API.
 
 ``create_app()`` wires routers, CORS, health routes, and a lifespan that starts the
-in-process backtest worker loop. The module-level ``app`` is the default ASGI app for
+in-process async job worker loop (backtest queue). The module-level ``app`` is the default ASGI app for
 ``uvicorn api.main:app``. See ``api/README.md`` and the published docs under **Reference**
 for route semantics and environment variables.
 """
@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Shunya backtest API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Shunya HTTP API", version="0.1.0", lifespan=lifespan)
 
     cors_origins = _parse_cors_allow_origins()
     if cors_origins:

@@ -1,9 +1,16 @@
 # Full stack: TimescaleDB + FastAPI (uvicorn + in-process backtest worker) + static UI (nginx → /api).
 # Run: docker compose up --build
-# Optional: cp .env.example .env — api service uses env_file (.env, required: false) for SHUNYA_API_*, APCA_*, etc.
+# Optional: cp .env.example .env — api service loads env_file (.env, required: true) for SHUNYA_API_*, APCA_*, etc.
 # DATABASE_URL in this file overrides .env so the API targets the timescaledb service inside the network.
 # UI: http://localhost:8080  (nginx proxies /api to the api service)
 # API direct: http://localhost:8000  (optional; use for /docs or curl without nginx)
+#
+# The bootstrap service runs once per compose up: migrations, then (if the DB looks empty) Yahoo ingest
+# scripts. Set SHUNYA_COMPOSE_AUTO_BOOTSTRAP=0 to run migrations only. First full ingest can take a long time.
+x-api-build: &api_build
+  context: .
+  dockerfile: Dockerfile
+
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg16
@@ -21,10 +28,22 @@ services:
       timeout: 5s
       retries: 10
 
+  bootstrap:
+    build: *api_build
+    entrypoint: ["/bin/sh", "/app/docker/compose-bootstrap.sh"]
+    command: []
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/shunya
+      SHUNYA_COMPOSE_AUTO_BOOTSTRAP: ${SHUNYA_COMPOSE_AUTO_BOOTSTRAP:-1}
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: *api_build
     # Optional: repo-root .env (e.g. Alpaca, Ollama). Compose 2.24+; ignored if .env is missing.
     env_file:
       - path: .env
@@ -37,6 +56,8 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
 
   ui:
     build:
