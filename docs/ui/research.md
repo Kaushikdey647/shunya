@@ -33,7 +33,9 @@ The page shows KPIs, sector/industry pies, **risk vs log total return** (**`log_
 
 ## Instrument detail (`/instruments/:symbol`)
 
-OHLCV charts and panels fed by **`/instruments/...`** routes (Timescale when complete coverage exists, otherwise yfinance with optional write-back).
+OHLCV charts and panels fed by **`/instruments/...`** routes (Timescale when complete coverage exists, otherwise yfinance with optional write-back). The **Chart & news** tab is historical Yahoo/Timescale OHLCV plus news context.
+
+**Live Data** is a separate tab: realtime **Alpaca** **IEX** L1 WebSocket at **`/instruments/{symbol}/stream/alpaca-l1`** — **BBO quotes** and **trades** (plus optional trade corrections/cancels). The API multiplexes all browser sessions onto **one** Alpaca market-data connection per API key (per API process), with a configurable cap on distinct symbols (default **30**). Stepped mid/spread charts (lightweight-charts), bid/ask imbalance bubbles, a quote-imbalance histogram, and a compact tape. The legacy **`alpaca-bars`** path is closed with a **`deprecated_stream`** error.
 
 ## See also
 

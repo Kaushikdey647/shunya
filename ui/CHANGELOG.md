@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- **Instrument detail — Live Data:** dedicated **Live Data** tab with **WebSocket** **IEX L1** streaming (Alpaca **quotes** + **trades**, stocks/ETFs) when the API reports **`environment.alpaca_enabled`**; stepped mid/spread (lightweight-charts), Recharts imbalance bubble + histogram, tape; Vite dev proxy sets **`ws: true`** for **`/api`** upgrades.
+
 - **Docker:** **`ui/Dockerfile`** (multi-stage **`npm run build`** with **`VITE_API_BASE=/api`**, **nginx** runtime with **`ui/docker/nginx.conf`** reverse proxy for **`/api/`** → FastAPI). **`ui/.dockerignore`** trims build context.
 
 - **Keyboard:** **⌘/Ctrl+K** command palette (row highlight with **⇧↑⇧↓**, **Enter**); **⇧Space** ticker search; **⇧↑⇧↓** primary nav order; roving **⇧↑⇧↓** / **Home**/**End** and **⌘/Ctrl+Enter** on data tables (Studio hub, Backtests, Universes, Portfolios); **⌘/Ctrl+Enter** in alpha workspace submits **Run backtest** when enabled. Sidebar active route uses **yellow** label styling. Settings page summarizes shortcuts; Monaco host marked for guard logic (`ui/src/keyboard/`).
@@ -20,7 +22,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **Vite dev proxy:** **`API_PROXY_TARGET`** environment variable (default **`http://127.0.0.1:8000`**) replaces a hard-coded proxy target in **`vite.config.ts`**.
+- **Vite dev proxy:** **`API_PROXY_TARGET`** environment variable (default **`http://127.0.0.1:8000`**) replaces a hard-coded proxy target in **`vite.config.ts`**. **`ws: true`** enables **WebSocket** proxying for **`/api`** (instrument Alpaca L1 stream).
 
 - **Primary nav:** first Research item is **Dashboard** at **`/dashboard`** (was **Home** at **`/`**). Command palette **Go to → Dashboard**; header brand and data-summary crumb link to **`/dashboard`**.
 
@@ -30,6 +32,10 @@ All notable changes to this project are documented in this file.
 - **Home / shell health:** **`GET /health`** parsing and the system health mini-card include **Alpaca** status and latency (or **`skipped`** when the API trade desk is disabled); the header dot tooltip lists Alpaca alongside backend, database, and Yahoo.
 - **Theme:** Bloomberg-terminal–style presentation — amber-on-dark accent palette, warm neutral dark scale, monospace stack tuned for data-dense screens ([`src/mantine/theme.ts`](src/mantine/theme.ts), [`src/mantine/cssVariablesResolver.ts`](src/mantine/cssVariablesResolver.ts), [`src/index.css`](src/index.css)).
 - **App shell / nav:** Side navigation grouped into **Research**, **Studio**, and **Trade** ([`src/components/SideNav.tsx`](src/components/SideNav.tsx)); command palette and home widgets aligned with the new IA ([`src/components/AppShell.tsx`](src/components/AppShell.tsx), [`src/components/CommandPalette.tsx`](src/components/CommandPalette.tsx), [`src/components/home/*`](src/components/home/)).
+
+### Fixed
+
+- **Live Data (IEX L1):** stepped mid/spread charts no longer crash the tab with lightweight-charts **`Value is null`** when many BBO updates arrive in the same UTC second (duplicate `time` after second truncation). Series data now keeps one point per second (last quote wins) and drops malformed quote/trade payloads before state ingest.
 
 ### Notes
 

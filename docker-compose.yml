@@ -1,6 +1,8 @@
 # Full stack: TimescaleDB + FastAPI (uvicorn + in-process backtest worker) + static UI (nginx → /api).
 # Run: docker compose up --build
 # Optional: cp .env.example .env — api service loads env_file (.env, required: true) for SHUNYA_API_*, APCA_*, etc.
+# Local Compose defaults SHUNYA_TLS_VERIFY=0 (relaxed TLS for yfinance curl_cffi + Alpaca behind corporate inspection).
+# Set SHUNYA_TLS_VERIFY=1 in .env for strict verification when your CA bundle trusts upstreams.
 # DATABASE_URL in this file overrides .env so the API targets the timescaledb service inside the network.
 # UI: http://localhost:8080  (nginx proxies /api to the api service)
 # API direct: http://localhost:8000  (optional; use for /docs or curl without nginx)
@@ -35,6 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/shunya
       SHUNYA_COMPOSE_AUTO_BOOTSTRAP: ${SHUNYA_COMPOSE_AUTO_BOOTSTRAP:-1}
+      SHUNYA_TLS_VERIFY: ${SHUNYA_TLS_VERIFY:-0}
     env_file:
       - path: .env
         required: false
@@ -53,6 +56,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/shunya
       RUN_MIGRATIONS: "1"
+      SHUNYA_TLS_VERIFY: ${SHUNYA_TLS_VERIFY:-0}
     depends_on:
       timescaledb:
         condition: service_healthy

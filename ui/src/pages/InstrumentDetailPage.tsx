@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   addUniverseMembers,
+  getAppSettings,
   getInstrumentNews,
   getInstrumentOhlcv,
   getInstrumentOverview,
@@ -30,6 +31,7 @@ import type { InstrumentOverviewResponse } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import InstrumentChart from '../components/InstrumentChart'
 import InstrumentContextFeed from '../components/InstrumentContextFeed'
+import InstrumentAlpacaLivePanel from '../components/instrument/InstrumentAlpacaLivePanel'
 import InstrumentFinancialsPanel from '../components/instrument/InstrumentFinancialsPanel'
 import InstrumentHoldersPanel from '../components/instrument/InstrumentHoldersPanel'
 import InstrumentOptionsChainPanel from '../components/instrument/InstrumentOptionsChainPanel'
@@ -324,6 +326,12 @@ export default function InstrumentDetailPage() {
     staleTime: 60_000,
   })
 
+  const appSettings = useQuery({
+    queryKey: ['app-settings'],
+    queryFn: getAppSettings,
+    staleTime: 60_000,
+  })
+
   const ohlcv = useQuery({
     queryKey: ['instrument-ohlcv', symbol, preset.interval, preset.period],
     queryFn: () =>
@@ -471,6 +479,7 @@ export default function InstrumentDetailPage() {
         <Tabs.List>
           <Tabs.Tab value="overview">Overview</Tabs.Tab>
           <Tabs.Tab value="chart">Chart & news</Tabs.Tab>
+          <Tabs.Tab value="live">Live Data</Tabs.Tab>
           {showFinancials && <Tabs.Tab value="financials">Financials</Tabs.Tab>}
           {showHolders && <Tabs.Tab value="holders">Holders</Tabs.Tab>}
           {showResearch && <Tabs.Tab value="research">Research</Tabs.Tab>}
@@ -547,6 +556,17 @@ export default function InstrumentDetailPage() {
           )}
         </Tabs.Panel>
 
+        <Tabs.Panel value="live" pt="lg">
+          <Card withBorder padding="md" radius="md">
+            <InstrumentAlpacaLivePanel
+              symbol={symbol!}
+              instrumentKind={overview.data?.instrument_kind}
+              alpacaEnabled={appSettings.data?.environment.alpaca_enabled ?? false}
+              enabled={mainTab === 'live'}
+            />
+          </Card>
+        </Tabs.Panel>
+
         {showFinancials && (
           <Tabs.Panel value="financials" pt="lg">
             <InstrumentFinancialsPanel symbol={symbol} enabled={mainTab === 'financials'} />
@@ -575,7 +595,8 @@ export default function InstrumentDetailPage() {
       <Divider my="xl" />
       <Text size="xs" c="dimmed">
         Market data and fundamentals are sourced from Yahoo Finance via yfinance; fields may be missing or delayed
-        depending on the symbol.
+        depending on the symbol. Use the Live Data tab for realtime Alpaca bar streaming (IEX feed) when the API has
+        Alpaca enabled.
       </Text>
 
       <Modal

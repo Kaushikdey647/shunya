@@ -76,6 +76,7 @@ from .ems import (
 )
 from .integration import (
     AlpacaRuntimeSettings,
+    build_stock_data_stream,
     build_stock_historical_data_client,
     build_trading_client,
     build_trading_stream,
@@ -159,6 +160,7 @@ __all__ = [
     "KiteHistoricalMarketDataProvider",
     "AlpacaHistoricalMarketDataProvider",
     "AlpacaRuntimeSettings",
+    "build_stock_data_stream",
     "build_stock_historical_data_client",
     "build_trading_client",
     "build_trading_stream",

@@ -80,7 +80,7 @@ Requires the repo clone ( **`examples/yfinance_fundamental_provider`** ). See **
 ## Environment
 
 - **`DATABASE_URL`** or **`SHUNYA_DATABASE_URL`** (some scripts also accept **`--database-url`**).
-- Optional **`YFINANCE_TLS_VERIFY=1`** for strict TLS when using yfinance paths (see API README).
+- Optional **`SHUNYA_TLS_VERIFY`**: unset or `1` / `true` for strict TLS on yfinance and Alpaca; use `0` / `false` only behind broken TLS inspection (see API README).
 
 ## See also
 

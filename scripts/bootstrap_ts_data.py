@@ -15,8 +15,8 @@ Requires: ``uv sync --extra timescale``, ``DATABASE_URL``, migrations applied
 (``shunya-timescale migrate``).
 
 HTTP/TLS matches the rest of Shunya: :func:`~shunya.data.yfinance_session.build_yfinance_session`
-(curl_cffi Chrome, ``verify=False`` by default). Set ``YFINANCE_TLS_VERIFY=1`` for strict certificate
-verification.
+and Alpaca clients honor **`SHUNYA_TLS_VERIFY`** (unset or truthy = verify certificates; ``0`` / ``false`` /
+``no`` / ``off`` = permissive yfinance ``curl_cffi`` when installed and insecure Alpaca REST/WebSocket—dev only).
 
 Example::
 

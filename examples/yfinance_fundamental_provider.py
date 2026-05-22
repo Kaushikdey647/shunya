@@ -2,8 +2,9 @@
 Example FundamentalDataProvider backed by yfinance financial statements.
 
 Use with ``finTs(..., attach_fundamentals=True, fundamental_data=...)`` and the same
-``curl_cffi`` session + ``verify=False`` pattern as the OEX benchmark notebook when
-default TLS verification fails behind corporate proxies.
+HTTP session policy as :func:`shunya.data.yfinance_session.build_yfinance_session`
+(``SHUNYA_TLS_VERIFY``; set ``SHUNYA_TLS_VERIFY=0`` when corporate TLS inspection breaks
+default verification).
 
 ``Price_To_Earnings`` and ``Free_Cash_Flow_Yield`` are left as NaN here (statement-only
 pull); use FinanceToolkit + FMP if you need those time series.
@@ -26,18 +27,14 @@ import yfinance as yf
 
 from shunya.data.fundamentals import validate_fundamental_fields
 from shunya.data.timeframes import BarSpec, default_bar_spec, normalize_bar_timestamp
+from shunya.data.yfinance_session import build_yfinance_session
 
 
 def _make_thread_session(shared: Any | None) -> Any:
-    """yfinance + curl_cffi: prefer a fresh session per thread (not shared)."""
+    """Prefer a fresh session per thread (not shared); matches :func:`~shunya.data.yfinance_session.build_yfinance_session`."""
     if shared is not None:
         return shared
-    try:
-        from curl_cffi import requests as curl_requests
-
-        return curl_requests.Session(impersonate="chrome", verify=False)
-    except Exception:
-        return None
+    return build_yfinance_session()
 
 
 def _cell(df: pd.DataFrame | None, row_names: tuple[str, ...], col: object) -> float:
@@ -241,7 +238,8 @@ class YFinanceFundamentalDataProvider:
                 across workers; use ``max_workers=1`` if the client is not thread-safe).
             max_workers: Parallel ticker fetches (keep small for Yahoo rate limits).
             thread_local_session: When True (default), each worker uses a dedicated
-                ``curl_cffi.Session(verify=False)`` for safe parallel fetches.
+                session from :func:`~shunya.data.yfinance_session.build_yfinance_session`
+                (permissive TLS only when ``SHUNYA_TLS_VERIFY=0``).
             enable_fetch_cache: When True (default), identical ``fetch`` calls reuse the
                 last dataframe (e.g. notebook preview then ``finTs`` attach).
         """

@@ -6,7 +6,13 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- **TLS / HTTP clients:** **`SHUNYA_TLS_VERIFY`** is the single switch for certificate verification on **yfinance** paths (`build_yfinance_session`) and **Alpaca** clients built via **`shunya.integration.alpaca_settings`** (REST and trading WebSocket). **Unset** or **`1`** / **`true`** / **`yes`** / **`on`** verifies certificates (new default for Yahoo: strict TLS unless you opt out). **`0`** / **`false`** / **`no`** / **`off`** disables verification (yfinance uses `curl_cffi` with `verify=False` when installed; Alpaca patches `requests` and passes an insecure SSL context to the trading stream). Corporate or Docker dev environments that relied on the old permissive Yahoo default without env should set **`SHUNYA_TLS_VERIFY=0`** explicitly.
+
 - **Instrument OHLCV API:** **`GET /instruments/{symbol}/ohlcv`** responses no longer include **`data_source`**; clients should use **`provenance`** (`read_path`, `upstream_source_id`, `route_rule_id`, …). TypeScript types updated accordingly.
+
+- **Instrument live WebSocket:** **`/instruments/{symbol}/stream/alpaca-bars`** no longer streams minute bars; it returns **`error`** with **`code: deprecated_stream`** and **`replacement_path`** to **`/instruments/{symbol}/stream/alpaca-l1`**, then closes. Clients must use **`alpaca-l1`** for IEX BBO quotes and trades.
+
+- **Alpaca L1 WebSocket:** browser sessions are multiplexed onto a **single** shared **`StockDataStream`** per API key per API process (**`api.services.alpaca_l1_feed_hub`**), with **`SHUNYA_ALPACA_L1_MAX_SYMBOLS`** (default **30**) limiting distinct symbols; **`symbol_limit`** error when exceeded. Multiple uvicorn workers or replicas still open **one stream per process** each unless coordinated externally.
 
 - **FinTs market data:** **`resolve_market_data_provider`** delegates to **`shunya.data.market_data.fints_bridge`** so eligibility matches **`resolve_market_route`** before choosing **`TimescaleMarketDataProvider`** / **`AlpacaHistoricalMarketDataProvider`**. **`resolve_market_route`** accepts **`timescale`** as a FinTs-oriented mode (stored Yahoo upstream in Timescale).
 
@@ -27,14 +33,25 @@ All notable changes to this project are documented in this file.
 - MathJax config: use **`ignoreHtmlClass: ".*"`** (per PyMdown Arithmatex docs); **`".*|"`** breaks scanning so TeX stayed visible.
 - MkDocs Mermaid: register **`pymdownx.superfences` → `custom_fences` → `mermaid2.fence_mermaid_custom`** so ` ```mermaid ` blocks are not converted to generic Pygments code fences (which prevented **mkdocs-mermaid2** from running).
 
+### Fixed
+
+- **UI — Live Data:** IEX L1 mid/spread **lightweight-charts** panes no longer throw **`Value is null`** (black screen) when multiple quotes share the same **UTCTimestamp** after second-level time bucketing; charts dedupe to one sample per UTC second and validate finite BBO fields before ingest.
+
+### Deprecated
+
+- **`YFINANCE_TLS_VERIFY`** — replaced by **`SHUNYA_TLS_VERIFY`** for yfinance and Alpaca together; it is no longer read.
+
 ### Removed
 
 - `shunya.streaming` (Alpaca-oriented websocket helpers, micro-bars, rectangular snapshots).
 - `StreamingRunner`, `StreamingContextBuilder`, and `StreamingDecision`.
 - `FinTrade` (`shunya/algorithm/fintrade.py`).
 - `tests/test_streaming_pipeline.py` and `tests/test_fintrade.py`.
+- **Instrument live minute bars over WebSocket:** **`/instruments/{symbol}/stream/alpaca-bars`** no longer streams **`bars`** / **`updatedBars`**; use **`alpaca-l1`**.
 
 ### Added
+
+- **Instrument Alpaca L1 (IEX):** **`WebSocket /instruments/{symbol}/stream/alpaca-l1`** when **`SHUNYA_API_ALPACA_ENABLED`** and Alpaca keys are configured — **`StockDataStream`** **IEX** **`subscribe_quotes`** + **`subscribe_trades`**, plus trade correction/cancel forwarding; JSON via **`api.services.alpaca_l1_payload`**, router **`api.routers.instrument_l1_stream`**, process-wide multiplexing in **`api.services.alpaca_l1_feed_hub`** (one Alpaca TCP session per key per API process; **`SHUNYA_ALPACA_L1_MAX_SYMBOLS`** default 30). UI **Live Data** tab uses **`LiveL1Provider`**, ring buffers, stepped mid/spread (lightweight-charts **`LineType.WithSteps`**), Recharts bubble + histogram, tape. Stocks and ETFs only.
 
 - **Market data routing:** `shunya.data.market_data` (pure `resolve_market_route` + `MarketRouteDecision`), `shunya.data.market_router.try_timescale_then_live_ohlcv`, explicit Alpaca **`StockBarsRequest.feed`** (`SHUNYA_ALPACA_BAR_FEED` / `bar_feed_upstream`), **`GET /instruments/{symbol}/ohlcv?route=`**, **`provenance`** on instrument OHLCV and market snapshot rows, FinTs **`market_data_provider`** **`alpaca`** / **`best_effort`**, **`FinTsRequest.schema_version`**, migration **`016_ohlcv_bars_metadata.sql`**, **`STORED_OHLCV_DEFAULT_UPSTREAM_ID`** for stored Yahoo **`ohlcv_bars.source`**, and **`shunya.integration.yahoo_public.YahooPublicAdapter`** for non-router Yahoo HTTP reads. Doc: **`docs/market_data_routing.md`**.
 

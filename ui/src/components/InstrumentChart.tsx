@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { InstrumentTickerNewsItem, OhlcvBar } from '../api/types'
 import { barTimesUtcSeconds, snapNewsToBarTime, timeToUnixSeconds } from '../utils/chartBarTimes'
 
-function chartColorsFromMantine(
+export function chartColorsFromMantine(
   theme: ReturnType<typeof useMantineTheme>,
   colorScheme: string,
 ) {

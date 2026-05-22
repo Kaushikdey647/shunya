@@ -736,6 +736,113 @@ export interface OhlcvBar {
   volume?: number | null
 }
 
+export type AlpacaInstrumentWsHello = {
+  type: 'hello'
+  symbol: string
+  feed: string
+  bar_timeframe: string
+  /** True when the server pushes bar rows as they arrive (vs polling). */
+  streaming?: boolean
+}
+
+export type AlpacaInstrumentWsBar = {
+  type: 'bar'
+  time: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume?: number | null
+}
+
+export type AlpacaInstrumentWsError = {
+  type: 'error'
+  code?: string
+  message: string
+}
+
+export type AlpacaInstrumentWsMessage =
+  | AlpacaInstrumentWsHello
+  | AlpacaInstrumentWsBar
+  | AlpacaInstrumentWsError
+
+/** Alpaca L1 WebSocket (`/instruments/{symbol}/stream/alpaca-l1`). */
+export type AlpacaL1WsHello = {
+  type: 'hello'
+  schema: number
+  symbol: string
+  feed: string
+  channels: string[]
+}
+
+export type AlpacaL1WsQuote = {
+  type: 'quote'
+  symbol: string
+  time: string
+  bid_price: number
+  bid_size: number
+  ask_price: number
+  ask_size: number
+  bid_exchange?: string | null
+  ask_exchange?: string | null
+  conditions?: unknown
+  tape?: string | null
+}
+
+export type AlpacaL1WsTrade = {
+  type: 'trade'
+  symbol: string
+  time: string
+  price: number
+  size: number
+  id?: number | null
+  exchange?: string | null
+  conditions?: unknown
+  tape?: string | null
+}
+
+export type AlpacaL1WsTradeCorrection = {
+  type: 'trade_correction'
+  symbol: string
+  time: string
+  original_id?: number | null
+  original_price: number
+  original_size: number
+  original_conditions: string[]
+  corrected_id?: number | null
+  corrected_price: number
+  corrected_size: number
+  corrected_conditions: string[]
+  tape?: string | null
+}
+
+export type AlpacaL1WsTradeCancel = {
+  type: 'trade_cancel'
+  symbol: string
+  time: string
+  price: number
+  size: number
+  id?: number | null
+  exchange?: string | null
+  action?: string | null
+  tape?: string | null
+}
+
+export type AlpacaL1WsError = {
+  type: 'error'
+  code?: string
+  message: string
+  replacement_path?: string
+}
+
+export type AlpacaL1WsMessage =
+  | AlpacaL1WsHello
+  | AlpacaL1WsQuote
+  | AlpacaL1WsTrade
+  | AlpacaL1WsTradeCorrection
+  | AlpacaL1WsTradeCancel
+  | AlpacaL1WsError
+
 export type InstrumentOhlcvStorageStatus = 'none' | 'ok' | 'failed' | 'deferred'
 
 export interface InstrumentOhlcvResponse {

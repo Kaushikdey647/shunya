@@ -19,7 +19,7 @@ Migration `016_ohlcv_bars_metadata.sql` adds optional `metadata` for feed, tier,
 
 ## Yahoo public adapter (non-router HTTP)
 
-- **`shunya.integration.yahoo_public.YahooPublicAdapter`** centralizes **`build_yfinance_session()`** (or an injected session) for **`yf.download`**, **`yf.screen`**, **`yf.Search`**, and **`yf.Ticker`** on market snapshot / movers / headlines, instruments search and news, instrument dashboard, extended yfinance tables, and the Timescale **`ingest-fundamentals`** per-symbol loop.
+- **`shunya.integration.yahoo_public.YahooPublicAdapter`** centralizes **`build_yfinance_session()`** (or an injected session) for **`yf.download`**, **`yf.screen`**, **`yf.Search`**, and **`yf.Ticker`** on market snapshot / movers / headlines, instruments search and news, instrument dashboard, extended yfinance tables, and the Timescale **`ingest-fundamentals`** per-symbol loop. TLS verification for those sessions follows **`SHUNYA_TLS_VERIFY`** (see **`api/README.md`** Environment).
 - OHLCV-shaped paths that need **repair / validation** stay on **`YFinanceMarketDataProvider`** inside **`shunya.data.market_router`**.
 
 ## Stored upstream id constant

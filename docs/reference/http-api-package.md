@@ -50,7 +50,7 @@ Typical backtest flow:
 | **`/backtests`** | Enqueue async jobs, list/get status, fetch JSON results when succeeded (FinBT-shaped payload plus optional benchmark). |
 | **`POST /data`** | Panel diagnostics from `finTs` (NaNs, vol, Sharpe, Sortino, …). |
 | **`GET /data/dashboard`** | Database-wide coverage metrics (per-ticker completeness, bucket flags, histograms), classification counts, and risk metrics for the UI data summary: each ticker includes **`return_pct`**, **`log_return_pct`** (`100 * ln(c_last / c_first)` when valid), annualized vol, Sharpe, and Sortino from stored closes. |
-| **`/instruments/...`** | Search, OHLCV (optional **`route`** query: `auto`, `best_effort`, or explicit upstream id; response includes **`provenance`** with **`read_path`** vs **`upstream_source_id`**), fundamentals-style panels; prefers Timescale when coverage is complete. |
+| **`/instruments/...`** | Search, OHLCV (optional **`route`** query: `auto`, `best_effort`, or explicit upstream id; response includes **`provenance`** with **`read_path`** vs **`upstream_source_id`**), fundamentals-style panels; prefers Timescale when coverage is complete. **WebSocket** **`/instruments/{symbol}/stream/alpaca-l1`** — when Alpaca is enabled on the API, **IEX** L1 **quotes** (BBO) and **trades** as JSON (`hello` with `schema: 1` and `channels`, `quote`, `trade`, optional `trade_correction` / `trade_cancel`, `error`). All browser sessions share **one** Alpaca market-data WebSocket per API key in the API process (see **`api.services.alpaca_l1_feed_hub`**); distinct symbols are capped by **`SHUNYA_ALPACA_L1_MAX_SYMBOLS`** (default **30**); over-cap returns **`error`** with **`code: symbol_limit`**. Stocks/ETFs only. The legacy **`/instruments/{symbol}/stream/alpaca-bars`** endpoint returns **`deprecated_stream`** and closes. |
 | **`/market/...`** | **`POST /market/snapshot`**, **`GET /market/movers`**, **`GET /market/headlines`**, … |
 | **`/trade/...`** | Alpaca-backed account and paper-cycle routes when enabled (see auth below). |
 | **`GET /settings/app`** | Effective runtime tunables (env merged with optional DB overlay). |
@@ -94,7 +94,7 @@ The API loads a repo-root **`.env`** (if present) and **pydantic-settings** with
 | `SHUNYA_API_OLLAMA_HOST` | Ollama base URL for alpha assist |
 | `SHUNYA_API_OLLAMA_MODEL` | Default Ollama model id |
 | `SHUNYA_DASHBOARD_MAX_TICKERS` | Optional cap for `/data/dashboard` |
-| `YFINANCE_TLS_VERIFY` | Stricter TLS for yfinance when set truthy |
+| `SHUNYA_TLS_VERIFY` | **Unset** or truthy: verify TLS for yfinance and Alpaca clients from `shunya.integration.alpaca_settings`. Falsy (`0` / `false` / `no` / `off`): disable verification (dev only). |
 
 ## Source layout (`api/`)
 

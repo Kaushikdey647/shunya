@@ -89,7 +89,7 @@ npm ci
 npm run dev
 ```
 
-Open the URL Vite prints (default **http://localhost:5173**). In development, **`ui/vite.config.ts`** proxies **`/api`** to **`API_PROXY_TARGET`** (defaults to **`http://127.0.0.1:8000`**), so the API should listen on port **8000** unless you change the proxy (for example **`API_PROXY_TARGET=http://api:8000`** when running Vite inside Docker Compose).
+Open the URL Vite prints (default **http://localhost:5173**). In development, **`ui/vite.config.ts`** proxies **`/api`** to **`API_PROXY_TARGET`** (defaults to **`http://127.0.0.1:8000`**), including **WebSocket** upgrades (**`ws: true`**), so the API should listen on port **8000** unless you change the proxy (for example **`API_PROXY_TARGET=http://api:8000`** when running Vite inside Docker Compose).
 
 ## 5. Production UI build
 

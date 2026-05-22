@@ -20,7 +20,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.exception_handlers import register_exception_handlers
 from api.health_checks import collect_health
 from api.repositories import backtests as jobs_repo
-from api.routers import alphas, app_settings, backtests, data, indices, instruments, market, trade_desk, universes
+from api.routers import (
+    alphas,
+    app_settings,
+    backtests,
+    data,
+    indices,
+    instrument_l1_stream,
+    instrument_stream,
+    instruments,
+    market,
+    trade_desk,
+    universes,
+)
 from api.schemas.models import HealthResponseModel
 
 _log = logging.getLogger(__name__)
@@ -92,6 +104,8 @@ def create_app() -> FastAPI:
     app.include_router(data.router)
     app.include_router(market.router)
     app.include_router(instruments.router)
+    app.include_router(instrument_stream.router)
+    app.include_router(instrument_l1_stream.router)
     app.include_router(trade_desk.router)
 
     register_exception_handlers(app)
