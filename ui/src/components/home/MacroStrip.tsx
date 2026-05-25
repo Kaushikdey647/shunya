@@ -7,7 +7,7 @@ import {
   useComputedColorScheme,
 } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
-import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts'
+import { Area, CartesianGrid, Line, LineChart, ResponsiveContainer, YAxis } from 'recharts'
 import { postMarketSnapshot } from '../../api/endpoints'
 import type { MarketSnapshotRow } from '../../api/types'
 import ApiErrorAlert from '../ApiErrorAlert'
@@ -71,9 +71,23 @@ function MacroCard({ row }: { row: MarketSnapshotRow }) {
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height={52}>
             <LineChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`macro-fill-${row.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={stroke} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               {yDomain && <YAxis domain={yDomain} hide width={0} />}
+              <CartesianGrid strokeDasharray="2 4" vertical={false} strokeOpacity={0.15} />
+              <Area
+                type="stepAfter"
+                dataKey="close"
+                stroke="none"
+                fill={`url(#macro-fill-${row.symbol})`}
+                isAnimationActive={false}
+              />
               <Line
-                type="monotone"
+                type="stepAfter"
                 dataKey="close"
                 stroke={stroke}
                 strokeWidth={scheme === 'dark' ? 2 : 1.75}
@@ -104,7 +118,7 @@ export default function MacroStrip() {
 
   return (
     <Stack gap="sm" aria-label="Macro overview">
-      <ApiErrorAlert error={q.error} />
+      <ApiErrorAlert error={q.error} variant="outline" compact />
       {q.isLoading && <MacroStripSkeleton />}
       {!q.isLoading && (
         <>

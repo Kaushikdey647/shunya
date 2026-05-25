@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { getInstrumentFinancials } from '../../api/endpoints'
 import type { InstrumentFinancialFrequency, InstrumentStatement } from '../../api/types'
+import { formatInstrumentFinancialValue } from '../../lib/formatCompact'
 import ApiErrorAlert from '../ApiErrorAlert'
 import { useMantineTableDensity } from '../../hooks/useMantineTableDensity'
 
@@ -65,12 +66,12 @@ export default function InstrumentFinancialsPanel({ symbol, enabled }: Props) {
       )}
       {q.data?.available && q.data.rows.length > 0 && (
         <Table.ScrollContainer minWidth={480}>
-          <Table {...tableProps} striped highlightOnHover>
+          <Table {...tableProps} verticalSpacing="xs" horizontalSpacing="xs" striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ minWidth: 200 }}>Line item</Table.Th>
                 {q.data.periods.map((p) => (
-                  <Table.Th key={p} style={{ whiteSpace: 'nowrap' }}>
+                  <Table.Th key={p} ta="right" style={{ whiteSpace: 'nowrap' }} ff="monospace">
                     {p.slice(0, 10)}
                   </Table.Th>
                 ))}
@@ -81,10 +82,13 @@ export default function InstrumentFinancialsPanel({ symbol, enabled }: Props) {
                 <Table.Tr key={row.label}>
                   <Table.Td>{row.label}</Table.Td>
                   {row.values.map((v, i) => (
-                    <Table.Td key={`${row.label}-${i}`} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {v != null && Number.isFinite(v)
-                        ? v.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                        : '—'}
+                    <Table.Td
+                      key={`${row.label}-${i}`}
+                      ff="monospace"
+                      ta="right"
+                      style={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {formatInstrumentFinancialValue(v)}
                     </Table.Td>
                   ))}
                 </Table.Tr>

@@ -27,3 +27,13 @@ export function instrumentAlpacaL1WebSocketUrl(symbol: string): string {
 export function instrumentAlpacaLiveWebSocketUrl(symbol: string): string {
   return instrumentAlpacaL1WebSocketUrl(symbol)
 }
+
+/** Server-pushed notifications (`/notifications/stream`). */
+export function notificationsStreamWebSocketUrl(): string {
+  return buildWebSocketUrl('/notifications/stream')
+}
+
+/** Server-pushed market clock (`/settings/market-clock/stream`). */
+export function marketClockStreamWebSocketUrl(): string {
+  return buildWebSocketUrl('/settings/market-clock/stream')
+}

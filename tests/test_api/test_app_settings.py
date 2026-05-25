@@ -57,7 +57,7 @@ def test_get_effective_tunables_overlay_overrides_env(monkeypatch: pytest.Monkey
     assert eff.worker_poll_interval_seconds == 42.0
 
 
-def test_patch_app_settings_503_when_trade_desk_token_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_patch_app_settings_401_when_trade_desk_token_unset(monkeypatch: pytest.MonkeyPatch) -> None:
     from api.main import create_app
 
     monkeypatch.setattr("api.main.backtest_worker_loop", _worker_no_db)
@@ -66,7 +66,7 @@ def test_patch_app_settings_503_when_trade_desk_token_unset(monkeypatch: pytest.
 
     with TestClient(create_app()) as client:
         r = client.patch("/settings/app", json={"ollama_model": "x"})
-    assert r.status_code == 503
+    assert r.status_code == 401
 
 
 def test_patch_app_settings_401_wrong_token(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -191,3 +191,17 @@ def test_settings_patch_roundtrip_database(api_database_url: str, monkeypatch: p
             json={"ollama_model": before_model},
         )
         assert p2.status_code == 200
+
+
+def test_get_market_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    from api.main import create_app
+
+    monkeypatch.setattr("api.main.backtest_worker_loop", _worker_no_db)
+    with TestClient(create_app()) as client:
+        r = client.get("/settings/market-clock")
+    assert r.status_code == 200
+    j = r.json()
+    assert j["us_line"].startswith("[US] ")
+    assert j["in_line"].startswith("[IN] ")
+    assert "us_listed_rth_open" in j
+    assert "alpaca_l1_us_equities_stream_allowed" in j

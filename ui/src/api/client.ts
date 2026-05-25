@@ -1,3 +1,5 @@
+import { emitClientNotification } from '../notifications/clientSink'
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 export type StructuredErrorDetail = {
@@ -93,6 +95,13 @@ export async function apiFetch<T>(
         ? (data as { detail: unknown }).detail
         : data
     const { message, code } = parseErrorDetail(detail)
+    emitClientNotification({
+      level: 'error',
+      message,
+      code,
+      source: 'http',
+      context: { status: res.status },
+    })
     throw new ApiError(message, res.status, data, code)
   }
 

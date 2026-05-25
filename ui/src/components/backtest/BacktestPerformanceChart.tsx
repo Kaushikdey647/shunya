@@ -114,7 +114,7 @@ export function BacktestPerformanceChart({
               }}
             />
             <Line
-              type="monotone"
+              type="stepAfter"
               dataKey="equity"
               name="Equity"
               stroke={accent}

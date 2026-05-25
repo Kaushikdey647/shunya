@@ -41,7 +41,7 @@ describe('RechartsPanel', () => {
           <LineChart data={[{ t: 0, v: 1 }, { t: 1, v: 2 }]}>
             <XAxis type="number" dataKey="t" />
             <YAxis />
-            <Line type="monotone" dataKey="v" dot={false} isAnimationActive={false} />
+            <Line type="stepAfter" dataKey="v" dot={false} isAnimationActive={false} />
           </LineChart>
         </RechartsPanel>
       </div>,

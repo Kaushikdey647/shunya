@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   type ReactNode,
 } from 'react'
 import type { AlpacaL1WsMessage, AlpacaL1WsQuote, AlpacaL1WsTrade } from '../api/types'
@@ -27,6 +28,8 @@ export type LiveL1State = {
   tape: LiveL1TapeRow[]
   phase: LiveL1Phase
   lastError: string | null
+  /** Present when ``lastError`` came from an Alpaca L1 ``error`` frame with a ``code``. */
+  lastErrorCode: string | null
   feed: string | null
   channels: string[] | null
 }
@@ -37,6 +40,7 @@ const initialState = (): LiveL1State => ({
   tape: [],
   phase: 'idle',
   lastError: null,
+  lastErrorCode: null,
   feed: null,
   channels: null,
 })
@@ -44,7 +48,7 @@ const initialState = (): LiveL1State => ({
 type Action =
   | { type: 'RESET' }
   | { type: 'SET_PHASE'; phase: LiveL1Phase }
-  | { type: 'SET_ERROR'; message: string }
+  | { type: 'SET_ERROR'; message: string; code?: string }
   | { type: 'HELLO'; feed: string; channels: string[] }
   | { type: 'QUOTE'; q: AlpacaL1WsQuote }
   | { type: 'TRADE'; t: AlpacaL1WsTrade }
@@ -65,7 +69,12 @@ function reducer(state: LiveL1State, action: Action): LiveL1State {
     case 'SET_PHASE':
       return { ...state, phase: action.phase }
     case 'SET_ERROR':
-      return { ...state, phase: 'error', lastError: action.message }
+      return {
+        ...state,
+        phase: 'error',
+        lastError: action.message,
+        lastErrorCode: action.code ?? null,
+      }
     case 'HELLO':
       return {
         ...state,
@@ -73,6 +82,7 @@ function reducer(state: LiveL1State, action: Action): LiveL1State {
         feed: action.feed,
         channels: action.channels,
         lastError: null,
+        lastErrorCode: null,
       }
     case 'QUOTE':
       return { ...state, quotes: pushRing(state.quotes, action.q, QUOTE_RING_MAX) }
@@ -103,6 +113,16 @@ function reducer(state: LiveL1State, action: Action): LiveL1State {
     }
     case 'WS_CLOSED':
       if (state.phase === 'error') return state
+      if (state.phase === 'live' || state.phase === 'connecting') {
+        return {
+          ...state,
+          phase: 'error',
+          lastError:
+            state.lastError ??
+            'Live data socket closed without receiving a full stream. Alpaca may still be counting your last session (connection limit) or the server could not deliver an error frame. Wait a few seconds, then press Connect again.',
+          lastErrorCode: state.lastErrorCode,
+        }
+      }
       return { ...state, phase: 'idle', feed: null, channels: null }
     default:
       return state
@@ -119,7 +139,8 @@ function parseAlpacaL1Message(raw: string): AlpacaL1WsMessage | null {
       t === 'trade' ||
       t === 'trade_correction' ||
       t === 'trade_cancel' ||
-      t === 'error'
+      t === 'error' ||
+      t === 'subscription'
     ) {
       return msg as AlpacaL1WsMessage
     }
@@ -152,6 +173,7 @@ type ProviderProps = {
 
 export function LiveL1Provider({ symbol, streamActive, children }: ProviderProps) {
   const [state, dispatch] = useReducer(reducer, undefined, initialState)
+  const closingFromUiRef = useRef(false)
 
   useEffect(() => {
     dispatch({ type: 'RESET' })
@@ -174,8 +196,12 @@ export function LiveL1Provider({ symbol, streamActive, children }: ProviderProps
         dispatch({ type: 'HELLO', feed: msg.feed, channels: msg.channels })
         return
       }
+      if (msg.type === 'subscription') {
+        return
+      }
       if (msg.type === 'error') {
-        dispatch({ type: 'SET_ERROR', message: msg.message })
+        const code = typeof msg.code === 'string' ? msg.code : undefined
+        dispatch({ type: 'SET_ERROR', message: msg.message, code })
         ws.close()
         return
       }
@@ -203,14 +229,19 @@ export function LiveL1Provider({ symbol, streamActive, children }: ProviderProps
     }
 
     ws.onerror = () => {
-      dispatch({ type: 'SET_ERROR', message: 'WebSocket connection error.' })
+      dispatch({ type: 'SET_ERROR', message: 'WebSocket connection error.', code: undefined })
     }
 
     ws.onclose = () => {
+      if (closingFromUiRef.current) {
+        closingFromUiRef.current = false
+        return
+      }
       dispatch({ type: 'WS_CLOSED' })
     }
 
     return () => {
+      closingFromUiRef.current = true
       ws.close()
     }
   }, [streamActive, symbol])

@@ -20,7 +20,7 @@ export function LiveL1OfiHistogram() {
   const bins = useMemo(() => buildOfiHistogramFromQuotes(quotes), [quotes])
 
   return (
-    <Stack gap="xs" style={{ minHeight: 260 }}>
+    <Stack gap="xs" style={{ minHeight: 300 }}>
       <Tooltip
         label="Per-quote log size skew: log(1+bid_sz)−log(1+ask_sz); last 120 quotes, 10 equal-width bins."
         multiline
@@ -30,7 +30,7 @@ export function LiveL1OfiHistogram() {
           Quote imbalance histogram
         </Text>
       </Tooltip>
-      <div style={{ width: '100%', height: 240 }}>
+      <div style={{ width: '100%', height: 300 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={bins} margin={{ top: 8, right: 8, bottom: 64, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />

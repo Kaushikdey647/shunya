@@ -15,6 +15,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@mantine/core": "^9.1.1",
     "@mantine/hooks": "^9.1.1",
+    "@mantine/notifications": "^9.2.1",
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.100.5",
     "@vitejs/plugin-react": "^6.0.1",
@@ -29,9 +30,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
-    "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -39,12 +40,12 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "jsdom": "^26.1.0",
     "postcss": "^8.5.14",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "jsdom": "^26.1.0",
     "vitest": "^3.2.4"
   }
 }

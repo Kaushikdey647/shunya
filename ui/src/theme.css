@@ -1,8 +1,8 @@
 /* TradingView-inspired semantic tokens; toggled via html[data-theme] */
 html {
   --font-sans: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
-  --radius: 4px;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Roboto Mono', ui-monospace, monospace;
+  --radius: 6px;
   --top-nav-h: 44px;
   --side-nav-w: 200px;
   --table-cell-y: 0.5rem;
@@ -46,16 +46,16 @@ html[data-theme='light'] {
 
 html[data-theme='dark'] {
   color-scheme: dark;
-  --surface-page: #050506;
-  --surface-panel: #080807;
-  --surface-top: #060607;
-  --surface-side: #050506;
-  --surface-hover: #14151a;
-  --border: #25262c;
-  --border-strong: #32333a;
-  --text: #d1d4dc;
-  --text-strong: #f0f3fa;
-  --text-muted: #787b86;
+  --surface-page: #0d1117;
+  --surface-panel: #161b22;
+  --surface-top: #161b22;
+  --surface-side: #0d1117;
+  --surface-hover: #21262d;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #e6edf3;
+  --text-strong: #f0f6fc;
+  --text-muted: #8b949e;
   --accent: #e6bd20;
   --accent-muted: rgba(230, 189, 32, 0.22);
   --focus-ring: #f5cf45;
@@ -69,6 +69,6 @@ html[data-theme='dark'] {
   --warn: #e6c84a;
   --warn-bg: rgba(201, 162, 39, 0.12);
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  --chart-bg: #050506;
-  --chart-grid: #25262c;
+  --chart-bg: #161b22;
+  --chart-grid: rgba(255, 255, 255, 0.06);
 }

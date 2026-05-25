@@ -1,6 +1,7 @@
 import { Anchor, Button } from '@mantine/core'
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { shunyaCanvasFont } from '../theme/typography'
 import LandingRotatingZero from './LandingRotatingZero'
 import styles from './LandingPage.module.css'
 
@@ -53,7 +54,7 @@ export default function LandingPage() {
       const cols = drops.length
       ctx.fillStyle = 'rgba(0, 0, 0, 0.14)'
       ctx.fillRect(0, 0, w, h)
-      ctx.font = `${fontSize}px Consolas, Liberation Mono, monospace`
+      ctx.font = shunyaCanvasFont(fontSize)
       for (let i = 0; i < cols; i++) {
         const x = i * fontSize
         const y = drops[i] * fontSize

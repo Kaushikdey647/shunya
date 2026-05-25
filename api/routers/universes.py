@@ -6,7 +6,7 @@ import asyncio
 from typing import Annotated, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, BackgroundTasks, Query, status
 
 from api.repositories import universes as universes_repo
 from api.routers.instruments import ALLOWED_PERIODS
@@ -23,6 +23,7 @@ from api.schemas.models import (
     UniverseTickerListOut,
 )
 from api.services.universe_return_analytics import compute_universe_return_analytics
+from api.services.notify_background import schedule_notification
 from shunya.errors import ErrorCode, ShunyaError
 
 router = APIRouter(prefix="/universes", tags=["universes"])
@@ -36,9 +37,9 @@ def _require_uuid(universe_id: str) -> str:
 
 
 @router.post("", response_model=UniverseOut, status_code=status.HTTP_201_CREATED)
-def create_universe(body: UniverseCreate) -> UniverseOut:
+def create_universe(body: UniverseCreate, background_tasks: BackgroundTasks) -> UniverseOut:
     try:
-        return universes_repo.insert_universe(body)
+        out = universes_repo.insert_universe(body)
     except RuntimeError as exc:
         if str(exc) == "duplicate_universe_name":
             raise ShunyaError(
@@ -47,6 +48,15 @@ def create_universe(body: UniverseCreate) -> UniverseOut:
                 http_status=409,
             ) from exc
         raise
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Universe created",
+        message=f'Universe "{out.name}" created.',
+        code="universe.created",
+        context={"universe_id": out.id},
+    )
+    return out
 
 
 @router.get("", response_model=list[UniverseOut])
@@ -67,7 +77,7 @@ def get_universe(universe_id: str) -> UniverseOut:
 
 
 @router.patch("/{universe_id}", response_model=UniverseOut)
-def patch_universe(universe_id: str, body: UniversePatch) -> UniverseOut:
+def patch_universe(universe_id: str, body: UniversePatch, background_tasks: BackgroundTasks) -> UniverseOut:
     uid = _require_uuid(universe_id)
     try:
         row = universes_repo.update_universe(uid, body)
@@ -81,14 +91,33 @@ def patch_universe(universe_id: str, body: UniversePatch) -> UniverseOut:
         raise
     if row is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Universe updated",
+        message=f'Universe "{row.name}" updated.',
+        code="universe.updated",
+        context={"universe_id": uid},
+    )
     return row
 
 
 @router.delete("/{universe_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_universe(universe_id: str) -> None:
+def delete_universe(universe_id: str, background_tasks: BackgroundTasks) -> None:
     uid = _require_uuid(universe_id)
+    row = universes_repo.get_universe(uid)
+    if row is None:
+        raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
     if not universes_repo.delete_universe(uid):
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Universe deleted",
+        message=f'Universe "{row.name}" deleted.',
+        code="universe.deleted",
+        context={"universe_id": uid},
+    )
 
 
 @router.get("/{universe_id}/tickers", response_model=UniverseTickerListOut)
@@ -113,7 +142,9 @@ def list_universe_members(
 
 
 @router.post("/{universe_id}/members", response_model=UniverseMembersMutationOut)
-def add_universe_members(universe_id: str, body: UniverseMembersAddRequest) -> UniverseMembersMutationOut:
+def add_universe_members(
+    universe_id: str, body: UniverseMembersAddRequest, background_tasks: BackgroundTasks
+) -> UniverseMembersMutationOut:
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -138,13 +169,23 @@ def add_universe_members(universe_id: str, body: UniverseMembersAddRequest) -> U
         raise ShunyaError(msg, code=ErrorCode.VALIDATION_ERROR, http_status=400) from exc
     fresh = universes_repo.get_universe(uid)
     mc = fresh.member_count if fresh else 0
-    return UniverseMembersMutationOut(changed=n, member_count=mc)
+    out = UniverseMembersMutationOut(changed=n, member_count=mc)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Universe members added",
+        message=f"Added {n} member(s) to universe {uid}.",
+        code="universe.members_added",
+        context={"universe_id": uid, "changed": n},
+    )
+    return out
 
 
 @router.delete("/{universe_id}/members", response_model=UniverseMembersMutationOut)
 def remove_universe_members(
     universe_id: str,
     tickers: Annotated[list[str], Query(description="Repeat tickers= for each symbol to remove.")],
+    background_tasks: BackgroundTasks,
 ) -> UniverseMembersMutationOut:
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
@@ -153,11 +194,22 @@ def remove_universe_members(
     n = universes_repo.remove_members(uid, norm)
     fresh = universes_repo.get_universe(uid)
     mc = fresh.member_count if fresh else 0
-    return UniverseMembersMutationOut(changed=n, member_count=mc)
+    out = UniverseMembersMutationOut(changed=n, member_count=mc)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Universe members removed",
+        message=f"Removed {n} member(s) from universe {uid}.",
+        code="universe.members_removed",
+        context={"universe_id": uid, "changed": n},
+    )
+    return out
 
 
 @router.put("/{universe_id}/members", response_model=UniverseMembersMutationOut)
-def replace_universe_members(universe_id: str, body: UniverseMembersReplaceRequest) -> UniverseMembersMutationOut:
+def replace_universe_members(
+    universe_id: str, body: UniverseMembersReplaceRequest, background_tasks: BackgroundTasks
+) -> UniverseMembersMutationOut:
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -182,7 +234,16 @@ def replace_universe_members(universe_id: str, body: UniverseMembersReplaceReque
         raise ShunyaError(msg, code=ErrorCode.VALIDATION_ERROR, http_status=400) from exc
     fresh = universes_repo.get_universe(uid)
     mc = fresh.member_count if fresh else 0
-    return UniverseMembersMutationOut(changed=len(body.tickers), member_count=mc)
+    out = UniverseMembersMutationOut(changed=len(body.tickers), member_count=mc)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Universe members replaced",
+        message=f"Replaced members for universe {uid} ({len(body.tickers)} tickers).",
+        code="universe.members_replaced",
+        context={"universe_id": uid, "count": len(body.tickers)},
+    )
+    return out
 
 
 @router.get("/{universe_id}/return-analytics", response_model=UniverseReturnAnalyticsOut)

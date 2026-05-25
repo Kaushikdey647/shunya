@@ -35,9 +35,10 @@ The page shows KPIs, sector/industry pies, **risk vs log total return** (**`log_
 
 OHLCV charts and panels fed by **`/instruments/...`** routes (Timescale when complete coverage exists, otherwise yfinance with optional write-back). The **Chart & news** tab is historical Yahoo/Timescale OHLCV plus news context.
 
-**Live Data** is a separate tab: realtime **Alpaca** **IEX** L1 WebSocket at **`/instruments/{symbol}/stream/alpaca-l1`** — **BBO quotes** and **trades** (plus optional trade corrections/cancels). The API multiplexes all browser sessions onto **one** Alpaca market-data connection per API key (per API process), with a configurable cap on distinct symbols (default **30**). Stepped mid/spread charts (lightweight-charts), bid/ask imbalance bubbles, a quote-imbalance histogram, and a compact tape. The legacy **`alpaca-bars`** path is closed with a **`deprecated_stream`** error.
+**Live Data** is a separate tab: realtime **Alpaca** **IEX** L1 WebSocket at **`/instruments/{symbol}/stream/alpaca-l1`** — **BBO quotes** and **trades** (plus optional trade corrections/cancels). The API multiplexes all browser sessions onto **one** Alpaca market-data connection per API key (per API process), with a configurable cap on distinct symbols (default **30**). Outside US listed regular hours the socket returns **`us_rth_closed`** and the API also pushes a **`/notifications/stream`** notification (Mantine toast + bell history); **Connect** is always available when the symbol is eligible — no separate “market closed” banner on the tab. Stepped mid/spread charts (lightweight-charts), bid/ask imbalance bubbles, a quote-imbalance histogram, and a compact tape. The legacy **`alpaca-bars`** path is closed with a **`deprecated_stream`** error.
 
 ## See also
 
+- [Design tokens (typography & layout)](design-tokens.md)
 - [HTTP API (overview)](../reference/http-api-package.md)
 - [Local dev](../how-to/local-dev-api-ui.md)

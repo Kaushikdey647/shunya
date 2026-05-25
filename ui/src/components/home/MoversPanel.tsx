@@ -68,9 +68,9 @@ export default function MoversPanel() {
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Ticker</Table.Th>
-                  <Table.Th>Price</Table.Th>
-                  <Table.Th>%</Table.Th>
-                  <Table.Th>Volume</Table.Th>
+                  <Table.Th ta="right">Price</Table.Th>
+                  <Table.Th ta="right">%</Table.Th>
+                  <Table.Th ta="right">Volume</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -90,18 +90,18 @@ export default function MoversPanel() {
                           {r.ticker}
                         </Anchor>
                       </Table.Td>
-                      <Table.Td>
-                        <Text ff="monospace" size="sm">
+                      <Table.Td ta="right">
+                        <Text ff="monospace" size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {r.price != null && Number.isFinite(r.price)
                             ? r.price.toLocaleString(undefined, { maximumFractionDigits: 2 })
                             : '—'}
                         </Text>
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td ta="right">
                         <SignedPctText v={r.pct_change} />
                       </Table.Td>
-                      <Table.Td>
-                        <Text ff="monospace" size="sm">
+                      <Table.Td ta="right">
+                        <Text ff="monospace" size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {fmtVol(r.volume)}
                         </Text>
                       </Table.Td>

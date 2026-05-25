@@ -57,6 +57,9 @@ import { BacktestPerformanceChart } from './backtest/BacktestPerformanceChart'
 import { RechartsPanel } from './charts/RechartsPanel'
 import { useBacktestChartTheme } from './backtest/useBacktestChartTheme'
 
+/** Numeric columns: monospace + tabular alignment for scanning. */
+const TD_NUM: CSSProperties = { fontVariantNumeric: 'tabular-nums', textAlign: 'right' }
+
 /**
  * Backtest charts orchestrator.
  *
@@ -172,16 +175,20 @@ function GroupExposureLatestTable({
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Group</Table.Th>
-              <Table.Th>Gross</Table.Th>
-              <Table.Th>Net</Table.Th>
+              <Table.Th ta="right">Gross</Table.Th>
+              <Table.Th ta="right">Net</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {sorted.map(([g]) => (
               <Table.Tr key={g}>
                 <Table.Td ff="monospace">{g}</Table.Td>
-                <Table.Td ff="monospace">{formatMetricNumber(gross[g], 4)}</Table.Td>
-                <Table.Td ff="monospace">{formatMetricNumber(last.net_by_group[g], 4)}</Table.Td>
+                <Table.Td ff="monospace" style={TD_NUM}>
+                  {formatMetricNumber(gross[g], 4)}
+                </Table.Td>
+                <Table.Td ff="monospace" style={TD_NUM}>
+                  {formatMetricNumber(last.net_by_group[g], 4)}
+                </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -555,7 +562,7 @@ export default function BacktestResultCharts({
                       />
                       <Legend />
                       <Line
-                        type="monotone"
+                        type="stepAfter"
                         dataKey="grossLeverage"
                         name="Gross leverage"
                         stroke={cht.accent}
@@ -563,7 +570,7 @@ export default function BacktestResultCharts({
                         isAnimationActive={false}
                       />
                       <Line
-                        type="monotone"
+                        type="stepAfter"
                         dataKey="longExposure"
                         name="Long / equity"
                         stroke={cht.concBlue}
@@ -571,7 +578,7 @@ export default function BacktestResultCharts({
                         isAnimationActive={false}
                       />
                       <Line
-                        type="monotone"
+                        type="stepAfter"
                         dataKey="shortExposure"
                         name="Short / equity"
                         stroke={cht.concCyan}
@@ -623,7 +630,7 @@ export default function BacktestResultCharts({
                         labelFormatter={(ms) => (typeof ms === 'number' ? new Date(ms).toLocaleString() : '')}
                       />
                       <Line
-                        type="monotone"
+                        type="stepAfter"
                         dataKey="turnoverPct"
                         name="Turnover % equity"
                         stroke={cht.turnoverLine}
@@ -753,7 +760,7 @@ export default function BacktestResultCharts({
                   labelFormatter={(ms) => (typeof ms === 'number' ? new Date(ms).toLocaleString() : '')}
                 />
                 <Line
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="sharpe"
                   name="Sharpe"
                   stroke={cht.accent}
@@ -860,7 +867,7 @@ export default function BacktestResultCharts({
                 />
                 <Legend />
                 <Line
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="hhi"
                   name="HHI"
                   stroke={cht.concBlue}
@@ -868,7 +875,7 @@ export default function BacktestResultCharts({
                   isAnimationActive={false}
                 />
                 <Line
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="maxAbs"
                   name="Max |w|"
                   stroke={cht.concCyan}
@@ -960,7 +967,7 @@ export default function BacktestResultCharts({
                       />
                       <Line
                         yAxisId="pct"
-                        type="monotone"
+                        type="stepAfter"
                         dataKey="turnoverPct"
                         name="Turnover % equity"
                         stroke={cht.turnoverLine}
@@ -1001,7 +1008,7 @@ export default function BacktestResultCharts({
                           ([k, v]) => (
                             <Table.Tr key={k}>
                               <Table.Th w="45%">{k}</Table.Th>
-                              <Table.Td ff="monospace">
+                              <Table.Td ff="monospace" style={TD_NUM}>
                                 {Array.isArray(v) ? JSON.stringify(v) : formatCell(v)}
                               </Table.Td>
                             </Table.Tr>
@@ -1022,7 +1029,9 @@ export default function BacktestResultCharts({
                           ([k, v]) => (
                             <Table.Tr key={k}>
                               <Table.Th w="45%">{k}</Table.Th>
-                              <Table.Td ff="monospace">{formatCell(v)}</Table.Td>
+                              <Table.Td ff="monospace" style={TD_NUM}>
+                                {formatCell(v)}
+                              </Table.Td>
                             </Table.Tr>
                           ),
                         )}
@@ -1059,20 +1068,28 @@ export default function BacktestResultCharts({
                           <Table.Thead>
                             <Table.Tr>
                               <Table.Th>Factor</Table.Th>
-                              <Table.Th>Beta</Table.Th>
-                              <Table.Th>α ann %</Table.Th>
-                              <Table.Th>R²</Table.Th>
-                              <Table.Th>n</Table.Th>
+                              <Table.Th ta="right">Beta</Table.Th>
+                              <Table.Th ta="right">α ann %</Table.Th>
+                              <Table.Th ta="right">R²</Table.Th>
+                              <Table.Th ta="right">n</Table.Th>
                             </Table.Tr>
                           </Table.Thead>
                           <Table.Tbody>
                             {rows.map(([name, row]) => (
                               <Table.Tr key={name}>
                                 <Table.Td ff="monospace">{name}</Table.Td>
-                                <Table.Td ff="monospace">{formatCell(row.beta)}</Table.Td>
-                                <Table.Td ff="monospace">{formatCell(row.alpha_ann_pct)}</Table.Td>
-                                <Table.Td ff="monospace">{formatCell(row.r2)}</Table.Td>
-                                <Table.Td ff="monospace">{formatCell(row.n)}</Table.Td>
+                                <Table.Td ff="monospace" style={TD_NUM}>
+                                  {formatCell(row.beta)}
+                                </Table.Td>
+                                <Table.Td ff="monospace" style={TD_NUM}>
+                                  {formatCell(row.alpha_ann_pct)}
+                                </Table.Td>
+                                <Table.Td ff="monospace" style={TD_NUM}>
+                                  {formatCell(row.r2)}
+                                </Table.Td>
+                                <Table.Td ff="monospace" style={TD_NUM}>
+                                  {formatCell(row.n)}
+                                </Table.Td>
                               </Table.Tr>
                             ))}
                           </Table.Tbody>

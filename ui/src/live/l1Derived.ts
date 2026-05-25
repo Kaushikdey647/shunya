@@ -99,19 +99,23 @@ export type LwcLinePoint = { time: number; value: number }
 export function buildL1MidSpreadLinePoints(quotes: AlpacaL1WsQuote[]): {
   mid: LwcLinePoint[]
   spread: LwcLinePoint[]
+  bid: LwcLinePoint[]
+  ask: LwcLinePoint[]
 } {
-  const bySec = new Map<number, { mid: number; spread: number }>()
+  const bySec = new Map<number, { mid: number; spread: number; bid: number; ask: number }>()
   for (const q of quotes) {
     if (!isUsableAlpacaL1Quote(q)) continue
     const sec = isoToUnixSec(q.time)
     if (!Number.isFinite(sec) || sec <= 0) continue
     const mid = (q.bid_price + q.ask_price) / 2
     const spread = Math.max(0, q.ask_price - q.bid_price)
-    bySec.set(sec, { mid, spread })
+    bySec.set(sec, { mid, spread, bid: q.bid_price, ask: q.ask_price })
   }
   const sorted = Array.from(bySec.entries()).sort((a, b) => a[0] - b[0])
   return {
     mid: sorted.map(([t, v]) => ({ time: t, value: v.mid })),
     spread: sorted.map(([t, v]) => ({ time: t, value: v.spread })),
+    bid: sorted.map(([t, v]) => ({ time: t, value: v.bid })),
+    ask: sorted.map(([t, v]) => ({ time: t, value: v.ask })),
   }
 }

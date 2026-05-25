@@ -15,18 +15,18 @@ body {
   margin: 0;
 }
 
-/* Mantine 9: terminal-style dark chrome (matches cssVariablesResolver). */
+/* Mantine 9: cool-slate dark chrome (matches cssVariablesResolver). */
 html[data-mantine-color-scheme='dark'] {
-  background-color: #000000;
+  background-color: #0d1117;
 }
 html[data-mantine-color-scheme='dark'] body,
 html[data-mantine-color-scheme='dark'] #root {
-  background-color: #000000;
+  background-color: #0d1117;
 }
 
-/* Card/Paper `withBorder` — grid-visible #333 stroke in dark (no drop shadow). */
+/* Card/Paper `withBorder` — faint stroke in dark (no drop shadow). */
 html[data-mantine-color-scheme='dark'] [data-with-border] {
-  border: 1px solid #333333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: none !important;
 }
 

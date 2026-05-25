@@ -15,7 +15,7 @@ import { useLiveL1 } from '../../../live/l1Store'
 
 type Row = { t: number; mid: number; z: number; bid: number; ask: number }
 
-/** Bubble size from log-space bid/ask size skew (see `quoteLogSizeImbalance` in `l1Derived.ts`). */
+/** Bubble size from log-space bid/ask size skew; green when bid size dominates, red when ask dominates. */
 export function LiveL1BidAskBubbleChart() {
   const { state } = useLiveL1()
   const quotes = state.quotes
@@ -34,18 +34,21 @@ export function LiveL1BidAskBubbleChart() {
     })
   }, [quotes])
 
+  const bidHeavy = useMemo(() => data.filter((r) => r.bid >= r.ask), [data])
+  const askHeavy = useMemo(() => data.filter((r) => r.ask > r.bid), [data])
+
   return (
-    <Stack gap="xs" style={{ minHeight: 260 }}>
+    <Stack gap="xs" style={{ minHeight: 280 }}>
       <Tooltip
-        label="Each point is one BBO quote: Y = mid, bubble area ∝ |log(1+bid_sz)−log(1+ask_sz)|."
+        label="Each point is one BBO quote: Y = mid, area ∝ |log(1+bid_sz)−log(1+ask_sz)|. Teal = bid size ≥ ask size; red = ask size larger."
         multiline
-        w={280}
+        w={300}
       >
         <Text size="sm" style={{ cursor: 'help' }}>
           Bid/ask size imbalance (bubble)
         </Text>
       </Tooltip>
-      <div style={{ width: '100%', height: 240 }}>
+      <div style={{ width: '100%', height: 280 }}>
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -74,7 +77,8 @@ export function LiveL1BidAskBubbleChart() {
                 return [String(value), name]
               }}
             />
-            <Scatter name="Quotes" data={data} fill="var(--mantine-color-teal-6)" />
+            <Scatter name="Bid-heavy" data={bidHeavy} fill="var(--mantine-color-teal-6)" />
+            <Scatter name="Ask-heavy" data={askHeavy} fill="var(--mantine-color-red-6)" />
           </ScatterChart>
         </ResponsiveContainer>
       </div>

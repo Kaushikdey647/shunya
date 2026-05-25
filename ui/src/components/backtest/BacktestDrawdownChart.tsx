@@ -63,7 +63,7 @@ export function BacktestDrawdownChart({ theme, points, xDomain }: Props) {
               labelFormatter={(ms) => (typeof ms === 'number' ? new Date(ms).toLocaleString() : '')}
             />
             <Area
-              type="monotone"
+              type="stepAfter"
               dataKey="drawdownPct"
               name="Drawdown %"
               stroke={theme.ddStroke}

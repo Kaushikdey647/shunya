@@ -1,10 +1,12 @@
 import {
   Badge,
+  Box,
   Button,
   Card,
   Group,
   Paper,
   SimpleGrid,
+  Skeleton,
   Stack,
   Tabs,
   Text,
@@ -25,6 +27,7 @@ import type { InstrumentSearchQuote } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import PageScaffold from '../components/PageScaffold'
 import UniverseRiskStructurePanel from '../components/UniverseRiskStructurePanel'
+import { formatUsdCompact } from '../lib/formatCompact'
 import {
   Legend,
   Pie,
@@ -34,6 +37,70 @@ import {
 } from 'recharts'
 
 const PIE_COLORS = ['#f59f00', '#228be6', '#40c057', '#845ef7', '#fd7e14', '#15aabf', '#e64980', '#868e96']
+
+function EmptyBreakdownPlaceholder({
+  caption,
+  addTickersAnchorId,
+  onOpenRisk,
+}: {
+  caption: string
+  /** When set, show a control that scrolls to `#${id}` (e.g. add-member panel). */
+  addTickersAnchorId?: string
+  /** Optional: switch parent tabs to risk / structure. */
+  onOpenRisk?: () => void
+}) {
+  return (
+    <Box
+      py="xl"
+      px="md"
+      style={{
+        border: '1px dashed var(--mantine-color-default-border)',
+        borderRadius: 'var(--mantine-radius-default)',
+        background: 'light-dark(rgba(0,0,0,0.02), rgba(255,255,255,0.03))',
+      }}
+    >
+      <Stack align="center" gap="md">
+        <Group justify="center" align="flex-end" gap="md" wrap="nowrap">
+          <Skeleton height={80} width={80} circle />
+          <Stack gap="xs" style={{ flex: 1, maxWidth: 200 }}>
+            <Skeleton height={8} radius="xl" />
+            <Skeleton height={8} radius="xl" width="80%" />
+            <Skeleton height={8} radius="xl" width="55%" />
+          </Stack>
+        </Group>
+        <Text size="xs" c="dimmed" ta="center">
+          {caption}
+        </Text>
+        <Group justify="center" gap="sm" wrap="wrap">
+          {addTickersAnchorId ? (
+            <Button
+              component="a"
+              href={`#${addTickersAnchorId}`}
+              size="compact-xs"
+              variant="light"
+              color="yellow"
+              onClick={(e) => {
+                e.preventDefault()
+                document.getElementById(addTickersAnchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            >
+              Add tickers
+            </Button>
+          ) : null}
+          {onOpenRisk ? (
+            <Button size="compact-xs" variant="default" onClick={onOpenRisk}>
+              Risk & structure
+            </Button>
+          ) : null}
+        </Group>
+        <Text size="xs" c="dimmed" ta="center" maw={420}>
+          Bulk CSV upload and external sector schema mapping are not in the API yet; use ticker search above or see
+          project docs for universe workflows.
+        </Text>
+      </Stack>
+    </Box>
+  )
+}
 
 export default function UniverseDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -140,7 +207,7 @@ export default function UniverseDetailPage() {
 
             <Tabs.Panel value="overview" pt="md">
               <Stack gap="lg">
-          <Paper withBorder p="md" radius="md" maw={560}>
+          <Paper withBorder p="md" radius="md" maw={560} id="universe-add-ticker">
             <Text fw={600} size="sm" mb="xs">
               Add ticker
             </Text>
@@ -198,9 +265,11 @@ export default function UniverseDetailPage() {
               </Text>
               {summaryQ.isLoading && <Text c="dimmed" size="xs">Loading…</Text>}
               {sectorPie.length === 0 && !summaryQ.isLoading && (
-                <Text c="dimmed" size="xs">
-                  No classified sectors for members yet.
-                </Text>
+                <EmptyBreakdownPlaceholder
+                  caption="No classified sectors for members yet."
+                  addTickersAnchorId="universe-add-ticker"
+                  onOpenRisk={() => setMainTab('risk')}
+                />
               )}
               {sectorPie.length > 0 && (
                 <div style={{ width: '100%', height: 280 }}>
@@ -220,9 +289,11 @@ export default function UniverseDetailPage() {
               </Text>
               {summaryQ.isLoading && <Text c="dimmed" size="xs">Loading…</Text>}
               {industryPie.length === 0 && !summaryQ.isLoading && (
-                <Text c="dimmed" size="xs">
-                  No classified industries for members yet.
-                </Text>
+                <EmptyBreakdownPlaceholder
+                  caption="No classified industries for members yet."
+                  addTickersAnchorId="universe-add-ticker"
+                  onOpenRisk={() => setMainTab('risk')}
+                />
               )}
               {industryPie.length > 0 && (
                 <div style={{ width: '100%', height: 280 }}>
@@ -248,9 +319,9 @@ export default function UniverseDetailPage() {
                   <Text size="xs" c="dimmed" tt="uppercase">
                     Median market cap
                   </Text>
-                  <Text fw={600}>
+                  <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {summary.median_market_cap != null && Number.isFinite(summary.median_market_cap)
-                      ? summary.median_market_cap.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                      ? formatUsdCompact(summary.median_market_cap)
                       : '—'}
                   </Text>
                 </div>
@@ -258,19 +329,25 @@ export default function UniverseDetailPage() {
                   <Text size="xs" c="dimmed" tt="uppercase">
                     Mean trailing P/E
                   </Text>
-                  <Text fw={600}>{summary.mean_trailing_pe?.toFixed(2) ?? '—'}</Text>
+                  <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {summary.mean_trailing_pe?.toFixed(2) ?? '—'}
+                  </Text>
                 </div>
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase">
                     Median beta
                   </Text>
-                  <Text fw={600}>{summary.median_beta?.toFixed(3) ?? '—'}</Text>
+                  <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {summary.median_beta?.toFixed(3) ?? '—'}
+                  </Text>
                 </div>
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase">
                     Fundamentals cells
                   </Text>
-                  <Text fw={600}>{summary.fundamentals_coverage_count}</Text>
+                  <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {summary.fundamentals_coverage_count}
+                  </Text>
                 </div>
               </SimpleGrid>
             )}

@@ -37,12 +37,15 @@ class _FakeStream:
         self.unsub_quotes: list[str] = []
         self.unsub_trades: list[str] = []
         self.stopped = False
+        self._running = False
+        self.quote_subs: list[str] = []
+        self.trade_subs: list[str] = []
 
-    def subscribe_quotes(self, _h: Any, *_syms: str) -> None:
-        pass
+    def subscribe_quotes(self, _h: Any, *syms: str) -> None:
+        self.quote_subs.extend(syms)
 
-    def subscribe_trades(self, _h: Any, *_syms: str) -> None:
-        pass
+    def subscribe_trades(self, _h: Any, *syms: str) -> None:
+        self.trade_subs.extend(syms)
 
     def register_trade_corrections(self, _h: Any) -> None:
         pass
@@ -64,7 +67,8 @@ class _FakeStream:
 
 
 @pytest.fixture(autouse=True)
-def clear_hubs() -> None:
+def clear_hubs(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SHUNYA_ALPACA_L1_RECONNECT_COOLDOWN_SEC", "0")
     _clear_hubs()
     yield
     _clear_hubs()
@@ -98,6 +102,50 @@ def test_hub_fanout_two_clients_same_symbol(monkeypatch: pytest.MonkeyPatch) -> 
     asyncio.run(_body())
 
 
+def test_hub_second_symbol_while_alpaca_running_no_deadlock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """alpaca-py uses run_coroutine_threadsafe(...).result() when _running — must not block loop."""
+    import api.services.alpaca_l1_feed_hub as hubm
+
+    async def _body() -> None:
+        fake = _FakeStream()
+        monkeypatch.setattr(hubm, "build_stock_data_stream", lambda *a, **k: fake)
+
+        rt = AlpacaRuntimeSettings(api_key_id="k-run", secret_key="s-run", paper=True)
+        hub = AlpacaL1FeedHub(rt, feed=DataFeed.IEX, max_symbols=30)
+        await hub.attach(_RecordingWs(), "AAPL")
+        fake._running = True
+        await asyncio.wait_for(hub.attach(_RecordingWs(), "MSFT"), timeout=5.0)
+        assert "MSFT" in fake.quote_subs and "MSFT" in fake.trade_subs
+
+    asyncio.run(_body())
+
+
+def test_hub_broadcasts_error_when_alpaca_runner_exits(monkeypatch: pytest.MonkeyPatch) -> None:
+    import api.services.alpaca_l1_feed_hub as hubm
+
+    class _FakeShort(_FakeStream):
+        async def _run_forever(self) -> None:  # noqa: SLF001
+            return
+
+    async def _body() -> None:
+        fake = _FakeShort()
+        monkeypatch.setattr(hubm, "build_stock_data_stream", lambda *a, **k: fake)
+
+        rt = AlpacaRuntimeSettings(api_key_id="k-dead", secret_key="s-dead", paper=True)
+        hub = AlpacaL1FeedHub(rt, feed=DataFeed.IEX, max_symbols=30)
+        ws = _RecordingWs()
+        await hub.attach(ws, "AAPL")
+        for _ in range(100):
+            if hub._stream is None:
+                break
+            await asyncio.sleep(0.01)
+        assert hub._stream is None
+        assert hub._runner_task is None
+        assert any(m.get("type") == "error" and m.get("code") == "alpaca_market_data_stopped" for m in ws.sent)
+
+    asyncio.run(_body())
+
+
 def test_hub_symbol_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     import api.services.alpaca_l1_feed_hub as hubm
 
@@ -122,3 +170,27 @@ def test_get_alpaca_l1_hub_singleton() -> None:
     a = get_alpaca_l1_hub(rt, feed=DataFeed.IEX)
     b = get_alpaca_l1_hub(rt, feed=DataFeed.IEX)
     assert a is b
+
+
+def test_hub_fanout_alpaca_upstream_control(monkeypatch: pytest.MonkeyPatch) -> None:
+    import api.services.alpaca_l1_feed_hub as hubm
+
+    async def _body() -> None:
+        fake = _FakeStream()
+        monkeypatch.setattr(hubm, "build_stock_data_stream", lambda *a, **k: fake)
+
+        rt = AlpacaRuntimeSettings(api_key_id="k-up", secret_key="s-up", paper=True)
+        hub = AlpacaL1FeedHub(rt, feed=DataFeed.IEX, max_symbols=30)
+        ws = _RecordingWs()
+        await hub.attach(ws, "AAPL")
+
+        await hub._on_alpaca_control({"T": "error", "code": 406, "msg": "not allowed"})  # noqa: SLF001
+        assert any(
+            m.get("type") == "error" and m.get("code") == "alpaca_upstream" and "406" in m.get("message", "")
+            for m in ws.sent
+        )
+
+        await hub._on_alpaca_control({"T": "subscription", "quotes": ["AAPL"], "trades": ["AAPL"]})  # noqa: SLF001
+        assert any(m.get("type") == "subscription" and m.get("alpaca", {}).get("quotes") == ["AAPL"] for m in ws.sent)
+
+    asyncio.run(_body())

@@ -34,6 +34,12 @@ import type { AlpacaEquityAccountOut } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import PageScaffold from '../components/PageScaffold'
 
+const TRADE_QUERY_OPTS = {
+  staleTime: 120_000,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+} as const
+
 function fmtUsd(raw: string | null | undefined): string {
   if (raw == null || raw === '') return '—'
   const n = Number(raw)
@@ -52,7 +58,7 @@ function Stat({ label, value }: { label: string; value: string }) {
       <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
         {label}
       </Text>
-      <Text size="md" fw={600}>
+      <Text size="md" fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </Text>
     </Paper>
@@ -102,41 +108,46 @@ const TIMEFRAME_OPTIONS = [
 ]
 
 export default function TradeAccountPage() {
-  const [tradeToken, setTradeToken] = useState('')
+  const [draftToken, setDraftToken] = useState('')
+  const [appliedToken, setAppliedToken] = useState('')
   const [period, setPeriod] = useState('1M')
   const [timeframe, setTimeframe] = useState<string | null>(null)
 
   const settingsQ = useQuery({ queryKey: ['appSettings'], queryFn: getAppSettings })
   const alpacaEnabled = settingsQ.data?.environment.alpaca_enabled ?? false
-  const tokenReady = tradeToken.trim().length > 0
-  const fetchEnabled = alpacaEnabled && tokenReady
+  const fetchEnabled = alpacaEnabled && appliedToken.length > 0
 
   const equityQ = useQuery({
-    queryKey: ['tradeAccountEquity', tradeToken],
-    queryFn: () => getTradeAccountEquity(tradeToken.trim()),
+    queryKey: ['tradeAccountEquity', appliedToken],
+    queryFn: () => getTradeAccountEquity(appliedToken),
     enabled: fetchEnabled,
+    ...TRADE_QUERY_OPTS,
   })
 
   const historyQ = useQuery({
-    queryKey: ['tradePortfolioHistory', tradeToken, period, timeframe],
+    queryKey: ['tradePortfolioHistory', appliedToken, period, timeframe],
     queryFn: () =>
-      getTradePortfolioHistory(tradeToken.trim(), {
+      getTradePortfolioHistory(appliedToken, {
         period,
         timeframe: timeframe || null,
       }),
     enabled: fetchEnabled,
+    ...TRADE_QUERY_OPTS,
   })
 
   const activitiesQ = useInfiniteQuery({
-    queryKey: ['tradeAccountActivities', tradeToken],
+    queryKey: ['tradeAccountActivities', appliedToken],
     queryFn: ({ pageParam }) =>
-      getTradeAccountActivities(tradeToken.trim(), {
+      getTradeAccountActivities(appliedToken, {
         page_size: 50,
         page_token: pageParam ?? undefined,
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_page_token ?? undefined,
     enabled: fetchEnabled,
+    staleTime: TRADE_QUERY_OPTS.staleTime,
+    refetchOnWindowFocus: TRADE_QUERY_OPTS.refetchOnWindowFocus,
+    refetchOnReconnect: TRADE_QUERY_OPTS.refetchOnReconnect,
   })
 
   const chartRows = useMemo(() => {
@@ -154,11 +165,17 @@ export default function TradeAccountPage() {
     [activitiesQ.data],
   )
 
+  const applyToken = () => {
+    const t = draftToken.trim()
+    setAppliedToken(t)
+  }
+
   return (
     <PageScaffold>
       <Title order={2}>Account</Title>
       <Text size="sm" c="dimmed">
         Alpaca brokerage snapshot (equities). Requires the API trade desk token and Alpaca enabled on the server.
+        Enter the token and click <strong>Apply token</strong> so requests do not fire on every keystroke.
       </Text>
 
       <ApiErrorAlert error={settingsQ.error} />
@@ -177,12 +194,15 @@ export default function TradeAccountPage() {
         <Stack gap="sm">
           <PasswordInput
             label="X-Shunya-Trade-Desk-Token"
-            description="Same value as SHUNYA_API_TRADE_DESK_TOKEN on the API. Stored only in this component state."
-            value={tradeToken}
-            onChange={(e) => setTradeToken(e.currentTarget.value)}
+            description="Same value as SHUNYA_API_TRADE_DESK_TOKEN on the API. Stored only in this component state until you apply it."
+            value={draftToken}
+            onChange={(e) => setDraftToken(e.currentTarget.value)}
             disabled={!alpacaEnabled}
           />
           <Group>
+            <Button variant="filled" disabled={!alpacaEnabled || draftToken.trim().length === 0} onClick={applyToken}>
+              Apply token
+            </Button>
             <Button
               variant="light"
               disabled={!fetchEnabled}
@@ -192,7 +212,7 @@ export default function TradeAccountPage() {
                 void activitiesQ.refetch()
               }}
             >
-              Refresh
+              Refresh data
             </Button>
           </Group>
         </Stack>
@@ -247,7 +267,7 @@ export default function TradeAccountPage() {
                         value.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 })
                       }
                     />
-                    <Line type="monotone" dataKey="equity" stroke="var(--mantine-color-blue-6)" dot={false} />
+                    <Line type="stepAfter" dataKey="equity" stroke="var(--mantine-color-blue-6)" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -289,9 +309,15 @@ export default function TradeAccountPage() {
                     <Table.Td>{row.activity_type}</Table.Td>
                     <Table.Td>{row.symbol ?? '—'}</Table.Td>
                     <Table.Td>{row.side ?? '—'}</Table.Td>
-                    <Table.Td>{row.qty != null ? String(row.qty) : '—'}</Table.Td>
-                    <Table.Td>{row.price != null ? String(row.price) : '—'}</Table.Td>
-                    <Table.Td>{row.net_amount != null ? String(row.net_amount) : '—'}</Table.Td>
+                    <Table.Td ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {row.qty != null ? String(row.qty) : '—'}
+                    </Table.Td>
+                    <Table.Td ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {row.price != null ? String(row.price) : '—'}
+                    </Table.Td>
+                    <Table.Td ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {row.net_amount != null ? String(row.net_amount) : '—'}
+                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>

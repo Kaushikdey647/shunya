@@ -519,6 +519,15 @@ export interface AppSettingsResponse {
   sources: AppTunableSources
 }
 
+/** ``GET /settings/market-clock`` or WebSocket ``tick`` frames — server wall clocks and US RTH gate. */
+export interface MarketClockResponse {
+  utc_iso: string
+  us_line: string
+  in_line: string
+  us_listed_rth_open: boolean
+  alpaca_l1_us_equities_stream_allowed: boolean
+}
+
 export type AppRuntimeTunableKey = keyof AppRuntimeTunables
 
 export const APP_RUNTIME_TUNABLE_KEYS = [
@@ -835,6 +844,12 @@ export type AlpacaL1WsError = {
   replacement_path?: string
 }
 
+/** Alpaca control ``subscription`` ack (forwarded from upstream). */
+export type AlpacaL1WsSubscription = {
+  type: 'subscription'
+  alpaca: Record<string, unknown>
+}
+
 export type AlpacaL1WsMessage =
   | AlpacaL1WsHello
   | AlpacaL1WsQuote
@@ -842,6 +857,7 @@ export type AlpacaL1WsMessage =
   | AlpacaL1WsTradeCorrection
   | AlpacaL1WsTradeCancel
   | AlpacaL1WsError
+  | AlpacaL1WsSubscription
 
 export type InstrumentOhlcvStorageStatus = 'none' | 'ok' | 'failed' | 'deferred'
 

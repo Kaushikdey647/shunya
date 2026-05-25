@@ -23,6 +23,12 @@ export default function ExecutionHubPage() {
           value={parentId}
           onChange={(e) => setParentId(e.currentTarget.value)}
           ff="monospace"
+          styles={{
+            input: {
+              fontVariantNumeric: 'tabular-nums',
+              transition: 'border-color 120ms ease, box-shadow 120ms ease',
+            },
+          }}
         />
         <Button
           color="yellow"

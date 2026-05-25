@@ -44,7 +44,7 @@ export default function RiskCommandCenterPage() {
   const scheme = useComputedColorScheme('light', { getInitialValueInEffect: false })
   const radar = useMemo(() => factorRadar(desk.risk), [desk.risk])
 
-  const gridStroke = scheme === 'dark' ? '#333333' : '#c4c4c4'
+  const gridStroke = scheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#c4c4c4'
   const gridStrokeW = scheme === 'dark' ? 1.25 : 1
   const benchStroke = scheme === 'dark' ? '#888888' : '#6b7280'
   const portFillOp = scheme === 'dark' ? 0.52 : 0.35

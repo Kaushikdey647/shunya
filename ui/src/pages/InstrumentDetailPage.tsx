@@ -37,6 +37,7 @@ import InstrumentHoldersPanel from '../components/instrument/InstrumentHoldersPa
 import InstrumentOptionsChainPanel from '../components/instrument/InstrumentOptionsChainPanel'
 import InstrumentYfinanceResearchTab from '../components/instrument/InstrumentYfinanceResearchTab'
 import PageScaffold from '../components/PageScaffold'
+import { formatCompactNumber, formatUsdCompact } from '../lib/formatCompact'
 import { barTimesUtcSeconds, snapCrosshairToBarTime } from '../utils/chartBarTimes'
 
 type Preset = { id: string; label: string; interval: string; period: string }
@@ -61,14 +62,12 @@ function normalizeSymbol(raw: string | undefined): string | null {
 
 function fmtCap(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return '—'
-  if (Math.abs(n) >= 1e12) return `${(n / 1e12).toFixed(2)}T`
-  if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(2)}B`
-  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(2)}M`
-  return n.toLocaleString()
+  return formatUsdCompact(n)
 }
 
 function fmtNum(n: number | null | undefined, digits = 2): string {
   if (n == null || !Number.isFinite(n)) return '—'
+  if (Math.abs(n) >= 1_000_000) return formatCompactNumber(n, { maximumFractionDigits: digits })
   return n.toLocaleString(undefined, { maximumFractionDigits: digits })
 }
 
@@ -475,7 +474,29 @@ export default function InstrumentDetailPage() {
 
       <ApiErrorAlert error={overview.error} />
 
-      <Tabs value={mainTab} onChange={(v) => setMainTab(v ?? 'overview')} mt="md">
+      <Tabs
+        value={mainTab}
+        onChange={(v) => setMainTab(v ?? 'overview')}
+        mt="md"
+        styles={(theme) => ({
+          list: {
+            gap: 0,
+            borderBottom: '1px solid var(--mantine-color-default-border)',
+            paddingBottom: 0,
+          },
+          tab: {
+            border: 'none',
+            borderRadius: 0,
+            marginBottom: -1,
+            borderBottom: '2px solid transparent',
+            backgroundColor: 'transparent',
+            '&[data-active]': {
+              borderBottomColor: theme.colors.yellow[6],
+              color: theme.colors.yellow[6],
+            },
+          },
+        })}
+      >
         <Tabs.List>
           <Tabs.Tab value="overview">Overview</Tabs.Tab>
           <Tabs.Tab value="chart">Chart & news</Tabs.Tab>
@@ -595,8 +616,9 @@ export default function InstrumentDetailPage() {
       <Divider my="xl" />
       <Text size="xs" c="dimmed">
         Market data and fundamentals are sourced from Yahoo Finance via yfinance; fields may be missing or delayed
-        depending on the symbol. Use the Live Data tab for realtime Alpaca bar streaming (IEX feed) when the API has
-        Alpaca enabled.
+        depending on the symbol. Use the Live Data tab for realtime Alpaca IEX L1 quotes and trades when the API has
+        Alpaca enabled; streaming is allowed only during US equity regular hours (see{' '}
+        <code>/settings/market-clock/stream</code> or <code>GET /settings/market-clock</code>).
       </Text>
 
       <Modal

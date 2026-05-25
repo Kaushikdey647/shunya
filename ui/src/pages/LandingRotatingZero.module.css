@@ -15,7 +15,7 @@
   image-rendering: crisp-edges;
 }
 
-@media (max-width: 56em) {
+@media (max-width: 62em) {
   .wrap {
     max-width: none;
     margin-left: 0;

@@ -147,6 +147,7 @@ def build_stock_data_stream(
     settings: AlpacaRuntimeSettings,
     *,
     feed: "DataFeed | None" = None,
+    stream_cls: "type[StockDataStream] | None" = None,
 ) -> "StockDataStream":
     """
     Live stock market WebSocket client (quotes, trades, bars, etc.).
@@ -155,17 +156,21 @@ def build_stock_data_stream(
     (``SHUNYA_ALPACA_BAR_FEED``). Pass an explicit :class:`~alpaca.data.enums.DataFeed`
     (e.g. ``DataFeed.IEX``) to pin the stream. Run with :meth:`StockDataStream._run_forever`
     on the app's asyncio loop (do not call :meth:`StockDataStream.run`, which uses ``asyncio.run``).
+
+    ``stream_cls`` defaults to :class:`~alpaca.data.live.stock.StockDataStream`. The HTTP API
+    L1 hub passes a subclass that stops retrying on fatal Alpaca errors (e.g. connection limit).
     """
     from alpaca.data.live.stock import StockDataStream
 
     from shunya.data.providers import default_alpaca_data_feed_from_env
 
+    cls = stream_cls or StockDataStream
     chosen = feed if feed is not None else default_alpaca_data_feed_from_env()
     ws_params = None
     if not tls_certificate_verification_enabled():
         _warn_alpaca_insecure_tls_once()
         ws_params = alpaca_trading_stream_websocket_params_relaxed()
-    return StockDataStream(
+    return cls(
         settings.api_key_id,
         settings.secret_key,
         feed=chosen,

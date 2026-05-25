@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, BackgroundTasks, Query, status
 
 from api.backtest_resolve import resolve_index_backtest_if_needed
 from api.backtest_windows import normalize_backtest_create
 from api.universe_resolve import resolve_universe_backtest_if_needed
 from api.repositories import alphas as alphas_repo
 from api.repositories import backtests as jobs_repo
+from api.services.notify_background import schedule_notification
 from api.schemas.models import (
     BacktestCreate,
     BacktestJobOut,
@@ -22,12 +23,22 @@ router = APIRouter(prefix="/backtests", tags=["backtests"])
 
 
 @router.post("", response_model=BacktestJobOut, status_code=status.HTTP_201_CREATED)
-def enqueue_backtest(body: BacktestCreate) -> BacktestJobOut:
+def enqueue_backtest(body: BacktestCreate, background_tasks: BackgroundTasks) -> BacktestJobOut:
     if alphas_repo.get_alpha_raw(body.alpha_id) is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
     body = normalize_backtest_create(body)
     resolved = resolve_universe_backtest_if_needed(resolve_index_backtest_if_needed(body))
-    return jobs_repo.insert_job(resolved)
+    out = jobs_repo.insert_job(resolved)
+    label = out.alpha_name or out.alpha_id
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Backtest queued",
+        message=f'Backtest queued for "{label}" (job {out.id}).',
+        code="backtest.queued",
+        context={"job_id": out.id, "alpha_id": out.alpha_id},
+    )
+    return out
 
 
 @router.get("", response_model=list[BacktestJobOut])
@@ -47,7 +58,7 @@ def list_backtests(
 
 
 @router.post("/delete-batch", response_model=BacktestJobsDeleteBatchOut)
-def delete_backtests_batch(body: BacktestJobsDeleteBatchRequest) -> BacktestJobsDeleteBatchOut:
+def delete_backtests_batch(body: BacktestJobsDeleteBatchRequest, background_tasks: BackgroundTasks) -> BacktestJobsDeleteBatchOut:
     try:
         deleted = jobs_repo.delete_jobs_by_ids(body.ids)
     except ValueError as exc:
@@ -58,14 +69,31 @@ def delete_backtests_batch(body: BacktestJobsDeleteBatchRequest) -> BacktestJobs
                 http_status=400,
             ) from exc
         raise
+    if deleted > 0:
+        schedule_notification(
+            background_tasks,
+            level="info",
+            title="Backtests deleted",
+            message=f"Deleted {deleted} backtest job(s).",
+            code="backtest.batch_deleted",
+            context={"deleted": deleted},
+        )
     return BacktestJobsDeleteBatchOut(deleted=deleted)
 
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_backtest(job_id: str) -> None:
+def delete_backtest(job_id: str, background_tasks: BackgroundTasks) -> None:
     ok = jobs_repo.delete_job(job_id)
     if not ok:
         raise ShunyaError("Job not found.", code=ErrorCode.BACKTEST_JOB_NOT_FOUND, http_status=404)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Backtest deleted",
+        message=f"Deleted backtest job {job_id}.",
+        code="backtest.deleted",
+        context={"job_id": job_id},
+    )
 
 
 @router.get("/{job_id}", response_model=BacktestJobOut)

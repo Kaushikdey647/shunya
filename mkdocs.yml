@@ -108,6 +108,7 @@ nav:
   - Web application:
       - Overview: ui/overview.md
       - Research: ui/research.md
+      - "Design tokens": ui/design-tokens.md
       - Studio: ui/studio.md
       - Trade: ui/trade.md
       - Configuration: ui/configuration.md

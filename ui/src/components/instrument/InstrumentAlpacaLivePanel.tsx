@@ -1,7 +1,8 @@
-import { Alert, Button, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core'
+import { Alert, Button, Grid, Group, Stack, Text, Title } from '@mantine/core'
 import { useCallback, useEffect, useState } from 'react'
 import type { InstrumentKind } from '../../api/types'
 import { LiveL1Provider, useLiveL1 } from '../../live/l1Store'
+import { useMarketClock } from '../../time/MarketClockContext'
 import { LiveL1BidAskBubbleChart } from './live/LiveL1BidAskBubbleChart'
 import { LiveL1OfiHistogram } from './live/LiveL1OfiHistogram'
 import { LiveL1SpreadMidChart } from './live/LiveL1SpreadMidChart'
@@ -21,17 +22,41 @@ function LivePanelBody({
   wantStream,
   onConnect,
   onDisconnect,
+  usL1StreamGateError,
 }: {
   instrumentKind: InstrumentKind | undefined
   kindOk: boolean
   wantStream: boolean
   onConnect: () => void
   onDisconnect: () => void
+  usL1StreamGateError: boolean
 }) {
   const { state } = useLiveL1()
   const phase = state.phase
   const feedLabel = state.feed
   const channels = state.channels
+  const [staleNoData, setStaleNoData] = useState(false)
+
+  useEffect(() => {
+    if (!wantStream) {
+      setStaleNoData(false)
+      return
+    }
+    if (phase !== 'live') {
+      setStaleNoData(false)
+      return
+    }
+    if (state.quotes.length > 0 || state.trades.length > 0) {
+      setStaleNoData(false)
+      return
+    }
+    const ms = 20_000
+    const id = window.setTimeout(() => setStaleNoData(true), ms)
+    return () => window.clearTimeout(id)
+  }, [wantStream, phase, state.quotes.length, state.trades.length])
+
+  const showInlineLastError =
+    state.lastError != null && state.lastErrorCode !== 'us_rth_closed'
 
   return (
     <Stack gap="md">
@@ -68,18 +93,38 @@ function LivePanelBody({
         </Text>
       )}
 
-      {state.lastError && (
+      {usL1StreamGateError && (
+        <Alert color="red" variant="light" title="Market hours unavailable">
+          Could not open the market clock stream (<code>/settings/market-clock/stream</code>). You can still
+          try Connect; the API will
+          reject IEX L1 outside US regular hours and surface that in notifications.
+        </Alert>
+      )}
+
+      {showInlineLastError && (
         <Alert color="red" variant="light">
           {state.lastError}
         </Alert>
       )}
 
+      {staleNoData && phase === 'live' && (
+        <Alert color="yellow" variant="light" title="No BBO or trades yet">
+          Still no quotes or trades after 20 seconds. You may be on a very quiet tape, or the upstream
+          feed may be blocked — check the API log for <code>alpaca_upstream</code> / subscription lines,
+          or run <code>uv run python scripts/diag_alpaca_l1_ws.py …</code>.
+        </Alert>
+      )}
+
       <LiveL1SpreadMidChart />
 
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-        <LiveL1BidAskBubbleChart />
-        <LiveL1OfiHistogram />
-      </SimpleGrid>
+      <Grid gap="md">
+        <Grid.Col span={{ base: 12, lg: 7 }}>
+          <LiveL1BidAskBubbleChart />
+        </Grid.Col>
+        <Grid.Col span={{ base: 12, lg: 5 }}>
+          <LiveL1OfiHistogram />
+        </Grid.Col>
+      </Grid>
 
       <LiveL1TradeTape />
     </Stack>
@@ -94,6 +139,8 @@ export default function InstrumentAlpacaLivePanel({
 }: Props) {
   const [wantStream, setWantStream] = useState(false)
   const kindOk = instrumentKind === 'equity' || instrumentKind === 'etf'
+  const { isError: clockError } = useMarketClock()
+
   const streamActive = Boolean(symbol) && alpacaEnabled && enabled && kindOk && wantStream
 
   const disconnect = useCallback(() => {
@@ -116,7 +163,8 @@ export default function InstrumentAlpacaLivePanel({
       <Stack gap="xs">
         <Title order={4}>Alpaca live stream</Title>
         <Text size="sm" c="dimmed">
-          Enable Alpaca on the API (<code>SHUNYA_API_ALPACA_ENABLED</code> and APCA keys) for IEX L1 streaming here.
+          Enable Alpaca on the API (<code>SHUNYA_API_ALPACA_ENABLED</code> and APCA keys) for IEX L1
+          streaming here.
         </Text>
       </Stack>
     )
@@ -127,7 +175,8 @@ export default function InstrumentAlpacaLivePanel({
       <Stack gap="xs">
         <Title order={4}>Alpaca live stream</Title>
         <Text size="sm" c="dimmed">
-          Realtime streaming is available for stocks and ETFs only (this symbol is <code>{instrumentKind}</code>).
+          Realtime streaming is available for stocks and ETFs only (this symbol is{' '}
+          <code>{instrumentKind}</code>).
         </Text>
       </Stack>
     )
@@ -141,6 +190,7 @@ export default function InstrumentAlpacaLivePanel({
         wantStream={wantStream}
         onConnect={connect}
         onDisconnect={disconnect}
+        usL1StreamGateError={clockError}
       />
     </LiveL1Provider>
   )

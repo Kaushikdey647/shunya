@@ -93,8 +93,8 @@ export default function WatchlistCard() {
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Ticker</Table.Th>
-                      <Table.Th>Last</Table.Th>
-                      <Table.Th>Day %</Table.Th>
+                      <Table.Th ta="right">Last</Table.Th>
+                      <Table.Th ta="right">Day %</Table.Th>
                       <Table.Th w={90} />
                     </Table.Tr>
                   </Table.Thead>
@@ -108,14 +108,14 @@ export default function WatchlistCard() {
                               {sym}
                             </Anchor>
                           </Table.Td>
-                          <Table.Td>
-                            <Text ff="monospace" size="sm">
+                          <Table.Td ta="right">
+                            <Text ff="monospace" size="sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
                               {row?.last != null && Number.isFinite(row.last)
                                 ? row.last.toLocaleString(undefined, { maximumFractionDigits: 2 })
                                 : '—'}
                             </Text>
                           </Table.Td>
-                          <Table.Td>
+                          <Table.Td ta="right">
                             <SignedPctText v={row?.pct_change_1d} />
                           </Table.Td>
                           <Table.Td>

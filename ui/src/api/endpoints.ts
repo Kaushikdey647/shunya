@@ -7,6 +7,7 @@ import type {
   AlpacaPortfolioHistoryOut,
   AppRuntimeTunables,
   AppSettingsResponse,
+  MarketClockResponse,
   AlphaAssistBacktestReviewRequest,
   AlphaAssistBacktestReviewResponse,
   AlphaAssistBodyResponse,
@@ -59,6 +60,10 @@ export async function getHealth(): Promise<HealthResponse> {
 
 export async function getAppSettings(): Promise<AppSettingsResponse> {
   return apiFetch<AppSettingsResponse>('/settings/app', { method: 'GET' })
+}
+
+export async function getMarketClock(): Promise<MarketClockResponse> {
+  return apiFetch<MarketClockResponse>('/settings/market-clock', { method: 'GET' })
 }
 
 export async function patchAppSettings(

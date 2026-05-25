@@ -1,6 +1,7 @@
 import Editor, { useMonaco } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
-import { Paper, useComputedColorScheme } from '@mantine/core'
+import { Badge, Group, Paper, Text, useComputedColorScheme } from '@mantine/core'
+import { SHUNYA_FONT_MONO } from '../theme/typography'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AlphaAssistIssue } from '../api/types'
 import { postAlphaAssistBody, postAlphaLintBody } from '../api/endpoints'
@@ -30,6 +31,10 @@ type Props = {
   assistNonce?: number
   /** Latest assist issues (includes optional corrected_body for Fix). */
   onAssistIssues?: (issues: AlphaAssistIssue[]) => void
+  /** IDE-style tab label above the editor (e.g. alpha_signal.py). */
+  editorTabLabel?: string
+  /** When true with editorTabLabel, show an unsaved indicator. */
+  editorDirty?: boolean
 }
 
 const LINT_DEBOUNCE_MS = 700
@@ -45,6 +50,8 @@ export default function AlphaSourceEditor({
   enableAssist = false,
   assistNonce = 0,
   onAssistIssues,
+  editorTabLabel,
+  editorDirty = false,
 }: Props) {
   const monaco = useMonaco()
   const regRef = useRef<{ dispose: () => void } | null>(null)
@@ -52,6 +59,8 @@ export default function AlphaSourceEditor({
   const [editorGen, setEditorGen] = useState(0)
   const colorScheme = useComputedColorScheme('light')
   const editorTheme = colorScheme === 'dark' ? 'vs-dark' : 'light'
+  const tabBarBg =
+    colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'var(--mantine-color-gray-0)'
 
   const clearMarkers = useCallback(() => {
     const ed = editorRef.current
@@ -189,6 +198,32 @@ export default function AlphaSourceEditor({
 
   return (
     <Paper p={0} radius="sm" withBorder style={{ overflow: 'hidden' }} {...{ [MONACO_ROOT_ATTR]: '' }}>
+      {editorTabLabel ? (
+        <Group
+          justify="space-between"
+          gap="xs"
+          px="sm"
+          py={6}
+          wrap="nowrap"
+          style={{
+            borderBottom: '1px solid var(--mantine-color-default-border)',
+            background: tabBarBg,
+          }}
+        >
+          <Text size="xs" ff="monospace" c="dimmed" lineClamp={1}>
+            {editorTabLabel}
+          </Text>
+          {editorDirty ? (
+            <Badge size="xs" variant="outline" color="yellow">
+              Unsaved
+            </Badge>
+          ) : (
+            <Text size="xs" c="dimmed" ff="monospace">
+              saved
+            </Text>
+          )}
+        </Group>
+      ) : null}
       <Editor
         key={editorTheme}
         height={height}
@@ -199,6 +234,7 @@ export default function AlphaSourceEditor({
         onMount={onMount}
         options={{
           readOnly,
+          fontFamily: SHUNYA_FONT_MONO,
           fontSize: 14,
           minimap: { enabled: true },
           scrollBeyondLastLine: false,

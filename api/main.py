@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.exception_handlers import register_exception_handlers
 from api.health_checks import collect_health
 from api.repositories import backtests as jobs_repo
+from api.services.market_clock_hub import run_market_clock_loop
 from api.routers import (
     alphas,
     app_settings,
@@ -30,6 +31,7 @@ from api.routers import (
     instrument_stream,
     instruments,
     market,
+    notifications_stream,
     trade_desk,
     universes,
 )
@@ -73,14 +75,17 @@ async def lifespan(app: FastAPI):
 
     # Resolve at startup so tests can monkeypatch ``api.main.backtest_worker_loop``.
     _main = importlib.import_module("api.main")
+    clock_task = asyncio.create_task(run_market_clock_loop(stop))
     task = asyncio.create_task(_main.backtest_worker_loop(stop))
     yield
     stop.set()
+    clock_task.cancel()
     task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for t in (clock_task, task):
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app() -> FastAPI:
@@ -106,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(instruments.router)
     app.include_router(instrument_stream.router)
     app.include_router(instrument_l1_stream.router)
+    app.include_router(notifications_stream.router)
     app.include_router(trade_desk.router)
 
     register_exception_handlers(app)

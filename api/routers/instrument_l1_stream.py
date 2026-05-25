@@ -20,8 +20,10 @@ from starlette.websockets import WebSocketDisconnect
 from api.services.alpaca_l1_feed_hub import SymbolLimitExceeded, get_alpaca_l1_hub
 from api.services.instrument_dashboard import fetch_instrument_overview
 from api.services.market_symbols import normalize_market_symbol
+from api.services.notification_hub import publish_notification
 from api.settings import get_settings
 from shunya.integration.alpaca_settings import try_load_alpaca_settings_from_env
+from shunya.time.market_clock import alpaca_l1_us_equities_stream_allowed
 
 _log = logging.getLogger(__name__)
 
@@ -48,6 +50,29 @@ async def instrument_alpaca_l1_ws(websocket: WebSocket, symbol: str) -> None:
                 "type": "error",
                 "code": "alpaca_disabled",
                 "message": "Alpaca integration is disabled for this API deployment.",
+            }
+        )
+        await websocket.close(code=1008)
+        return
+
+    if not alpaca_l1_us_equities_stream_allowed():
+        rth_msg = (
+            "US equity regular session is closed. Live IEX L1 streaming is allowed "
+            "weekdays 09:30–16:00 America/New_York only (NYSE holidays not excluded in this build). "
+            "For development outside RTH, set SHUNYA_ALPACA_L1_IGNORE_US_RTH=1 on the API process."
+        )
+        await publish_notification(
+            level="warning",
+            message=rth_msg,
+            code="us_rth_closed",
+            title="Live IEX L1 unavailable (US RTH)",
+            context={"symbol": symbol.strip().upper()[:32]},
+        )
+        await websocket.send_json(
+            {
+                "type": "error",
+                "code": "us_rth_closed",
+                "message": rth_msg,
             }
         )
         await websocket.close(code=1008)

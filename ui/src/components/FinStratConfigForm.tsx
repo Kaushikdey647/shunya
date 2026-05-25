@@ -2,13 +2,14 @@ import {
   Alert,
   Button,
   Checkbox,
+  Grid,
   Select,
   Stack,
+  Text,
   TextInput,
-  Title,
 } from '@mantine/core'
 import { Controller, useForm } from 'react-hook-form'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { defaultFinStratConfig } from '../api/defaultConfigs'
 import type { FinStratConfig } from '../api/types'
 
@@ -115,6 +116,32 @@ type Props = {
   formError?: string | null
 }
 
+function InspectorRow({
+  label,
+  description,
+  children,
+}: {
+  label: string
+  description?: string
+  children: ReactNode
+}) {
+  return (
+    <Grid gap="xs" align="flex-end">
+      <Grid.Col span={{ base: 12, sm: 5 }}>
+        <Text size="xs" fw={600} lineClamp={2}>
+          {label}
+        </Text>
+        {description ? (
+          <Text fz="xs" c="dimmed" lineClamp={2} mt={2}>
+            {description}
+          </Text>
+        ) : null}
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, sm: 7 }}>{children}</Grid.Col>
+    </Grid>
+  )
+}
+
 export default function FinStratConfigForm({
   config,
   resetKey,
@@ -167,108 +194,117 @@ export default function FinStratConfigForm({
         form.clearErrors('root')
       })}
     >
-      <Stack gap="md">
-        <Title order={4}>Strategy config (finstrat)</Title>
+      <Stack gap="xs">
+        <Text size="sm" fw={700}>
+          Strategy (finstrat)
+        </Text>
         {rootErr && (
-          <Alert color="red" variant="light">
+          <Alert color="red" variant="outline" p="xs" title="Validation">
             {rootErr}
           </Alert>
         )}
-        <Controller
-          name="decay_mode"
-          control={form.control}
-          render={({ field }) => (
-            <Select
-              label="Decay mode"
-              data={[
-                { value: 'ema', label: 'ema (EMA coefficient)' },
-                { value: 'linear', label: 'linear (fixed window)' },
-              ]}
-              {...field}
-            />
-          )}
-        />
+        <InspectorRow label="Decay mode">
+          <Controller
+            name="decay_mode"
+            control={form.control}
+            render={({ field }) => (
+              <Select
+                size="xs"
+                data={[
+                  { value: 'ema', label: 'ema (EMA coefficient)' },
+                  { value: 'linear', label: 'linear (fixed window)' },
+                ]}
+                {...field}
+              />
+            )}
+          />
+        </InspectorRow>
         {decayMode === 'ema' ? (
-          <TextInput
-            label="Decay (EMA coefficient in [0, 1))"
-            type="number"
-            step="any"
-            {...form.register('decay')}
-          />
+          <InspectorRow label="Decay" description="EMA coefficient in [0, 1).">
+            <TextInput type="number" step="any" size="xs" {...form.register('decay')} />
+          </InspectorRow>
         ) : (
-          <TextInput
-            label="Decay window (bars, integer ≥ 1)"
-            type="number"
-            step={1}
-            {...form.register('decay_window')}
-          />
+          <InspectorRow label="Decay window" description="Bars, integer ≥ 1.">
+            <TextInput type="number" step={1} size="xs" {...form.register('decay_window')} />
+          </InspectorRow>
         )}
-        <TextInput label="Signal delay" type="number" step={1} {...form.register('signal_delay')} />
-        <Controller
-          name="intraday_session_isolated_lag"
-          control={form.control}
-          render={({ field }) => (
-            <Checkbox
-              label="Intraday session isolated lag"
-              checked={field.value}
-              onChange={(e) => field.onChange(e.currentTarget.checked)}
-            />
-          )}
-        />
-        <Controller
-          name="nan_policy"
-          control={form.control}
-          render={({ field }) => (
-            <Select
-              label="NaN policy"
-              data={[
-                { value: 'strict', label: 'strict' },
-                { value: 'zero_fill', label: 'zero_fill' },
-              ]}
-              {...field}
-            />
-          )}
-        />
-        <Controller
-          name="temporal_mode"
-          control={form.control}
-          render={({ field }) => (
-            <Select
-              label="Temporal mode"
-              data={[
-                { value: 'bar_step', label: 'bar_step' },
-                { value: 'elapsed_trading_time', label: 'elapsed_trading_time' },
-              ]}
-              {...field}
-            />
-          )}
-        />
-        <Controller
-          name="neutralization"
-          control={form.control}
-          render={({ field }) => (
-            <Select
-              label="Neutralization"
-              data={[
-                { value: 'none', label: 'None' },
-                { value: 'market', label: 'Market' },
-                { value: 'sector', label: 'Sector' },
-                { value: 'industry', label: 'Industry' },
-              ]}
-              {...field}
-            />
-          )}
-        />
-        <TextInput label="Truncation" type="number" step="any" {...form.register('truncation')} />
-        <TextInput
-          label="Max single weight (0–1, empty = none)"
-          {...form.register('max_single_weight_str')}
-        />
-        <TextInput
-          label="Panel columns (comma-separated, optional)"
-          {...form.register('panel_columns_str')}
-        />
-        <Button type="submit" color="yellow" disabled={isPending}>
+        <InspectorRow label="Signal delay" description="Bars (non-negative integer).">
+          <TextInput type="number" step={1} size="xs" {...form.register('signal_delay')} />
+        </InspectorRow>
+        <InspectorRow label="Intraday session isolated lag">
+          <Controller
+            name="intraday_session_isolated_lag"
+            control={form.control}
+            render={({ field }) => (
+              <Checkbox
+                size="xs"
+                label="Enable"
+                checked={field.value}
+                onChange={(e) => field.onChange(e.currentTarget.checked)}
+              />
+            )}
+          />
+        </InspectorRow>
+        <InspectorRow label="NaN policy">
+          <Controller
+            name="nan_policy"
+            control={form.control}
+            render={({ field }) => (
+              <Select
+                size="xs"
+                data={[
+                  { value: 'strict', label: 'strict' },
+                  { value: 'zero_fill', label: 'zero_fill' },
+                ]}
+                {...field}
+              />
+            )}
+          />
+        </InspectorRow>
+        <InspectorRow label="Temporal mode">
+          <Controller
+            name="temporal_mode"
+            control={form.control}
+            render={({ field }) => (
+              <Select
+                size="xs"
+                data={[
+                  { value: 'bar_step', label: 'bar_step' },
+                  { value: 'elapsed_trading_time', label: 'elapsed_trading_time' },
+                ]}
+                {...field}
+              />
+            )}
+          />
+        </InspectorRow>
+        <InspectorRow label="Neutralization">
+          <Controller
+            name="neutralization"
+            control={form.control}
+            render={({ field }) => (
+              <Select
+                size="xs"
+                data={[
+                  { value: 'none', label: 'None' },
+                  { value: 'market', label: 'Market' },
+                  { value: 'sector', label: 'Sector' },
+                  { value: 'industry', label: 'Industry' },
+                ]}
+                {...field}
+              />
+            )}
+          />
+        </InspectorRow>
+        <InspectorRow label="Truncation" description="In [0, 0.5).">
+          <TextInput type="number" step="any" size="xs" {...form.register('truncation')} />
+        </InspectorRow>
+        <InspectorRow label="Max single weight" description="0–1, empty = none.">
+          <TextInput size="xs" {...form.register('max_single_weight_str')} />
+        </InspectorRow>
+        <InspectorRow label="Panel columns" description="Comma-separated, optional.">
+          <TextInput size="xs" {...form.register('panel_columns_str')} />
+        </InspectorRow>
+        <Button type="submit" color="yellow" size="compact-sm" disabled={isPending}>
           {isPending ? 'Saving…' : submitLabel}
         </Button>
       </Stack>

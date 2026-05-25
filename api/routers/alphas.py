@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, BackgroundTasks, Query, status
 
 from api.alpha_assist import run_alpha_assist, run_alpha_backtest_review
 from api.alpha_lint import run_pyright_on_wrapped
 from api.alpha_validation import validate_import_ref
 from api.repositories import alphas as repo
 from api.repositories import universes as universes_repo
+from api.services.notify_background import schedule_notification
 from api.schemas.models import (
     AlphaAssistBacktestReviewRequest,
     AlphaAssistBacktestReviewResponse,
@@ -92,10 +93,10 @@ def assist_backtest_review(body: AlphaAssistBacktestReviewRequest) -> AlphaAssis
 
 
 @router.post("", response_model=AlphaOut, status_code=status.HTTP_201_CREATED)
-def create_alpha(body: AlphaCreate) -> AlphaOut:
+def create_alpha(body: AlphaCreate, background_tasks: BackgroundTasks) -> AlphaOut:
     _validate_default_universe_id(body.default_universe_id)
     try:
-        return repo.insert_alpha(body)
+        out = repo.insert_alpha(body)
     except RuntimeError as exc:
         if str(exc) == "duplicate_alpha_name":
             raise ShunyaError(
@@ -106,6 +107,15 @@ def create_alpha(body: AlphaCreate) -> AlphaOut:
         raise
     except Exception as exc:  # noqa: BLE001
         raise ShunyaError(str(exc), code=ErrorCode.VALIDATION_ERROR, http_status=400) from exc
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Alpha created",
+        message=f'Alpha "{out.name}" created.',
+        code="alpha.created",
+        context={"alpha_id": out.id},
+    )
+    return out
 
 
 @router.get("", response_model=list[AlphaOut])
@@ -125,7 +135,7 @@ def get_alpha(alpha_id: str) -> AlphaOut:
 
 
 @router.patch("/{alpha_id}", response_model=AlphaOut)
-def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
+def patch_alpha(alpha_id: str, body: AlphaPatch, background_tasks: BackgroundTasks) -> AlphaOut:
     if body.import_ref:
         try:
             validate_import_ref(body.import_ref)
@@ -137,11 +147,30 @@ def patch_alpha(alpha_id: str, body: AlphaPatch) -> AlphaOut:
     row = repo.update_alpha(alpha_id, body)
     if row is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Alpha updated",
+        message=f'Alpha "{row.name}" updated.',
+        code="alpha.updated",
+        context={"alpha_id": alpha_id},
+    )
     return row
 
 
 @router.delete("/{alpha_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_alpha(alpha_id: str) -> None:
+def delete_alpha(alpha_id: str, background_tasks: BackgroundTasks) -> None:
+    row = repo.get_alpha(alpha_id)
+    if row is None:
+        raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
     ok = repo.delete_alpha(alpha_id)
     if not ok:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="Alpha deleted",
+        message=f'Alpha "{row.name}" deleted.',
+        code="alpha.deleted",
+        context={"alpha_id": alpha_id},
+    )

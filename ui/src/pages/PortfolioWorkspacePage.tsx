@@ -6,7 +6,6 @@ import {
   NumberInput,
   Paper,
   SegmentedControl,
-  SimpleGrid,
   Slider,
   Stack,
   Switch,
@@ -140,7 +139,7 @@ export default function PortfolioWorkspacePage() {
             <Badge variant="outline" color="yellow" size="sm">
               StrategySpec v{portfolio.strategySpecVersion}
             </Badge>
-            <Badge variant="light" color="teal" size="sm">
+            <Badge variant="light" color="gray" size="sm">
               Union universe: {unionTickers.length} names
             </Badge>
             <Button variant="light" size="compact-xs" onClick={() => setUniModal(true)}>
@@ -167,14 +166,23 @@ export default function PortfolioWorkspacePage() {
           </Modal>
         </div>
         <Stack gap="xs" align="flex-end">
+          <Group gap="xs" wrap="wrap" justify="flex-end">
+            <Button component={Link} to="/live" size="compact-sm" variant="subtle" color="gray">
+              Live cockpit
+            </Button>
+            <Button component={Link} to="/risk" size="compact-sm" variant="subtle" color="gray">
+              Risk center
+            </Button>
+          </Group>
           <Switch
             label="Go live"
             description="Prefer streaming event feed over backtest / snapshot for this book."
             checked={portfolio.goLive}
             onChange={(e) => updatePortfolio(portfolio.id, { goLive: e.currentTarget.checked })}
-            color="teal"
+            color="gray"
+            size="sm"
           />
-          <Button component={Link} to="/studio" variant="light" color="yellow">
+          <Button component={Link} to="/studio" variant="light" color="yellow" size="compact-sm">
             Open Studio to attach alphas
           </Button>
         </Stack>
@@ -221,7 +229,8 @@ export default function PortfolioWorkspacePage() {
           Blending config
         </Text>
         <SegmentedControl
-          fullWidth
+          size="sm"
+          maw={440}
           value={portfolio.blendMode}
           onChange={(v) =>
             updatePortfolio(portfolio.id, { blendMode: v as 'alpha_blend' | 'target_blend' })
@@ -316,7 +325,7 @@ export default function PortfolioWorkspacePage() {
         Theoretical vs actual per sub-alpha (mock grid — replace with OMS reconciliation feed).
       </Text>
       <Table.ScrollContainer minWidth={560}>
-        <Table {...density} striped withTableBorder>
+        <Table {...density} verticalSpacing="xs" horizontalSpacing="xs" fz="xs" striped withTableBorder>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Symbol</Table.Th>
@@ -331,9 +340,13 @@ export default function PortfolioWorkspacePage() {
               <Table.Tr key={`${r.sym}-${r.alpha}-${i}`}>
                 <Table.Td ff="monospace">{r.sym}</Table.Td>
                 <Table.Td ff="monospace">{r.alpha}…</Table.Td>
-                <Table.Td ta="right">{r.theoretical}</Table.Td>
-                <Table.Td ta="right">{r.actual}</Table.Td>
-                <Table.Td ta="right" c={r.delta === 0 ? undefined : 'yellow'}>
+                <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.theoretical}
+                </Table.Td>
+                <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {r.actual}
+                </Table.Td>
+                <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }} c={r.delta === 0 ? undefined : 'yellow'}>
                   {r.delta > 0 ? `+${r.delta}` : r.delta}
                 </Table.Td>
               </Table.Tr>
@@ -341,15 +354,6 @@ export default function PortfolioWorkspacePage() {
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
-
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-        <Button component={Link} to="/live" variant="filled" color="teal">
-          Open live cockpit
-        </Button>
-        <Button component={Link} to="/risk" variant="default">
-          Risk command center
-        </Button>
-      </SimpleGrid>
     </PageScaffold>
   )
 }

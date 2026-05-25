@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   Code,
+  Grid,
   Group,
   List,
   NumberInput,
@@ -57,6 +58,9 @@ import {
   type AlphaDetailsFormValues,
 } from './alphaStudioForms'
 import { z } from 'zod'
+
+/** Editor height: maximize vertical space for long research sessions. */
+const ALPHA_EDITOR_HEIGHT = 'min(720px, calc(100vh - 14rem))'
 
 const BT_FORM_ID = 'studio-backtest-config-form'
 
@@ -369,49 +373,59 @@ export function StudioAlphaCreate() {
         </Text>
       )}
 
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-        <Stack gap="md">
-          <Title order={2} size="h4">
-            Alpha source (Python + JAX)
-          </Title>
-          <Text c="dimmed" size="sm">
-            Edit only the <Code>alpha</Code> function body (<Code>ts</Code>, <Code>cs</Code>, <Code>fun</Code>,{' '}
-            <Code>ctx.close</Code>, …). Import and signature are added when you save.
-          </Text>
-          <AlphaSourceEditor value={code} onChange={setCode} height="52vh" />
-        </Stack>
-
-        <Stack gap="md">
-          <Title order={2} size="h4">
-            Details
-          </Title>
-          <Stack component="form" gap="sm" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
-            <TextInput label="Name" autoComplete="off" {...form.register('name')} error={form.formState.errors.name?.message} />
-            <TextInput label="Description (optional)" {...form.register('description')} />
-            <Title order={3} size="h5" mt="sm">
-              Strategy config
+      <Grid gap="lg" align="stretch">
+        <Grid.Col span={{ base: 12, lg: 7 }}>
+          <Stack gap="sm">
+            <Title order={2} size="h4">
+              Alpha source (Python + JAX)
             </Title>
-            <Text c="dimmed" size="xs">
-              Adjust below, then create — values are sent with the request.
+            <Text c="dimmed" size="sm">
+              Edit only the <Code>alpha</Code> function body (<Code>ts</Code>, <Code>cs</Code>, <Code>fun</Code>,{' '}
+              <Code>ctx.close</Code>, …). Import and signature are added when you save.
             </Text>
+            <AlphaSourceEditor
+              value={code}
+              onChange={setCode}
+              height={ALPHA_EDITOR_HEIGHT}
+              editorTabLabel="alpha_signal.py"
+              editorDirty={code.trim() !== DEFAULT_ALPHA_BODY.trim()}
+            />
           </Stack>
-          <FinStratConfigForm
-            resetKey="new"
-            config={defaultFinStratConfig}
-            onValidChange={setFinstratDraft}
-            isPending={false}
-            submitLabel="Apply strategy to draft (optional)"
-            onSubmit={setFinstratDraft}
-          />
-          <Button
-            color="yellow"
-            disabled={mutation.isPending}
-            onClick={() => form.handleSubmit((v) => mutation.mutate(v))()}
-          >
-            {mutation.isPending ? 'Creating…' : 'Create alpha'}
-          </Button>
-        </Stack>
-      </SimpleGrid>
+        </Grid.Col>
+
+        <Grid.Col span={{ base: 12, lg: 5 }}>
+          <Stack gap="xs">
+            <Title order={2} size="h4">
+              Details
+            </Title>
+            <Stack component="form" gap="xs" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+              <TextInput label="Name" size="sm" autoComplete="off" {...form.register('name')} error={form.formState.errors.name?.message} />
+              <TextInput label="Description (optional)" size="sm" {...form.register('description')} />
+              <Text size="sm" fw={600} mt="xs">
+                Strategy config
+              </Text>
+              <Text c="dimmed" size="xs">
+                Adjust below, then create — values are sent with the request.
+              </Text>
+            </Stack>
+            <FinStratConfigForm
+              resetKey="new"
+              config={defaultFinStratConfig}
+              onValidChange={setFinstratDraft}
+              isPending={false}
+              submitLabel="Apply strategy to draft (optional)"
+              onSubmit={setFinstratDraft}
+            />
+            <Button
+              color="yellow"
+              disabled={mutation.isPending}
+              onClick={() => form.handleSubmit((v) => mutation.mutate(v))()}
+            >
+              {mutation.isPending ? 'Creating…' : 'Create alpha'}
+            </Button>
+          </Stack>
+        </Grid.Col>
+      </Grid>
     </PageScaffold>
   )
 }
@@ -627,6 +641,14 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
         )
       : synth.join('\n')
 
+  const serverUnwrappedBody = useMemo(() => {
+    if (!alphaQ.data) return ''
+    const raw = alphaQ.data.source_code
+    return raw != null && raw.trim() !== '' ? unwrapAlphaSource(raw) : DEFAULT_ALPHA_BODY
+  }, [alphaQ.data])
+
+  const codeDirty = Boolean(alphaQ.data) && code !== serverUnwrappedBody
+
   return (
     <PageScaffold size="xl">
       <Button component={Link} to="/studio" variant="default">
@@ -665,210 +687,216 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
             alphaName={alphaQ.data.name}
           />
 
-          <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-            <Stack gap="sm">
-              <Title order={2} size="h4">
-                Alpha source
-              </Title>
-              <Text c="dimmed" size="xs">
-                Body only — saved as a full module with <Code>ts</Code>, <Code>cs</Code>, and <Code>fun</Code>{' '}
-                injected automatically.
-              </Text>
-              <ApiErrorAlert error={codeMut.error} />
-              <AlphaSourceEditor
-                value={code}
-                onChange={setCode}
-                height="52vh"
-                alphaMeta={{
-                  name: alphaQ.data.name,
-                  description: alphaQ.data.description,
-                }}
-                enableAssist
-                assistNonce={assistNonce}
-                onAssistIssues={setAssistIssues}
-              />
-              {assistIssues.length > 0 && (
-                <Paper withBorder p="sm" radius="sm">
-                  <Text size="xs" fw={600} mb="xs">
-                    Assist issues
-                  </Text>
-                  <Stack gap="xs">
-                    {assistIssues.map((issue) => (
-                      <Group key={issue.id} justify="space-between" align="flex-start" wrap="nowrap">
-                        <Text size="sm" style={{ flex: 1 }}>
-                          {issue.message}
-                        </Text>
-                        {issue.corrected_body ? (
-                          <Button
-                            size="xs"
-                            variant="light"
-                            color="yellow"
-                            onClick={() => {
-                              setCode(issue.corrected_body!)
-                              setAssistNonce((n) => n + 1)
-                            }}
-                          >
-                            Fix
-                          </Button>
-                        ) : null}
-                      </Group>
-                    ))}
-                  </Stack>
-                </Paper>
-              )}
-              <Button color="yellow" disabled={codeMut.isPending} onClick={() => codeMut.mutate(code)}>
-                {codeMut.isPending ? 'Saving…' : 'Save code'}
-              </Button>
-            </Stack>
+          <Grid gap="lg" align="flex-start">
+            <Grid.Col span={{ base: 12, lg: 7 }}>
+              <Stack gap="sm">
+                <Title order={2} size="h4">
+                  Alpha source
+                </Title>
+                <Text c="dimmed" size="xs">
+                  Body only — saved as a full module with <Code>ts</Code>, <Code>cs</Code>, and <Code>fun</Code>{' '}
+                  injected automatically.
+                </Text>
+                <ApiErrorAlert error={codeMut.error} />
+                <AlphaSourceEditor
+                  value={code}
+                  onChange={setCode}
+                  height={ALPHA_EDITOR_HEIGHT}
+                  editorTabLabel="alpha_signal.py"
+                  editorDirty={codeDirty}
+                  alphaMeta={{
+                    name: alphaQ.data.name,
+                    description: alphaQ.data.description,
+                  }}
+                  enableAssist
+                  assistNonce={assistNonce}
+                  onAssistIssues={setAssistIssues}
+                />
+                {assistIssues.length > 0 && (
+                  <Paper withBorder p="sm" radius="sm">
+                    <Text size="xs" fw={600} mb="xs">
+                      Assist issues
+                    </Text>
+                    <Stack gap="xs">
+                      {assistIssues.map((issue) => (
+                        <Group key={issue.id} justify="space-between" align="flex-start" wrap="nowrap">
+                          <Text size="sm" style={{ flex: 1 }}>
+                            {issue.message}
+                          </Text>
+                          {issue.corrected_body ? (
+                            <Button
+                              size="xs"
+                              variant="light"
+                              color="yellow"
+                              onClick={() => {
+                                setCode(issue.corrected_body!)
+                                setAssistNonce((n) => n + 1)
+                              }}
+                            >
+                              Fix
+                            </Button>
+                          ) : null}
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Paper>
+                )}
+                <Button color="yellow" disabled={codeMut.isPending} onClick={() => codeMut.mutate(code)}>
+                  {codeMut.isPending ? 'Saving…' : 'Save code'}
+                </Button>
+              </Stack>
+            </Grid.Col>
 
-            <Paper withBorder p="md" radius="md">
-              <Tabs value={railTab} onChange={(v) => v && setRailTab(v as RailTab)}>
-                <Tabs.List grow>
-                  <Tabs.Tab value="details">Details</Tabs.Tab>
-                  <Tabs.Tab value="strategy">Strategy</Tabs.Tab>
-                  <Tabs.Tab value="config">Backtest</Tabs.Tab>
-                  <Tabs.Tab value="console">Console</Tabs.Tab>
-                </Tabs.List>
+            <Grid.Col span={{ base: 12, lg: 5 }}>
+              <Paper withBorder p="md" radius="md">
+                <Tabs value={railTab} onChange={(v) => v && setRailTab(v as RailTab)}>
+                  <Tabs.List grow>
+                    <Tabs.Tab value="details">Details</Tabs.Tab>
+                    <Tabs.Tab value="strategy">Strategy</Tabs.Tab>
+                    <Tabs.Tab value="config">Backtest</Tabs.Tab>
+                    <Tabs.Tab value="console">Console</Tabs.Tab>
+                  </Tabs.List>
 
-                <Tabs.Panel value="details" pt="md">
-                  <Stack gap="md">
-                    <Title order={3} size="h5">
-                      Metadata
-                    </Title>
-                    <ApiErrorAlert error={detailsMut.error} />
-                    <Stack
-                      component="form"
-                      gap="sm"
-                      onSubmit={detailsForm.handleSubmit((v) => {
-                        if (!alphaQ.data) return
-                        const body: { name?: string; description?: string | null } = {}
-                        if (v.name != null && v.name !== alphaQ.data.name) body.name = v.name
-                        const desc = v.description === '' ? null : v.description
-                        if (desc !== (alphaQ.data.description ?? null)) body.description = desc
-                        if (Object.keys(body).length === 0) return
-                        detailsMut.mutate(body)
-                      })}
-                    >
-                      <TextInput label="Name" {...detailsForm.register('name')} />
-                      <TextInput label="Description" {...detailsForm.register('description')} />
-                      <ApiErrorAlert error={defaultUniverseMut.error} />
-                      <Select
-                        label="Default universe"
-                        description="Used for portfolio union views and optional saved-universe backtests."
-                        data={[
-                          { value: '', label: universesPickQ.isLoading ? 'Loading…' : 'None' },
-                          ...(universesPickQ.data ?? []).map((u) => ({
-                            value: u.id,
-                            label: `${u.name} (${u.member_count})`,
-                          })),
-                        ]}
-                        value={alphaQ.data.default_universe_id ?? ''}
-                        onChange={(v) =>
-                          defaultUniverseMut.mutate(v && v.trim() ? v.trim() : null)
-                        }
-                        searchable
-                        clearable
-                        disabled={defaultUniverseMut.isPending}
-                      />
-                      {alphaQ.data.import_ref && (
-                        <TextInput
-                          label="Module import (read-only; overridden when inline source is saved)"
-                          readOnly
-                          ff="monospace"
-                          value={alphaQ.data.import_ref}
-                          onChange={() => {}}
+                  <Tabs.Panel value="details" pt="md">
+                    <Stack gap="md">
+                      <Title order={3} size="h5">
+                        Metadata
+                      </Title>
+                      <ApiErrorAlert error={detailsMut.error} />
+                      <Stack
+                        component="form"
+                        gap="sm"
+                        onSubmit={detailsForm.handleSubmit((v) => {
+                          if (!alphaQ.data) return
+                          const body: { name?: string; description?: string | null } = {}
+                          if (v.name != null && v.name !== alphaQ.data.name) body.name = v.name
+                          const desc = v.description === '' ? null : v.description
+                          if (desc !== (alphaQ.data.description ?? null)) body.description = desc
+                          if (Object.keys(body).length === 0) return
+                          detailsMut.mutate(body)
+                        })}
+                      >
+                        <TextInput label="Name" {...detailsForm.register('name')} />
+                        <TextInput label="Description" {...detailsForm.register('description')} />
+                        <ApiErrorAlert error={defaultUniverseMut.error} />
+                        <Select
+                          label="Default universe"
+                          description="Used for portfolio union views and optional saved-universe backtests."
+                          data={[
+                            { value: '', label: universesPickQ.isLoading ? 'Loading…' : 'None' },
+                            ...(universesPickQ.data ?? []).map((u) => ({
+                              value: u.id,
+                              label: `${u.name} (${u.member_count})`,
+                            })),
+                          ]}
+                          value={alphaQ.data.default_universe_id ?? ''}
+                          onChange={(v) =>
+                            defaultUniverseMut.mutate(v && v.trim() ? v.trim() : null)
+                          }
+                          searchable
+                          clearable
+                          disabled={defaultUniverseMut.isPending}
                         />
-                      )}
-                      {detailsForm.formState.errors.name && (
-                        <Text size="sm" c="red">
-                          {detailsForm.formState.errors.name.message}
+                        {alphaQ.data.import_ref && (
+                          <TextInput
+                            label="Module import (read-only; overridden when inline source is saved)"
+                            readOnly
+                            ff="monospace"
+                            value={alphaQ.data.import_ref}
+                            onChange={() => {}}
+                          />
+                        )}
+                        {detailsForm.formState.errors.name && (
+                          <Text size="sm" c="red">
+                            {detailsForm.formState.errors.name.message}
+                          </Text>
+                        )}
+                        <Button type="submit" variant="default" disabled={detailsMut.isPending}>
+                          {detailsMut.isPending ? 'Saving…' : 'Save metadata'}
+                        </Button>
+                      </Stack>
+
+                      <Title order={3} size="h5">
+                        Delete alpha
+                      </Title>
+                      <ApiErrorAlert error={delMut.error} />
+                      {delMut.error instanceof ApiError && delMut.error.status === 409 && (
+                        <Text c="dimmed" size="sm">
+                          Cannot delete while backtest jobs reference this alpha.
                         </Text>
                       )}
-                      <Button type="submit" variant="default" disabled={detailsMut.isPending}>
-                        {detailsMut.isPending ? 'Saving…' : 'Save metadata'}
+                      <Button
+                        color="red"
+                        variant="light"
+                        disabled={delMut.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              'Delete this alpha? This cannot be undone if the server allows it.',
+                            )
+                          ) {
+                            delMut.mutate()
+                          }
+                        }}
+                      >
+                        {delMut.isPending ? 'Deleting…' : 'Delete alpha'}
                       </Button>
                     </Stack>
+                  </Tabs.Panel>
 
-                    <Title order={3} size="h5">
-                      Delete alpha
-                    </Title>
-                    <ApiErrorAlert error={delMut.error} />
-                    {delMut.error instanceof ApiError && delMut.error.status === 409 && (
-                      <Text c="dimmed" size="sm">
-                        Cannot delete while backtest jobs reference this alpha.
+                  <Tabs.Panel value="strategy" pt="md">
+                    <ApiErrorAlert error={finstratMut.error} />
+                    <FinStratConfigForm
+                      config={finstratFromServer(alphaQ.data.finstrat_config)}
+                      resetKey={alphaQ.data.updated_at}
+                      isPending={finstratMut.isPending}
+                      submitLabel="Update strategy config"
+                      onSubmit={(c) => finstratMut.mutate(c)}
+                    />
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="config" pt="md">
+                    <BacktestConfigPanel
+                      alphaId={alphaId}
+                      formId={BT_FORM_ID}
+                      hideInlineSubmit
+                      onEnqueueSuccess={onEnqueueSuccess}
+                    />
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="console" pt="md">
+                    <Stack gap="sm">
+                      <Text c="dimmed" size="xs">
+                        Live worker lines refresh while the job runs; status lines always reflect the latest
+                        poll.
                       </Text>
-                    )}
-                    <Button
-                      color="red"
-                      variant="light"
-                      disabled={delMut.isPending}
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            'Delete this alpha? This cannot be undone if the server allows it.',
-                          )
-                        ) {
-                          delMut.mutate()
-                        }
-                      }}
-                    >
-                      {delMut.isPending ? 'Deleting…' : 'Delete alpha'}
-                    </Button>
-                  </Stack>
-                </Tabs.Panel>
+                      <ScrollArea h={360}>
+                        <Code block ff="monospace" fz="xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {consoleText}
+                        </Code>
+                      </ScrollArea>
+                      <ApiErrorAlert error={logsQ.error} />
+                    </Stack>
+                  </Tabs.Panel>
+                </Tabs>
 
-                <Tabs.Panel value="strategy" pt="md">
-                  <ApiErrorAlert error={finstratMut.error} />
-                  <FinStratConfigForm
-                    config={finstratFromServer(alphaQ.data.finstrat_config)}
-                    resetKey={alphaQ.data.updated_at}
-                    isPending={finstratMut.isPending}
-                    submitLabel="Update strategy config"
-                    onSubmit={(c) => finstratMut.mutate(c)}
-                  />
-                </Tabs.Panel>
-
-                <Tabs.Panel value="config" pt="md">
-                  <BacktestConfigPanel
-                    alphaId={alphaId}
-                    formId={BT_FORM_ID}
-                    hideInlineSubmit
-                    onEnqueueSuccess={onEnqueueSuccess}
-                  />
-                </Tabs.Panel>
-
-                <Tabs.Panel value="console" pt="md">
-                  <Stack gap="sm">
-                    <Text c="dimmed" size="xs">
-                      Live worker lines refresh while the job runs; status lines always reflect the latest
-                      poll.
-                    </Text>
-                    <ScrollArea h={360}>
-                      <Code block ff="monospace" fz="xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {consoleText}
-                      </Code>
-                    </ScrollArea>
-                    <ApiErrorAlert error={logsQ.error} />
-                  </Stack>
-                </Tabs.Panel>
-              </Tabs>
-
-              <Group mt="md" justify="flex-start" wrap="wrap">
-                <Button type="submit" form={BT_FORM_ID} color="yellow">
-                  Run backtest
-                </Button>
-                {activeJobId && (
-                  <Button
-                    component={Link}
-                    variant="default"
-                    to={`/backtests/${encodeURIComponent(activeJobId)}`}
-                  >
-                    Open job page
+                <Group mt="md" justify="flex-start" wrap="wrap">
+                  <Button type="submit" form={BT_FORM_ID} color="yellow">
+                    Run backtest
                   </Button>
-                )}
-              </Group>
-            </Paper>
-          </SimpleGrid>
+                  {activeJobId && (
+                    <Button
+                      component={Link}
+                      variant="default"
+                      to={`/backtests/${encodeURIComponent(activeJobId)}`}
+                    >
+                      Open job page
+                    </Button>
+                  )}
+                </Group>
+              </Paper>
+            </Grid.Col>
+          </Grid>
 
           <Paper withBorder p="md" radius="md">
             <Title order={2} size="h4" mb="md">

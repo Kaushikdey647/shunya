@@ -26,12 +26,16 @@ describe('buildL1MidSpreadLinePoints', () => {
     const t2 = '2026-05-22T19:48:17.900Z'
     const t3 = '2026-05-22T19:48:18.050Z'
     const quotes = [q(t, 100, 101), q(t2, 102, 103), q(t3, 104, 105)]
-    const { mid, spread } = buildL1MidSpreadLinePoints(quotes)
+    const { mid, spread, bid, ask } = buildL1MidSpreadLinePoints(quotes)
     expect(mid).toHaveLength(2)
     expect(spread).toHaveLength(2)
+    expect(bid).toHaveLength(2)
+    expect(ask).toHaveLength(2)
     expect(mid[0]!.time).toBe(mid[1]!.time - 1)
     expect(mid[1]!.value).toBe((104 + 105) / 2)
     expect(spread[1]!.value).toBe(1)
+    expect(bid[1]!.value).toBe(104)
+    expect(ask[1]!.value).toBe(105)
   })
 
   it('sorts by time when quotes arrive out of order', () => {

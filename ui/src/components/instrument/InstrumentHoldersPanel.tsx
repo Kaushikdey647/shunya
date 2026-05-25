@@ -1,6 +1,7 @@
 import { Stack, Table, Text, Title } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { getInstrumentHolders } from '../../api/endpoints'
+import { formatShareCount, formatUsdCompact } from '../../lib/formatCompact'
 import ApiErrorAlert from '../ApiErrorAlert'
 import { useMantineTableDensity } from '../../hooks/useMantineTableDensity'
 
@@ -36,33 +37,29 @@ export default function InstrumentHoldersPanel({ symbol, enabled }: Props) {
               </Text>
             ) : (
               <Table.ScrollContainer minWidth={400}>
-                <Table {...tableProps} striped>
+                <Table {...tableProps} striped verticalSpacing="xs" horizontalSpacing="xs">
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Holder</Table.Th>
-                      <Table.Th>% held</Table.Th>
-                      <Table.Th>Shares</Table.Th>
-                      <Table.Th>Value</Table.Th>
+                      <Table.Th ta="right">% held</Table.Th>
+                      <Table.Th ta="right">Shares</Table.Th>
+                      <Table.Th ta="right">Value</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
                     {q.data.institutional.map((r) => (
                       <Table.Tr key={`${r.holder}-${r.date_reported ?? ''}`}>
                         <Table.Td>{r.holder}</Table.Td>
-                        <Table.Td ff="monospace">
+                        <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {r.percent_held != null && Number.isFinite(r.percent_held)
                             ? `${r.percent_held.toFixed(2)}%`
                             : '—'}
                         </Table.Td>
-                        <Table.Td ff="monospace">
-                          {r.shares != null && Number.isFinite(r.shares)
-                            ? r.shares.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                            : '—'}
+                        <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {formatShareCount(r.shares)}
                         </Table.Td>
-                        <Table.Td ff="monospace">
-                          {r.value != null && Number.isFinite(r.value)
-                            ? r.value.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                            : '—'}
+                        <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {formatUsdCompact(r.value)}
                         </Table.Td>
                       </Table.Tr>
                     ))}
@@ -79,33 +76,29 @@ export default function InstrumentHoldersPanel({ symbol, enabled }: Props) {
               </Text>
             ) : (
               <Table.ScrollContainer minWidth={400}>
-                <Table {...tableProps} striped>
+                <Table {...tableProps} striped verticalSpacing="xs" horizontalSpacing="xs">
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Fund</Table.Th>
-                      <Table.Th>% held</Table.Th>
-                      <Table.Th>Shares</Table.Th>
-                      <Table.Th>Value</Table.Th>
+                      <Table.Th ta="right">% held</Table.Th>
+                      <Table.Th ta="right">Shares</Table.Th>
+                      <Table.Th ta="right">Value</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
                     {q.data.mutual_funds.map((r) => (
                       <Table.Tr key={`${r.holder}-${r.date_reported ?? ''}`}>
                         <Table.Td>{r.holder}</Table.Td>
-                        <Table.Td ff="monospace">
+                        <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {r.percent_held != null && Number.isFinite(r.percent_held)
                             ? `${r.percent_held.toFixed(2)}%`
                             : '—'}
                         </Table.Td>
-                        <Table.Td ff="monospace">
-                          {r.shares != null && Number.isFinite(r.shares)
-                            ? r.shares.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                            : '—'}
+                        <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {formatShareCount(r.shares)}
                         </Table.Td>
-                        <Table.Td ff="monospace">
-                          {r.value != null && Number.isFinite(r.value)
-                            ? r.value.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                            : '—'}
+                        <Table.Td ta="right" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {formatUsdCompact(r.value)}
                         </Table.Td>
                       </Table.Tr>
                     ))}

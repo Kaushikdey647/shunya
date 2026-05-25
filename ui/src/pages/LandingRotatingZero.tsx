@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { shunyaCanvasFont } from '../theme/typography'
 import styles from './LandingRotatingZero.module.css'
 
 /** Luminance ramp (donut-style); drawn in theme amber with per-char alpha. */
@@ -44,12 +45,12 @@ function rotXZ(
   cB: number,
   sB: number,
 ) {
-  let y1 = y * cA - z * sA
-  let z1 = y * sA + z * cA
-  let x1 = x
-  let ny1 = ny * cA - nz * sA
-  let nz1 = ny * sA + nz * cA
-  let nx1 = nx
+  const y1 = y * cA - z * sA
+  const z1 = y * sA + z * cA
+  const x1 = x
+  const ny1 = ny * cA - nz * sA
+  const nz1 = ny * sA + nz * cA
+  const nx1 = nx
 
   const x2 = x1 * cB - y1 * sB
   const y2 = x1 * sB + y1 * cB
@@ -132,7 +133,7 @@ export default function LandingRotatingZero() {
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let raf = 0
-    let t0 = performance.now()
+    const t0 = performance.now()
 
     const paint = (A: number, B: number) => {
       const cssW = canvas.clientWidth
@@ -149,7 +150,7 @@ export default function LandingRotatingZero() {
       const rows = Math.max(10, Math.floor(cssH / charH))
       const grid = renderFrame(cols, rows, A, B)
       ctx.clearRect(0, 0, cssW, cssH)
-      ctx.font = `${Math.floor(charH * 0.92)}px Consolas, "Liberation Mono", monospace`
+      ctx.font = shunyaCanvasFont(Math.floor(charH * 0.92))
       ctx.textBaseline = 'top'
       const gridW = cols * charW
       const gridH = rows * charH

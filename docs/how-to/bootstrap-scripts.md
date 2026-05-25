@@ -77,6 +77,16 @@ uv run python scripts/bootstrap_ts_data.py
 
 Requires the repo clone ( **`examples/yfinance_fundamental_provider`** ). See **`--help`** for **`--full`**, **`--single-pass`**, and rate-limit knobs.
 
+## Live L1 WebSocket (optional)
+
+With the API running and Alpaca enabled:
+
+```bash
+uv run python scripts/diag_alpaca_l1_ws.py http://127.0.0.1:8000 AAPL 30
+```
+
+Prints JSON frames (`hello`, `quote`, `subscription`, `error`, …). See **[HTTP API package → instruments](../reference/http-api-package.md)**.
+
 ## Environment
 
 - **`DATABASE_URL`** or **`SHUNYA_DATABASE_URL`** (some scripts also accept **`--database-url`**).

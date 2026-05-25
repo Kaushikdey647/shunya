@@ -13,7 +13,10 @@ import { chartColorsFromMantine } from '../../InstrumentChart'
 import { buildL1MidSpreadLinePoints, isUsableAlpacaL1Quote } from '../../../live/l1Derived'
 import { useLiveL1 } from '../../../live/l1Store'
 
-/** Stepped mid (top) and spread ask−bid (bottom) using `LineType.WithSteps` (lightweight-charts v5). */
+/**
+ * Top pane: stepped **bid**, **ask**, and **mid** (same price scale).
+ * Bottom pane: stepped **spread** (ask − bid).
+ */
 export function LiveL1SpreadMidChart() {
   const { state } = useLiveL1()
   const quotes = state.quotes
@@ -25,6 +28,8 @@ export function LiveL1SpreadMidChart() {
   const spreadPaneRef = useRef<HTMLDivElement>(null)
   const chartMidRef = useRef<IChartApi | null>(null)
   const chartSpreadRef = useRef<IChartApi | null>(null)
+  const seriesBidRef = useRef<ISeriesApi<'Line'> | null>(null)
+  const seriesAskRef = useRef<ISeriesApi<'Line'> | null>(null)
   const seriesMidRef = useRef<ISeriesApi<'Line'> | null>(null)
   const seriesSpreadRef = useRef<ISeriesApi<'Line'> | null>(null)
 
@@ -60,7 +65,7 @@ export function LiveL1SpreadMidChart() {
     const chartM = createChart(elM, {
       ...common,
       width: elM.clientWidth,
-      height: Math.max(120, elM.clientHeight || 160),
+      height: Math.max(140, elM.clientHeight || 200),
     })
     const chartS = createChart(elS, {
       ...common,
@@ -68,12 +73,25 @@ export function LiveL1SpreadMidChart() {
       height: Math.max(100, elS.clientHeight || 120),
     })
 
-    const sM = chartM.addSeries(LineSeries, {
+    const sBid = chartM.addSeries(LineSeries, {
       color: colors.up,
       lineWidth: 2,
       lineType: LineType.WithSteps,
       priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
     })
+    const sAsk = chartM.addSeries(LineSeries, {
+      color: colors.down,
+      lineWidth: 2,
+      lineType: LineType.WithSteps,
+      priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
+    })
+    const sMid = chartM.addSeries(LineSeries, {
+      color: theme.colors.yellow[colorScheme === 'dark' ? 5 : 6]!,
+      lineWidth: 1,
+      lineType: LineType.WithSteps,
+      priceFormat: { type: 'price', precision: 4, minMove: 0.0001 },
+    })
+
     const sS = chartS.addSeries(LineSeries, {
       color: colors.down,
       lineWidth: 2,
@@ -83,13 +101,15 @@ export function LiveL1SpreadMidChart() {
 
     chartMidRef.current = chartM
     chartSpreadRef.current = chartS
-    seriesMidRef.current = sM
+    seriesBidRef.current = sBid
+    seriesAskRef.current = sAsk
+    seriesMidRef.current = sMid
     seriesSpreadRef.current = sS
 
     const roM = new ResizeObserver(() => {
       chartM.applyOptions({
         width: elM.clientWidth,
-        height: Math.max(120, elM.clientHeight || 160),
+        height: Math.max(140, elM.clientHeight || 200),
       })
     })
     const roS = new ResizeObserver(() => {
@@ -108,25 +128,31 @@ export function LiveL1SpreadMidChart() {
       chartS.remove()
       chartMidRef.current = null
       chartSpreadRef.current = null
+      seriesBidRef.current = null
+      seriesAskRef.current = null
       seriesMidRef.current = null
       seriesSpreadRef.current = null
     }
   }, [theme, colorScheme, themeTick])
 
   useEffect(() => {
-    const sM = seriesMidRef.current
+    const sBid = seriesBidRef.current
+    const sAsk = seriesAskRef.current
+    const sMid = seriesMidRef.current
     const sS = seriesSpreadRef.current
     const cM = chartMidRef.current
     const cS = chartSpreadRef.current
-    if (!sM || !sS || !cM || !cS) return
+    if (!sBid || !sAsk || !sMid || !sS || !cM || !cS) return
 
-    const { mid: midData, spread: spreadData } = buildL1MidSpreadLinePoints(quotes)
-    const midSeries = midData.map((p) => ({ ...p, time: p.time as UTCTimestamp }))
-    const spreadSeries = spreadData.map((p) => ({ ...p, time: p.time as UTCTimestamp }))
+    const { mid: midData, spread: spreadData, bid: bidData, ask: askData } = buildL1MidSpreadLinePoints(quotes)
+    const toTs = <T extends { time: number; value: number }>(arr: T[]) =>
+      arr.map((p) => ({ ...p, time: p.time as UTCTimestamp }))
 
-    sM.setData(midSeries)
-    sS.setData(spreadSeries)
-    if (midSeries.length > 0) {
+    sBid.setData(toTs(bidData))
+    sAsk.setData(toTs(askData))
+    sMid.setData(toTs(midData))
+    sS.setData(toTs(spreadData))
+    if (midData.length > 0) {
       cM.timeScale().fitContent()
       cS.timeScale().fitContent()
     }
@@ -143,14 +169,14 @@ export function LiveL1SpreadMidChart() {
 
   return (
     <Stack gap="xs">
-      <Text size="sm">
+      <Text size="sm" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
         Last mid <strong>{lastMid}</strong> · spread <strong>{lastSpread}</strong>
       </Text>
       <Text size="xs" c="dimmed">
-        Midpoint and spread are piecewise-constant between quote times (<code>LineType.WithSteps</code>
-        ).
+        Bid (teal), ask (red), mid (amber), and spread — piecewise-constant between quote times (
+        <code>LineType.WithSteps</code>).
       </Text>
-      <Box ref={midPaneRef} style={{ width: '100%', minWidth: 0, height: 180 }} />
+      <Box ref={midPaneRef} style={{ width: '100%', minWidth: 0, height: 200 }} />
       <Box ref={spreadPaneRef} style={{ width: '100%', minWidth: 0, height: 140 }} />
     </Stack>
   )

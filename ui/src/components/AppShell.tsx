@@ -39,7 +39,7 @@ export default function AppShell() {
           tickerSearchRef={tickerSearchRef}
         />
       </MantineAppShell.Header>
-      <MantineAppShell.Navbar p={0} bg={colorScheme === 'dark' ? '#080808' : undefined}>
+      <MantineAppShell.Navbar p={0} bg={colorScheme === 'dark' ? '#161b22' : undefined}>
         <SideNav onNavigate={closeMobileNav} />
       </MantineAppShell.Navbar>
       {/* Do not set p/pt/pb/ps/pe on Main — they override shell offsets for header, navbar, aside, footer. */}

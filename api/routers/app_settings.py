@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated, Any, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, WebSocket
+from starlette.websockets import WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from api.db import resolve_database_url
 from api.repositories import runtime_config as runtime_repo
+from api.services.market_clock_hub import get_market_clock_hub, snapshot_to_tick_payload
+from api.services.notify_background import schedule_notification
 from api.settings import get_settings
 from api.tunable_config import (
     TUNABLE_KEYS,
@@ -18,8 +22,10 @@ from api.tunable_config import (
     merge_overlay_patch,
     tunable_sources,
 )
+from shunya.time.market_clock import build_market_clock_snapshot
 
 router = APIRouter(prefix="/settings", tags=["settings"])
+_log = logging.getLogger(__name__)
 
 
 class AppSettingsEnvironmentOut(BaseModel):
@@ -37,6 +43,20 @@ class AppSettingsResponse(BaseModel):
     environment: AppSettingsEnvironmentOut
     runtime: dict[str, Any]
     sources: dict[str, str]
+
+
+class MarketClockResponse(BaseModel):
+    """Server wall clocks and US RTH gate for Alpaca L1 (see :mod:`shunya.time.market_clock`)."""
+
+    utc_iso: str = Field(description="Current instant as ISO-8601 UTC (Z suffix).")
+    us_line: str = Field(description="``[US] DD-MM HH:MM:SS.mmm`` in America/New_York.")
+    in_line: str = Field(description="``[IN] DD-MM HH:MM:SS.mmm`` in Asia/Kolkata.")
+    us_listed_rth_open: bool = Field(
+        description="True during weekday US listed RTH 09:30–16:00 ET (holidays not excluded)."
+    )
+    alpaca_l1_us_equities_stream_allowed: bool = Field(
+        description="Same as RTH unless SHUNYA_ALPACA_L1_IGNORE_US_RTH is set on the API process."
+    )
 
 
 def require_trade_desk_token_for_settings(
@@ -82,8 +102,56 @@ def get_app_settings() -> AppSettingsResponse:
     )
 
 
+@router.get("/market-clock", response_model=MarketClockResponse)
+def get_market_clock() -> MarketClockResponse:
+    """US / India wall-clock strings and US RTH gate (point-in-time; prefer WebSocket for live updates)."""
+    snap = build_market_clock_snapshot()
+    return MarketClockResponse(
+        utc_iso=snap.utc_iso,
+        us_line=snap.us_line,
+        in_line=snap.in_line,
+        us_listed_rth_open=snap.us_listed_rth_open,
+        alpaca_l1_us_equities_stream_allowed=snap.alpaca_l1_us_equities_stream_allowed,
+    )
+
+
+async def _wait_market_clock_ws_disconnect(websocket: WebSocket) -> None:
+    try:
+        while True:
+            msg = await websocket.receive()
+            if msg.get("type") == "websocket.disconnect":
+                return
+    except WebSocketDisconnect:
+        return
+
+
+@router.websocket("/market-clock/stream")
+async def market_clock_stream_ws(websocket: WebSocket) -> None:
+    """Server-pushed clock ticks (``hello`` then repeating ``tick`` frames, same fields as GET)."""
+    await websocket.accept()
+    hub = await get_market_clock_hub()
+    try:
+        await hub.attach_websocket(websocket)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("market clock stream attach failed: %s", exc)
+        await websocket.close(code=1011)
+        return
+
+    try:
+        await websocket.send_json({"type": "hello", "schema": 1})
+        snap0 = build_market_clock_snapshot()
+        await websocket.send_json(snapshot_to_tick_payload(snap0))
+        await _wait_market_clock_ws_disconnect(websocket)
+    finally:
+        await hub.detach_websocket(websocket)
+        try:
+            await websocket.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 @router.patch("/app", response_model=AppSettingsResponse, dependencies=[Depends(require_trade_desk_token_for_settings)])
-def patch_app_settings(body: RuntimeOverlayPatch) -> AppSettingsResponse:
+def patch_app_settings(body: RuntimeOverlayPatch, background_tasks: BackgroundTasks) -> AppSettingsResponse:
     """Merge tunables into ``api_runtime_config`` (requires trade-desk token)."""
     try:
         resolve_database_url()
@@ -105,6 +173,16 @@ def patch_app_settings(body: RuntimeOverlayPatch) -> AppSettingsResponse:
         raise HTTPException(status_code=503, detail=f"Failed to save settings: {exc!s}") from exc
     clear_tunables_cache()
     eff = get_effective_tunables(force_refresh=True)
+    keys = list(body.model_dump(exclude_unset=True).keys())
+    nk = len(keys)
+    schedule_notification(
+        background_tasks,
+        level="info",
+        title="App settings updated",
+        message=f"Runtime tunables saved ({nk} key(s)).",
+        code="settings.app_patched",
+        context={"patch_keys": ",".join(keys)[:240]},
+    )
     return AppSettingsResponse(
         environment=_environment_out(),
         runtime=eff.as_public_dict(),

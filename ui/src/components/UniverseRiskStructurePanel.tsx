@@ -1,4 +1,5 @@
 import {
+  Anchor,
   Box,
   Card,
   SegmentedControl,
@@ -12,6 +13,7 @@ import {
 } from '@mantine/core'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -25,10 +27,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { getUniverseReturnAnalytics } from '../api/endpoints'
+import { getUniverseReturnAnalytics, instrumentDetailPath } from '../api/endpoints'
 import ApiErrorAlert from './ApiErrorAlert'
 
 type PeriodOpt = '1y' | '2y' | '5y'
+
+const CHART_GRID_PROPS = {
+  stroke: 'rgba(255, 255, 255, 0.07)',
+  strokeDasharray: '4 4' as const,
+}
 
 function corrCellBg(v: number): string {
   const r = Math.max(-1, Math.min(1, v))
@@ -73,7 +80,7 @@ function CorrelationMatrix({
             gap: 1,
             borderRadius: 4,
             overflow: 'hidden',
-            border: '1px solid var(--mantine-color-dark-4)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
           {tickers.flatMap((row, i) =>
@@ -117,20 +124,24 @@ function PcaLoadingsTooltip({
       px="sm"
       py={6}
       style={{
-        background: 'var(--mantine-color-dark-7)',
-        border: '1px solid var(--mantine-color-dark-3)',
+        background: 'var(--mantine-color-body)',
+        border: '1px solid var(--mantine-color-default-border)',
         borderRadius: 4,
         fontSize: 12,
+        minWidth: 140,
       }}
     >
       <Text fw={600} ff="monospace" size="sm">
         {p.ticker}
       </Text>
-      <Text size="xs" c="dimmed">
-        PC1: {Number(p.pc1_loading).toFixed(4)}
+      <Text size="xs" c="dimmed" ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        PC1 {Number(p.pc1_loading).toFixed(4)} · PC2 {Number(p.pc2_loading).toFixed(4)}
       </Text>
-      <Text size="xs" c="dimmed">
-        PC2: {Number(p.pc2_loading).toFixed(4)}
+      <Text fz="xs" c="dimmed" mt={4} style={{ lineHeight: 1.35 }}>
+        Sector labels require API support on loadings.{' '}
+        <Anchor component={Link} to={instrumentDetailPath(p.ticker)} size="xs" c="yellow">
+          Open instrument
+        </Anchor>
       </Text>
     </Box>
   )
@@ -174,7 +185,12 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
             {analyticsQ.data.alignment}
           </Text>
 
-          <Card withBorder padding="md" radius="md">
+          <Card
+            padding="md"
+            radius="md"
+            withBorder={false}
+            style={{ backgroundColor: 'var(--mantine-color-default)' }}
+          >
             <Title order={4} size="h5" mb="sm">
               Return correlations
             </Title>
@@ -198,7 +214,12 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
             </Tabs>
           </Card>
 
-          <Card withBorder padding="md" radius="md">
+          <Card
+            padding="md"
+            radius="md"
+            withBorder={false}
+            style={{ backgroundColor: 'var(--mantine-color-default)' }}
+          >
             <Title order={4} size="h5" mb={4}>
               Cross-sectional volatility
             </Title>
@@ -208,17 +229,22 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
             <div style={{ width: '100%', height: 280 }}>
               <ResponsiveContainer>
                 <LineChart data={xsChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <CartesianGrid {...CHART_GRID_PROPS} />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={24} />
                   <YAxis tick={{ fontSize: 10 }} width={48} />
                   <RechartsTooltip formatter={(v: number) => v.toFixed(4)} />
-                  <Line type="monotone" dataKey="xs_vol" stroke="#228be6" dot={false} strokeWidth={1.5} />
+                  <Line type="stepAfter" dataKey="xs_vol" stroke="#228be6" dot={false} strokeWidth={1.5} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </Card>
 
-          <Card withBorder padding="md" radius="md">
+          <Card
+            padding="md"
+            radius="md"
+            withBorder={false}
+            style={{ backgroundColor: 'var(--mantine-color-default)' }}
+          >
             <Title order={4} size="h5" mb={4}>
               PCA (standardized simple returns)
             </Title>
@@ -229,7 +255,7 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
               <div style={{ width: '100%', height: 260 }}>
                 <ResponsiveContainer>
                   <BarChart data={evrChart} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <CartesianGrid {...CHART_GRID_PROPS} />
                     <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} width={40} domain={[0, 1]} />
                     <RechartsTooltip formatter={(v: number) => (v * 100).toFixed(2) + '%'} />
@@ -243,11 +269,11 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
                     data={analyticsQ.data.pca_pc1_scores}
                     margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <CartesianGrid {...CHART_GRID_PROPS} />
                     <XAxis dataKey="date" tick={{ fontSize: 10 }} minTickGap={28} />
                     <YAxis tick={{ fontSize: 10 }} width={44} />
                     <RechartsTooltip formatter={(v: number) => Number(v).toFixed(4)} />
-                    <Line type="monotone" dataKey="score" stroke="#40c057" dot={false} strokeWidth={1.2} name="PC1 score" />
+                    <Line type="stepAfter" dataKey="score" stroke="#40c057" dot={false} strokeWidth={1.2} name="PC1 score" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -260,10 +286,11 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
                 <div style={{ width: '100%', height: 300 }}>
                   <ResponsiveContainer>
                     <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <CartesianGrid {...CHART_GRID_PROPS} />
                       <XAxis type="number" dataKey="pc1_loading" name="PC1" tick={{ fontSize: 10 }} />
                       <YAxis type="number" dataKey="pc2_loading" name="PC2" tick={{ fontSize: 10 }} />
                       <RechartsTooltip
+                        isAnimationActive={false}
                         cursor={{ strokeDasharray: '3 3' }}
                         content={(props) => (
                           <PcaLoadingsTooltip active={props.active} payload={props.payload} />
@@ -277,7 +304,12 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
             )}
           </Card>
 
-          <Card withBorder padding="md" radius="md">
+          <Card
+            padding="md"
+            radius="md"
+            withBorder={false}
+            style={{ backgroundColor: 'var(--mantine-color-default)' }}
+          >
             <Title order={4} size="h5" mb="xs">
               Concentration (latest market cap weights)
             </Title>
@@ -287,19 +319,25 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
             <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="md">
               <div>
                 <Text size="xs" c="dimmed" tt="uppercase">HHI</Text>
-                <Text fw={600}>{analyticsQ.data.concentration.hhi.toFixed(4)}</Text>
+                <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {analyticsQ.data.concentration.hhi.toFixed(4)}
+                </Text>
               </div>
               <div>
                 <Text size="xs" c="dimmed" tt="uppercase">CR5</Text>
-                <Text fw={600}>{(analyticsQ.data.concentration.cr5 * 100).toFixed(1)}%</Text>
+                <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {(analyticsQ.data.concentration.cr5 * 100).toFixed(1)}%
+                </Text>
               </div>
               <div>
                 <Text size="xs" c="dimmed" tt="uppercase">CR10</Text>
-                <Text fw={600}>{(analyticsQ.data.concentration.cr10 * 100).toFixed(1)}%</Text>
+                <Text fw={600} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {(analyticsQ.data.concentration.cr10 * 100).toFixed(1)}%
+                </Text>
               </div>
               <div>
                 <Text size="xs" c="dimmed" tt="uppercase">Weights</Text>
-                <Text fw={600}>
+                <Text fw={600} ff="monospace" size="sm">
                   {analyticsQ.data.concentration.weight_mode}
                   {analyticsQ.data.concentration.mcap_weights_partial ? ' (partial)' : ''}
                 </Text>
@@ -319,7 +357,7 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
                 <Table.Tbody>
                   <Table.Tr>
                     {analyticsQ.data.concentration.top_holdings.map((h) => (
-                      <Table.Td key={h.ticker} fz="xs" ta="center" fw={500}>
+                      <Table.Td key={h.ticker} fz="xs" ta="center" fw={500} ff="monospace" style={{ fontVariantNumeric: 'tabular-nums' }}>
                         {(h.weight * 100).toFixed(2)}%
                       </Table.Td>
                     ))}
