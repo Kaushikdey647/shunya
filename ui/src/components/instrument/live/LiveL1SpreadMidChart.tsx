@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import { chartColorsFromMantine } from '../../InstrumentChart'
 import { buildL1MidSpreadLinePoints, isUsableAlpacaL1Quote } from '../../../live/l1Derived'
 import { useLiveL1 } from '../../../live/l1Store'
+import { CHART_HEIGHT } from '../../../theme/chartSizes'
 
 /**
  * Top pane: stepped **bid**, **ask**, and **mid** (same price scale).
@@ -65,7 +66,7 @@ export function LiveL1SpreadMidChart() {
     const chartM = createChart(elM, {
       ...common,
       width: elM.clientWidth,
-      height: Math.max(140, elM.clientHeight || 200),
+      height: Math.max(CHART_HEIGHT.compact, elM.clientHeight || CHART_HEIGHT.compactPrimary),
     })
     const chartS = createChart(elS, {
       ...common,
@@ -109,7 +110,7 @@ export function LiveL1SpreadMidChart() {
     const roM = new ResizeObserver(() => {
       chartM.applyOptions({
         width: elM.clientWidth,
-        height: Math.max(140, elM.clientHeight || 200),
+        height: Math.max(CHART_HEIGHT.compact, elM.clientHeight || CHART_HEIGHT.compactPrimary),
       })
     })
     const roS = new ResizeObserver(() => {
@@ -176,8 +177,8 @@ export function LiveL1SpreadMidChart() {
         Bid (teal), ask (red), mid (amber), and spread — piecewise-constant between quote times (
         <code>LineType.WithSteps</code>).
       </Text>
-      <Box ref={midPaneRef} style={{ width: '100%', minWidth: 0, height: 200 }} />
-      <Box ref={spreadPaneRef} style={{ width: '100%', minWidth: 0, height: 140 }} />
+      <Box ref={midPaneRef} style={{ width: '100%', minWidth: 0, height: CHART_HEIGHT.compactPrimary }} />
+      <Box ref={spreadPaneRef} style={{ width: '100%', minWidth: 0, height: CHART_HEIGHT.compact }} />
     </Stack>
   )
 }

@@ -23,6 +23,12 @@ class ParentOrderRow(Base):
     state: Mapped[str] = mapped_column(String(32), index=True)
     client_order_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    order_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    limit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    time_in_force: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    broker_order_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     fills: Mapped[list["ExecutionFillRow"]] = relationship(back_populates="parent")
 

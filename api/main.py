@@ -32,6 +32,7 @@ from api.routers import (
     instruments,
     market,
     notifications_stream,
+    oms,
     trade_desk,
     universes,
 )
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
     from shunya.integration.alpaca_settings import try_load_alpaca_settings_from_env
 
     api_settings = get_settings()
+    oms_runtime = None
     if api_settings.alpaca_enabled:
         alp = try_load_alpaca_settings_from_env()
         if alp is None:
@@ -70,8 +72,22 @@ async def lifespan(app: FastAPI):
             )
         app.state.trade_desk_runtime = build_trade_desk_runtime(alp)
         _log.info("Trade desk runtime initialized (paper=%s)", alp.paper)
+
+        from api.services.oms_runtime import build_oms_runtime, rehydrate
+
+        oms_runtime = build_oms_runtime(alp)
+        await asyncio.to_thread(
+            rehydrate, oms_runtime, app.state.trade_desk_runtime.trading_client
+        )
+        oms_runtime.hub.bind_loop(asyncio.get_running_loop())
+        oms_runtime.stream.start_background(asyncio.get_running_loop())
+        app.state.oms_runtime = oms_runtime
+        _log.info(
+            "OMS runtime initialized (persistence=%s)", "postgres" if oms_runtime.repo else "in-memory"
+        )
     else:
         app.state.trade_desk_runtime = None
+        app.state.oms_runtime = None
 
     # Resolve at startup so tests can monkeypatch ``api.main.backtest_worker_loop``.
     _main = importlib.import_module("api.main")
@@ -81,6 +97,9 @@ async def lifespan(app: FastAPI):
     stop.set()
     clock_task.cancel()
     task.cancel()
+    if oms_runtime is not None:
+        await oms_runtime.stream.stop()
+        await oms_runtime.hub.stop()
     for t in (clock_task, task):
         try:
             await t
@@ -113,6 +132,7 @@ def create_app() -> FastAPI:
     app.include_router(instrument_l1_stream.router)
     app.include_router(notifications_stream.router)
     app.include_router(trade_desk.router)
+    app.include_router(oms.router)
 
     register_exception_handlers(app)
 

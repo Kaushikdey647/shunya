@@ -23,9 +23,14 @@ Optional **pre-trade** checks are available via **`PortfolioRiskEngine`** and **
 
 Portfolio math is intentionally **decoupled** from market-data transports and from order routing; wire PCS output into OMS/EMS or the HTTP trade desk as needed.
 
+## Risk in the manual order path
+
+`PortfolioRiskEngine.vet()` is only invoked on the portfolio-construction → OMS rebalance path (`InstitutionalPaperDesk`). The manual order-entry API (`api/routers/oms.py`, backing `/trade/blotter`) does **not** call it — a manual order is only checked by Alpaca's own asset validation, with no gross/single-name/ADV/turnover caps applied. See [Risk management and avoiding losses](../concepts/risk-management-and-avoiding-losses.md) for what this means in practice.
+
 ## Further reading
 
 - [Execution: OMS, EMS, live desk](oms-ems.md) — how targets flow toward brokers.
 - [Paper trading cycle (API)](../how-to/paper-cycle-api.md) — one-shot paper cycle via FastAPI.
 - [Python API reference](../reference/library.md).
 - [Portfolios, construction, and PMS](../concepts/portfolios-construction-and-pms.md) — finance view.
+- [Risk management and avoiding losses](../concepts/risk-management-and-avoiding-losses.md) — concepts view.

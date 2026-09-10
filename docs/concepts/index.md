@@ -11,3 +11,4 @@ These pages explain **ideas from asset management and systematic trading**, then
 | [Alpha styles and Shunya patterns](alpha-styles-and-shunya-patterns.md) | Momentum, reversal, conditional, fundamental, technical — with Shunya-flavored examples. |
 | [Fundamentals for alphas](fundamentals-for-alphas.md) | Each `fun.*` field: meaning and usage. |
 | [Alpha design: rank, z-score, gates](alpha-design-rank-zscore-and-gates.md) | When to rank, z-score, use raw values, or gate with `trade_when`. |
+| [Risk management and avoiding losses](risk-management-and-avoiding-losses.md) | What Shunya actually enforces vs your own responsibility, pre-trade risk checks, kill-switches, and prudent-trading practice. |

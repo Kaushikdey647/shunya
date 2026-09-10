@@ -22,6 +22,7 @@ import RiskCommandCenterPage from './pages/RiskCommandCenterPage'
 import SearchResultsPage from './pages/SearchResultsPage'
 import SettingsPage from './pages/SettingsPage'
 import TradeAccountPage from './pages/TradeAccountPage'
+import TradeBlotterPage from './pages/TradeBlotterPage'
 import UniverseDetailPage from './pages/UniverseDetailPage'
 import UniverseListPage from './pages/UniverseListPage'
 
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="execution" element={<ExecutionHubPage />} />
         <Route path="risk" element={<RiskCommandCenterPage />} />
         <Route path="trade/account" element={<TradeAccountPage />} />
+        <Route path="trade/blotter" element={<TradeBlotterPage />} />
       </Route>
     </Routes>
   )

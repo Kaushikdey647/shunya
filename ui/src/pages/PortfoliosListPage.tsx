@@ -27,7 +27,7 @@ export default function PortfoliosListPage() {
   })
 
   return (
-    <PageScaffold size="fluid" px={{ base: 'sm', md: 'md' }}>
+    <PageScaffold>
       <Group justify="space-between" align="flex-start" wrap="wrap">
         <div>
           <Title order={1}>Portfolio registry</Title>

@@ -90,6 +90,7 @@ nav:
       - "Alpha styles and Shunya patterns": concepts/alpha-styles-and-shunya-patterns.md
       - "Fundamentals for alphas": concepts/fundamentals-for-alphas.md
       - "Alpha design: rank, z-score, gates": concepts/alpha-design-rank-zscore-and-gates.md
+      - "Risk management and avoiding losses": concepts/risk-management-and-avoiding-losses.md
   - Documentation:
       - "System overview": documentation/system-overview.md
       - "Data layer: finTs and providers": documentation/fints-providers.md
@@ -104,6 +105,7 @@ nav:
       - Timescale first-run checklist: how-to/timescale-checklist.md
       - Backtest from the web UI: how-to/backtest-from-ui.md
       - Paper trading cycle (API): how-to/paper-cycle-api.md
+      - "Trade blotter: end-to-end walkthrough": how-to/trade-blotter-walkthrough.md
       - "Alpha Studio: AI assist and DSL": how-to/alpha-studio-ai-dsl.md
   - Web application:
       - Overview: ui/overview.md

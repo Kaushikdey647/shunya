@@ -4,7 +4,6 @@ import {
   Button,
   Checkbox,
   Code,
-  Grid,
   Group,
   List,
   NumberInput,
@@ -49,6 +48,7 @@ import BacktestConfigPanel from '../components/BacktestConfigPanel'
 import BacktestResultCharts from '../components/BacktestResultCharts'
 import FinStratConfigForm from '../components/FinStratConfigForm'
 import PageScaffold from '../components/PageScaffold'
+import WorkspaceGrid from '../components/WorkspaceGrid'
 import { isInsideAriaModal } from '../keyboard/domGuards'
 import { useMantineTableDensity } from '../hooks/useMantineTableDensity'
 import { useRovingTableKeyboard } from '../keyboard/useRovingList'
@@ -373,8 +373,10 @@ export function StudioAlphaCreate() {
         </Text>
       )}
 
-      <Grid gap="lg" align="stretch">
-        <Grid.Col span={{ base: 12, lg: 7 }}>
+      <WorkspaceGrid
+        primarySpan={7}
+        align="stretch"
+        primary={
           <Stack gap="sm">
             <Title order={2} size="h4">
               Alpha source (Python + JAX)
@@ -391,9 +393,8 @@ export function StudioAlphaCreate() {
               editorDirty={code.trim() !== DEFAULT_ALPHA_BODY.trim()}
             />
           </Stack>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, lg: 5 }}>
+        }
+        secondary={
           <Stack gap="xs">
             <Title order={2} size="h4">
               Details
@@ -424,8 +425,8 @@ export function StudioAlphaCreate() {
               {mutation.isPending ? 'Creating…' : 'Create alpha'}
             </Button>
           </Stack>
-        </Grid.Col>
-      </Grid>
+        }
+      />
     </PageScaffold>
   )
 }
@@ -650,7 +651,7 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
   const codeDirty = Boolean(alphaQ.data) && code !== serverUnwrappedBody
 
   return (
-    <PageScaffold size="xl">
+    <PageScaffold size="fluid" px={{ base: 'sm', md: 'md' }}>
       <Button component={Link} to="/studio" variant="default">
         ← Studio
       </Button>
@@ -687,8 +688,10 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
             alphaName={alphaQ.data.name}
           />
 
-          <Grid gap="lg" align="flex-start">
-            <Grid.Col span={{ base: 12, lg: 7 }}>
+          <WorkspaceGrid
+            primarySpan={7}
+            align="flex-start"
+            primary={
               <Stack gap="sm">
                 <Title order={2} size="h4">
                   Alpha source
@@ -745,9 +748,8 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
                   {codeMut.isPending ? 'Saving…' : 'Save code'}
                 </Button>
               </Stack>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, lg: 5 }}>
+            }
+            secondary={
               <Paper withBorder p="md" radius="md">
                 <Tabs value={railTab} onChange={(v) => v && setRailTab(v as RailTab)}>
                   <Tabs.List grow>
@@ -895,8 +897,8 @@ function AlphaStudioWorkspaceInner({ alphaId }: { alphaId: string }) {
                   )}
                 </Group>
               </Paper>
-            </Grid.Col>
-          </Grid>
+            }
+          />
 
           <Paper withBorder p="md" radius="md">
             <Title order={2} size="h4" mb="md">

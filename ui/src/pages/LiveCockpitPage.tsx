@@ -86,6 +86,7 @@ export default function LiveCockpitPage() {
   const ddPct = liveDd * 100
 
   return (
+    // Edge-to-edge sticky header band is intentional here — don't normalize px to match other fluid pages.
     <PageScaffold size="fluid" px={{ base: 0, sm: 'md' }} gap={0}>
       <Paper
         withBorder

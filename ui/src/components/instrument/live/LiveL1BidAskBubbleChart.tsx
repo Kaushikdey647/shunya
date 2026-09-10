@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { isUsableAlpacaL1Quote, quoteLogSizeImbalance } from '../../../live/l1Derived'
 import { useLiveL1 } from '../../../live/l1Store'
+import { CHART_HEIGHT } from '../../../theme/chartSizes'
 
 type Row = { t: number; mid: number; z: number; bid: number; ask: number }
 
@@ -38,7 +39,7 @@ export function LiveL1BidAskBubbleChart() {
   const askHeavy = useMemo(() => data.filter((r) => r.ask > r.bid), [data])
 
   return (
-    <Stack gap="xs" style={{ minHeight: 280 }}>
+    <Stack gap="xs" style={{ minHeight: CHART_HEIGHT.standard }}>
       <Tooltip
         label="Each point is one BBO quote: Y = mid, area ∝ |log(1+bid_sz)−log(1+ask_sz)|. Teal = bid size ≥ ask size; red = ask size larger."
         multiline
@@ -48,7 +49,7 @@ export function LiveL1BidAskBubbleChart() {
           Bid/ask size imbalance (bubble)
         </Text>
       </Tooltip>
-      <div style={{ width: '100%', height: 280 }}>
+      <div style={{ width: '100%', height: CHART_HEIGHT.standard }}>
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />

@@ -1,4 +1,7 @@
-/** Client-side command & control state until OMS/EMS APIs are wired. */
+/**
+ * Client-side command & control state for portfolios/risk/sentinel — not OMS/EMS.
+ * Real orders/positions/fills come from the API (`api/endpoints.ts` + `live/omsStore.tsx`).
+ */
 
 export type BlendMode = 'alpha_blend' | 'target_blend'
 
@@ -78,7 +81,7 @@ const defaultState = (): TradeDeskState => ({
   risk: defaultRisk,
   advCaps: defaultAdv,
   sentinel: { killed: false, drawdownFromHwm: 0.018 },
-  recentParentIds: ['demo-parent-vwap-1'],
+  recentParentIds: [],
   lastPortfolioUniverseTickers: [],
   lastPortfolioUniverseNote: null,
 })
@@ -103,10 +106,7 @@ function load(): TradeDeskState {
       risk: { ...defaultRisk, ...parsed.risk },
       advCaps: Array.isArray(parsed.advCaps) && parsed.advCaps.length ? parsed.advCaps : defaultAdv,
       sentinel: { ...defaultState().sentinel, ...parsed.sentinel },
-      recentParentIds:
-        Array.isArray(parsed.recentParentIds) && parsed.recentParentIds.length > 0
-          ? parsed.recentParentIds
-          : ['demo-parent-vwap-1'],
+      recentParentIds: Array.isArray(parsed.recentParentIds) ? parsed.recentParentIds : [],
       lastPortfolioUniverseTickers: Array.isArray(parsed.lastPortfolioUniverseTickers)
         ? parsed.lastPortfolioUniverseTickers.map((t) => String(t).toUpperCase())
         : [],

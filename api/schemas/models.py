@@ -1053,3 +1053,94 @@ class AlpacaAccountConfigurationsPatch(BaseModel):
     trade_confirm_email: Optional[str] = None
     ptp_no_exception_entry: Optional[bool] = None
     max_options_trading_level: Optional[int] = None
+
+
+# --- Manual OMS order entry / blotter -----------------------------------------------
+
+
+class OmsOrderPlaceRequest(BaseModel):
+    """Place a single manual parent order (market or limit, DAY time-in-force)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(min_length=1, max_length=16)
+    side: Literal["BUY", "SELL"]
+    quantity: int = Field(gt=0)
+    order_type: Literal["MARKET", "LIMIT"] = "MARKET"
+    limit_price: Optional[float] = Field(default=None, gt=0)
+    time_in_force: Literal["DAY", "GTC"] = "DAY"
+
+    @field_validator("symbol")
+    @classmethod
+    def _upper_symbol(cls, v: str) -> str:
+        return v.strip().upper()
+
+    @model_validator(mode="after")
+    def _limit_price_required_for_limit_orders(self) -> "OmsOrderPlaceRequest":
+        if self.order_type == "LIMIT" and self.limit_price is None:
+            raise ValueError("limit_price is required for LIMIT orders")
+        if self.order_type == "MARKET" and self.limit_price is not None:
+            raise ValueError("limit_price must be omitted for MARKET orders")
+        return self
+
+
+class OmsParentOrderOut(BaseModel):
+    parent_id: str
+    symbol: str
+    side: str
+    quantity_ordered: int
+    quantity_filled: int
+    state: str
+    order_type: Optional[str] = None
+    limit_price: Optional[float] = None
+    time_in_force: Optional[str] = None
+    client_order_id: Optional[str] = None
+    broker_order_id: Optional[str] = None
+    avg_fill_price: Optional[float] = None
+    origin: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class OmsOrdersResponse(BaseModel):
+    orders: list[OmsParentOrderOut]
+
+
+class OmsFillOut(BaseModel):
+    trade_id: str
+    parent_order_id: str
+    symbol: str
+    side: str
+    quantity: float
+    price: float
+    fee: float
+    ts: datetime
+    child_client_order_id: Optional[str] = None
+
+
+class OmsFillsResponse(BaseModel):
+    fills: list[OmsFillOut]
+
+
+class OmsPositionOut(BaseModel):
+    symbol: str
+    qty: float
+    side: str
+    avg_entry_price: Optional[float] = None
+    market_value: Optional[float] = None
+    unrealized_pl: Optional[float] = None
+    unrealized_plpc: Optional[float] = None
+    current_price: Optional[float] = None
+    working_buy_shares: float = 0.0
+    working_sell_shares: float = 0.0
+
+
+class OmsPositionsResponse(BaseModel):
+    positions: list[OmsPositionOut]
+    paper: bool
+
+
+class OmsCancelResponse(BaseModel):
+    parent_id: str
+    state: str
+    canceled: bool

@@ -37,3 +37,11 @@ export function notificationsStreamWebSocketUrl(): string {
 export function marketClockStreamWebSocketUrl(): string {
   return buildWebSocketUrl('/settings/market-clock/stream')
 }
+
+/**
+ * Live OMS order/fill updates (`/trade/orders/stream`). Requires the trade-desk token
+ * as a query param since browsers cannot set WebSocket request headers.
+ */
+export function omsOrdersStreamWebSocketUrl(token: string): string {
+  return buildWebSocketUrl(`/trade/orders/stream?token=${encodeURIComponent(token)}`)
+}

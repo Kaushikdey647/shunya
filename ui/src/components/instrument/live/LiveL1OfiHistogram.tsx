@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { buildOfiHistogramFromQuotes } from '../../../live/l1Derived'
 import { useLiveL1 } from '../../../live/l1Store'
+import { CHART_HEIGHT } from '../../../theme/chartSizes'
 
 /** Histogram of recent quote imbalance samples (definition in `l1Derived.ts`). */
 export function LiveL1OfiHistogram() {
@@ -20,7 +21,7 @@ export function LiveL1OfiHistogram() {
   const bins = useMemo(() => buildOfiHistogramFromQuotes(quotes), [quotes])
 
   return (
-    <Stack gap="xs" style={{ minHeight: 300 }}>
+    <Stack gap="xs" style={{ minHeight: CHART_HEIGHT.standard }}>
       <Tooltip
         label="Per-quote log size skew: log(1+bid_sz)−log(1+ask_sz); last 120 quotes, 10 equal-width bins."
         multiline
@@ -30,7 +31,7 @@ export function LiveL1OfiHistogram() {
           Quote imbalance histogram
         </Text>
       </Tooltip>
-      <div style={{ width: '100%', height: 300 }}>
+      <div style={{ width: '100%', height: CHART_HEIGHT.standard }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={bins} margin={{ top: 8, right: 8, bottom: 64, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.3} />

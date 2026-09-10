@@ -52,6 +52,12 @@ import type {
   MarketMoversResponse,
   MarketSnapshotResponse,
   MoversKind,
+  OmsCancelResponse,
+  OmsFillsResponse,
+  OmsOrderPlaceRequest,
+  OmsOrdersResponse,
+  OmsParentOrderOut,
+  OmsPositionsResponse,
 } from './types'
 
 export async function getHealth(): Promise<HealthResponse> {
@@ -146,6 +152,83 @@ export async function getTradeAccountConfigurations(
   tradeDeskToken: string,
 ): Promise<AlpacaAccountConfigurationsOut> {
   return apiFetch<AlpacaAccountConfigurationsOut>('/trade/account/configurations', {
+    method: 'GET',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function placeOmsOrder(
+  tradeDeskToken: string,
+  body: OmsOrderPlaceRequest,
+): Promise<OmsParentOrderOut> {
+  return apiFetch<OmsParentOrderOut>('/trade/orders', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function cancelOmsOrder(
+  tradeDeskToken: string,
+  parentId: string,
+): Promise<OmsCancelResponse> {
+  return apiFetch<OmsCancelResponse>(`/trade/orders/${encodeURIComponent(parentId)}`, {
+    method: 'DELETE',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function getOmsOrders(
+  tradeDeskToken: string,
+  params: { state?: 'open' | 'all'; symbol?: string | null; limit?: number } = {},
+): Promise<OmsOrdersResponse> {
+  const sp = new URLSearchParams()
+  if (params.state) sp.set('state', params.state)
+  if (params.symbol) sp.set('symbol', params.symbol)
+  if (params.limit != null) sp.set('limit', String(params.limit))
+  const q = sp.toString()
+  return apiFetch<OmsOrdersResponse>(`/trade/orders${q ? `?${q}` : ''}`, {
+    method: 'GET',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function getOmsOrder(
+  tradeDeskToken: string,
+  parentId: string,
+): Promise<OmsParentOrderOut> {
+  return apiFetch<OmsParentOrderOut>(`/trade/orders/${encodeURIComponent(parentId)}`, {
+    method: 'GET',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function getOmsOrderFills(
+  tradeDeskToken: string,
+  parentId: string,
+): Promise<OmsFillsResponse> {
+  return apiFetch<OmsFillsResponse>(`/trade/orders/${encodeURIComponent(parentId)}/fills`, {
+    method: 'GET',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function getOmsFills(
+  tradeDeskToken: string,
+  params: { symbol?: string | null; limit?: number } = {},
+): Promise<OmsFillsResponse> {
+  const sp = new URLSearchParams()
+  if (params.symbol) sp.set('symbol', params.symbol)
+  if (params.limit != null) sp.set('limit', String(params.limit))
+  const q = sp.toString()
+  return apiFetch<OmsFillsResponse>(`/trade/fills${q ? `?${q}` : ''}`, {
+    method: 'GET',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function getOmsPositions(tradeDeskToken: string): Promise<OmsPositionsResponse> {
+  return apiFetch<OmsPositionsResponse>('/trade/positions', {
     method: 'GET',
     headers: tradeDeskHeaders(tradeDeskToken),
   })

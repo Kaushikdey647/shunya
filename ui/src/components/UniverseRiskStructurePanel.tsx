@@ -29,6 +29,7 @@ import {
 } from 'recharts'
 import { getUniverseReturnAnalytics, instrumentDetailPath } from '../api/endpoints'
 import ApiErrorAlert from './ApiErrorAlert'
+import { CHART_HEIGHT } from '../theme/chartSizes'
 
 type PeriodOpt = '1y' | '2y' | '5y'
 
@@ -226,7 +227,7 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
             <Text size="xs" c="dimmed" mb="sm">
               Per day: sample standard deviation of simple returns across universe members (ddof=1).
             </Text>
-            <div style={{ width: '100%', height: 280 }}>
+            <div style={{ width: '100%', height: CHART_HEIGHT.standard }}>
               <ResponsiveContainer>
                 <LineChart data={xsChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid {...CHART_GRID_PROPS} />
@@ -252,7 +253,7 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
               SVD on the T×N standardized return matrix; scores are PC1 projection over time; loadings are variable weights.
             </Text>
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              <div style={{ width: '100%', height: 260 }}>
+              <div style={{ width: '100%', height: CHART_HEIGHT.standard }}>
                 <ResponsiveContainer>
                   <BarChart data={evrChart} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
                     <CartesianGrid {...CHART_GRID_PROPS} />
@@ -263,7 +264,7 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ width: '100%', height: 260 }}>
+              <div style={{ width: '100%', height: CHART_HEIGHT.standard }}>
                 <ResponsiveContainer>
                   <LineChart
                     data={analyticsQ.data.pca_pc1_scores}
@@ -283,7 +284,7 @@ export default function UniverseRiskStructurePanel({ universeId }: { universeId:
                 <Text size="xs" c="dimmed" mb={4}>
                   PC1 vs PC2 loadings (per ticker). Tooltip shows the symbol.
                 </Text>
-                <div style={{ width: '100%', height: 300 }}>
+                <div style={{ width: '100%', height: CHART_HEIGHT.standard }}>
                   <ResponsiveContainer>
                     <ScatterChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
                       <CartesianGrid {...CHART_GRID_PROPS} />

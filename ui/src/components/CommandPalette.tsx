@@ -137,6 +137,7 @@ export default function CommandPalette({ open, onClose }: Props) {
         { key: 'goto-data', section: 'Go to', onSelect: () => go('/data'), label: 'Data summary' },
         { key: 'goto-port', section: 'Go to', onSelect: () => go('/portfolios'), label: 'Portfolios' },
         { key: 'goto-live', section: 'Go to', onSelect: () => go('/live'), label: 'Live cockpit' },
+        { key: 'goto-blotter', section: 'Go to', onSelect: () => go('/trade/blotter'), label: 'Blotter' },
         { key: 'goto-ex', section: 'Go to', onSelect: () => go('/execution'), label: 'Execution tracer' },
         { key: 'goto-risk', section: 'Go to', onSelect: () => go('/risk'), label: 'Risk center' },
       )

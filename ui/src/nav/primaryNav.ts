@@ -20,6 +20,7 @@ export const PRIMARY_NAV_STUDIO: PrimaryNavItem[] = [
 export const PRIMARY_NAV_TRADE: PrimaryNavItem[] = [
   { to: '/portfolios', label: 'Portfolios', end: false },
   { to: '/live', label: 'Live', end: true },
+  { to: '/trade/blotter', label: 'Blotter', end: true },
   { to: '/trade/account', label: 'Account', end: true },
   { to: '/execution', label: 'Execution', end: false },
   { to: '/risk', label: 'Risk', end: true },

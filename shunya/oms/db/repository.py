@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -47,6 +47,11 @@ class OMSRepository:
         state: str,
         client_order_id: Optional[str],
         created_at: datetime,
+        order_type: Optional[str] = None,
+        limit_price: Optional[float] = None,
+        time_in_force: Optional[str] = None,
+        broker_order_id: Optional[str] = None,
+        origin: Optional[str] = None,
     ) -> None:
         with self._session_factory() as s:
             row = s.get(ParentOrderRow, parent_id)
@@ -61,13 +66,79 @@ class OMSRepository:
                         state=state,
                         client_order_id=client_order_id,
                         created_at=created_at,
+                        order_type=order_type,
+                        limit_price=limit_price,
+                        time_in_force=time_in_force,
+                        broker_order_id=broker_order_id,
+                        updated_at=created_at,
+                        origin=origin,
                     )
                 )
             else:
                 row.quantity_filled = quantity_filled
                 row.state = state
                 row.client_order_id = client_order_id
+                if order_type is not None:
+                    row.order_type = order_type
+                if limit_price is not None:
+                    row.limit_price = limit_price
+                if time_in_force is not None:
+                    row.time_in_force = time_in_force
+                if broker_order_id is not None:
+                    row.broker_order_id = broker_order_id
+                if origin is not None:
+                    row.origin = origin
+                row.updated_at = utc_now()
             s.commit()
+
+    def get_parent(self, parent_id: str) -> Optional[ParentOrderRow]:
+        with self._session_factory() as s:
+            return s.get(ParentOrderRow, parent_id)
+
+    def list_parents(
+        self,
+        *,
+        states: Optional[Sequence[str]] = None,
+        symbol: Optional[str] = None,
+        limit: int = 200,
+    ) -> list[ParentOrderRow]:
+        with self._session_factory() as s:
+            stmt = select(ParentOrderRow)
+            if states:
+                stmt = stmt.where(ParentOrderRow.state.in_(states))
+            if symbol:
+                stmt = stmt.where(ParentOrderRow.symbol == symbol)
+            stmt = stmt.order_by(ParentOrderRow.created_at.desc()).limit(limit)
+            return list(s.scalars(stmt).all())
+
+    def list_open_parents(self) -> list[ParentOrderRow]:
+        return self.list_parents(
+            states=("PENDING_SUBMIT", "WORKING", "PARTIAL_FILL"), limit=1000
+        )
+
+    def list_recent_fills(
+        self, *, limit: int = 200, symbol: Optional[str] = None
+    ) -> list[ExecutionFill]:
+        with self._session_factory() as s:
+            stmt = select(ExecutionFillRow)
+            if symbol:
+                stmt = stmt.where(ExecutionFillRow.symbol == symbol)
+            stmt = stmt.order_by(ExecutionFillRow.ts.desc()).limit(limit)
+            rows = s.scalars(stmt).all()
+        return [
+            ExecutionFill(
+                trade_id=r.trade_id,
+                parent_order_id=r.parent_order_id,
+                symbol=r.symbol,
+                side=r.side,
+                quantity=float(r.quantity),
+                price=float(r.price),
+                fee=float(r.fee),
+                ts=r.ts,
+                child_client_order_id=r.child_client_order_id,
+            )
+            for r in rows
+        ]
 
     def insert_fill_idempotent(self, fill: ExecutionFill) -> bool:
         """

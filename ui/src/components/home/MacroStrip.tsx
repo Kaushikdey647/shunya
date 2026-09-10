@@ -14,6 +14,7 @@ import ApiErrorAlert from '../ApiErrorAlert'
 import { MacroStripSkeleton } from './homeDashboardSkeletons'
 import { MACRO_STRIP_SYMBOLS } from '../../lib/macroSymbols'
 import { SignedPctText } from '../../lib/signedPct'
+import { CHART_HEIGHT } from '../../theme/chartSizes'
 
 function sparklineStroke(
   colorScheme: 'light' | 'dark',
@@ -67,9 +68,9 @@ function MacroCard({ row }: { row: MarketSnapshotRow }) {
           <SignedPctText v={pct} />
         </Group>
       </Card.Section>
-      <div style={{ height: 52 }}>
+      <div style={{ height: CHART_HEIGHT.sparkline }}>
         {data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={52}>
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT.sparkline}>
             <LineChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`macro-fill-${row.symbol}`} x1="0" y1="0" x2="0" y2="1">

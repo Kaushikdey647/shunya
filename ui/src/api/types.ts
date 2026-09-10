@@ -639,6 +639,90 @@ export type AlpacaAccountConfigurationsPatch = Partial<
   >
 >
 
+// --- Manual OMS order entry / blotter ------------------------------------------------
+
+export type OmsOrderSide = 'BUY' | 'SELL'
+export type OmsOrderType = 'MARKET' | 'LIMIT'
+export type OmsTimeInForce = 'DAY' | 'GTC'
+
+export interface OmsOrderPlaceRequest {
+  symbol: string
+  side: OmsOrderSide
+  quantity: number
+  order_type: OmsOrderType
+  limit_price?: number | null
+  time_in_force?: OmsTimeInForce
+}
+
+export interface OmsParentOrderOut {
+  parent_id: string
+  symbol: string
+  side: string
+  quantity_ordered: number
+  quantity_filled: number
+  state: string
+  order_type?: string | null
+  limit_price?: number | null
+  time_in_force?: string | null
+  client_order_id?: string | null
+  broker_order_id?: string | null
+  avg_fill_price?: number | null
+  origin?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface OmsOrdersResponse {
+  orders: OmsParentOrderOut[]
+}
+
+export interface OmsFillOut {
+  trade_id: string
+  parent_order_id: string
+  symbol: string
+  side: string
+  quantity: number
+  price: number
+  fee: number
+  ts: string
+  child_client_order_id?: string | null
+}
+
+export interface OmsFillsResponse {
+  fills: OmsFillOut[]
+}
+
+export interface OmsPositionOut {
+  symbol: string
+  qty: number
+  side: string
+  avg_entry_price?: number | null
+  market_value?: number | null
+  unrealized_pl?: number | null
+  unrealized_plpc?: number | null
+  current_price?: number | null
+  working_buy_shares: number
+  working_sell_shares: number
+}
+
+export interface OmsPositionsResponse {
+  positions: OmsPositionOut[]
+  paper: boolean
+}
+
+export interface OmsCancelResponse {
+  parent_id: string
+  state: string
+  canceled: boolean
+}
+
+export type OmsWsHello = { type: 'hello'; schema: number; paper: boolean }
+export type OmsWsOrder = { type: 'order'; order: OmsParentOrderOut }
+export type OmsWsFill = { type: 'fill'; fill: OmsFillOut }
+export type OmsWsError = { type: 'error'; code?: string; message: string }
+
+export type OmsWsMessage = OmsWsHello | OmsWsOrder | OmsWsFill | OmsWsError
+
 export type MoversKind = 'gainers' | 'losers' | 'active'
 
 export interface OhlcvProvenance {

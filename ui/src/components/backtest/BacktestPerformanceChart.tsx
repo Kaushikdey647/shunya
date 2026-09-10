@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { RechartsPanel } from '../charts/RechartsPanel'
 import { tickDate } from '../../lib/chartTimeTicks'
+import { CHART_HEIGHT } from '../../theme/chartSizes'
 import {
   assertPlottableEquitySeries,
   assertPlottablePerformanceOverlay,
@@ -21,7 +22,7 @@ import {
 import type { BacktestChartTheme } from './useBacktestChartTheme'
 import { BacktestPerformanceLcPane } from './BacktestPerformanceLcPane'
 
-const PERF_CHART_HEIGHT_PX = 520
+const PERF_CHART_HEIGHT_PX = CHART_HEIGHT.tall
 
 type Props = {
   theme: BacktestChartTheme

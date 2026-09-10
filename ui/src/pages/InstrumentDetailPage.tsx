@@ -37,6 +37,7 @@ import InstrumentHoldersPanel from '../components/instrument/InstrumentHoldersPa
 import InstrumentOptionsChainPanel from '../components/instrument/InstrumentOptionsChainPanel'
 import InstrumentYfinanceResearchTab from '../components/instrument/InstrumentYfinanceResearchTab'
 import PageScaffold from '../components/PageScaffold'
+import WorkspaceGrid from '../components/WorkspaceGrid'
 import { formatCompactNumber, formatUsdCompact } from '../lib/formatCompact'
 import { barTimesUtcSeconds, snapCrosshairToBarTime } from '../utils/chartBarTimes'
 
@@ -432,7 +433,7 @@ export default function InstrumentDetailPage() {
   }, [universesQ.data, universesQ.isLoading])
 
   return (
-    <PageScaffold>
+    <PageScaffold size="fluid" px={{ base: 'sm', md: 'md' }}>
       <Group justify="space-between" align="flex-start" wrap="wrap">
         <Stack gap={4}>
           <Group gap="sm" align="center">
@@ -556,8 +557,9 @@ export default function InstrumentDetailPage() {
             </Text>
           )}
           {ohlcv.data && ohlcv.data.bars.length > 0 && (
-            <Group align="flex-start" gap="md" wrap="wrap" grow>
-              <Stack style={{ flex: '2 1 420px', minWidth: 280 }}>
+            <WorkspaceGrid
+              primarySpan={8}
+              primary={
                 <InstrumentChart
                   bars={ohlcv.data.bars}
                   news={newsRows}
@@ -565,15 +567,15 @@ export default function InstrumentDetailPage() {
                   compactNewsTooltip
                   key={`${preset.id}-${symbol}`}
                 />
-              </Stack>
-              <Stack style={{ flex: '1 1 280px', minWidth: 260 }}>
+              }
+              secondary={
                 <InstrumentContextFeed
                   news={newsRows}
                   barTimes={barTimes}
                   focusBarUnix={focusBarUnix}
                 />
-              </Stack>
-            </Group>
+              }
+            />
           )}
         </Tabs.Panel>
 

@@ -33,6 +33,7 @@ import {
 import type { AlpacaEquityAccountOut } from '../api/types'
 import ApiErrorAlert from '../components/ApiErrorAlert'
 import PageScaffold from '../components/PageScaffold'
+import { useTradeDeskToken } from '../hooks/useTradeDeskToken'
 
 const TRADE_QUERY_OPTS = {
   staleTime: 120_000,
@@ -108,8 +109,7 @@ const TIMEFRAME_OPTIONS = [
 ]
 
 export default function TradeAccountPage() {
-  const [draftToken, setDraftToken] = useState('')
-  const [appliedToken, setAppliedToken] = useState('')
+  const { draftToken, setDraftToken, appliedToken, applyToken } = useTradeDeskToken()
   const [period, setPeriod] = useState('1M')
   const [timeframe, setTimeframe] = useState<string | null>(null)
 
@@ -164,11 +164,6 @@ export default function TradeAccountPage() {
     () => activitiesQ.data?.pages.flatMap((p) => p.activities) ?? [],
     [activitiesQ.data],
   )
-
-  const applyToken = () => {
-    const t = draftToken.trim()
-    setAppliedToken(t)
-  }
 
   return (
     <PageScaffold>

@@ -51,3 +51,4 @@ Shunya does **not** ship a full commercial PMS UI; it gives **library building b
 
 - [OMS, EMS, and order routing](oms-ems-and-order-routing.md)
 - [Pipeline: alpha to execution](pipeline-alpha-to-execution.md)
+- [Risk management and avoiding losses](risk-management-and-avoiding-losses.md)
