@@ -17,7 +17,8 @@ These rules are binding for all work in this repo. They override older docs/TODO
 4. **Symbol master:** comes from SEC `company_tickers.json`, with a boolean `symbols.is_alpaca_tradable` (indexed) set from Alpaca `/v2/assets`.
    - Non-tradable entities are shown in ticker info only.
    - Every trading or Alpaca-related path filters on the flag: universes, algorithm inputs, ingest, viewing and indexing historical bars, and the runner.
-   - Reference data (symbols, sector/industry) is synced into Timescale by a scheduled job. Backtests and order cycles read it from the DB only and never call external APIs per run or iteration.
+   - Classification comes from `data.sec.gov/submissions/CIK{10-digit}.json`: `sic`, `sicDescription` and `ownerOrg` go into the `sic_codes` table. `filings` is ignored.
+   - Reference data is loaded by a one-time job, re-runnable for new tickers. Backtests and order cycles read it from the DB only and never call external APIs per run or iteration.
 5. **Storage and compute:** the Timescale schema, ingest, finTs and the JAX/AlphaContext tensors are designed around Alpaca bars (vwap, trade_count, IEX gaps, corporate actions), not around Yahoo.
 
 ## Workflow
