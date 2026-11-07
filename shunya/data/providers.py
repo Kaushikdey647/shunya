@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Literal, Optional, Protocol, Union, runtime_
 import pandas as pd
 import requests
 import yfinance as yf
-from alpaca.data.enums import DataFeed
+from alpaca.data.enums import Adjustment, DataFeed
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
@@ -55,13 +55,26 @@ def data_feed_for_alpaca_upstream(upstream_id: str) -> DataFeed | None:
 
 
 def default_alpaca_data_feed_from_env() -> DataFeed:
-    """Alpaca stock bar feed from ``SHUNYA_ALPACA_BAR_FEED`` (``sip`` | ``iex`` | ``delayed_sip``)."""
-    raw = (os.environ.get("SHUNYA_ALPACA_BAR_FEED") or "sip").strip().lower()
-    if raw == "iex":
-        return DataFeed.IEX
+    """Alpaca stock bar feed from ``SHUNYA_ALPACA_BAR_FEED`` (``iex`` default | ``sip`` | ``delayed_sip``)."""
+    raw = (os.environ.get("SHUNYA_ALPACA_BAR_FEED") or "iex").strip().lower()
+    if raw == "sip":
+        return DataFeed.SIP
     if raw in ("delayed_sip", "delayed-sip"):
         return DataFeed.DELAYED_SIP
-    return DataFeed.SIP
+    return DataFeed.IEX
+
+
+def default_alpaca_adjustment_from_env() -> Adjustment:
+    """Corporate-action adjustment from ``SHUNYA_ALPACA_BAR_ADJUSTMENT`` (``all`` default | ``split`` | ``dividend`` | ``raw``).
+
+    Alpaca's API default is ``raw``: a 4:1 split would read as a -75% bar and poison price-based alphas.
+    Adjustments are anchored at the latest bar, so the last close stays the tradable price.
+    """
+    raw = (os.environ.get("SHUNYA_ALPACA_BAR_ADJUSTMENT") or "all").strip().lower()
+    try:
+        return Adjustment(raw)
+    except ValueError as exc:
+        raise ValueError(f"SHUNYA_ALPACA_BAR_ADJUSTMENT must be raw|split|dividend|all, got {raw!r}") from exc
 
 
 _OHLCV_COLS: tuple[str, ...] = ("Open", "High", "Low", "Close", "Volume")
@@ -206,6 +219,7 @@ class YFinanceMarketDataProvider:
         bar_index_policy: Optional[BarIndexPolicy] = None,
         repair: Optional[bool] = None,
     ) -> pd.DataFrame:
+        """Download via ``yf.download``, sanitize OHLCV, and normalize the history index."""
         spec = bar_spec if bar_spec is not None else default_bar_spec()
         idx_policy = (
             bar_index_policy
@@ -268,7 +282,15 @@ class AlpacaHistoricalMarketDataProvider:
         paper: bool = True,
         data_feed: Optional[DataFeed] = None,
         bar_feed_upstream: Optional[str] = None,
+        adjustment: Optional[Adjustment] = None,
+        max_missing_fraction: float = 0.0,
     ) -> None:
+        if not 0.0 <= float(max_missing_fraction) < 1.0:
+            raise ValueError("max_missing_fraction must be in [0, 1)")
+        self._adjustment: Adjustment = adjustment if adjustment is not None else default_alpaca_adjustment_from_env()
+        self._max_missing_fraction = float(max_missing_fraction)
+        self.missing_symbols: List[str] = []
+        """Symbols dropped by the last :meth:`download` (only when ``max_missing_fraction > 0``)."""
         if (api_key or secret_key) and not (api_key and secret_key):
             raise ValueError("Pass both api_key and secret_key, or omit both to load from the environment.")
         if api_key and secret_key:
@@ -293,6 +315,7 @@ class AlpacaHistoricalMarketDataProvider:
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
     ) -> pd.DataFrame:
+        """Fetch Alpaca stock bars for each symbol and assemble a multi-ticker frame."""
         if not ticker_list:
             return pd.DataFrame()
 
@@ -322,6 +345,7 @@ class AlpacaHistoricalMarketDataProvider:
             start=start_ts.to_pydatetime(),
             end=end_ts.to_pydatetime(),
             feed=self._data_feed,
+            adjustment=self._adjustment,
         )
         try:
             barset = self._client.get_stock_bars(req)
@@ -362,10 +386,18 @@ class AlpacaHistoricalMarketDataProvider:
             keys.append(sym)
 
         missing = [sym for sym in ticker_list if sym not in keys]
-        if missing:
+        self.missing_symbols = sorted(missing)
+        if missing and len(missing) / len(ticker_list) > self._max_missing_fraction:
             raise ValueError(
                 "Alpaca historical bars missing for symbols: "
                 + ", ".join(sorted(missing))
+            )
+        if missing:
+            _LOG.warning(
+                "Alpaca bars missing for %d/%d symbols (dropped): %s",
+                len(missing),
+                len(ticker_list),
+                ", ".join(sorted(missing)[:20]),
             )
         if not frames:
             return pd.DataFrame()
@@ -476,6 +508,7 @@ class AlphaVantageMarketDataProvider:
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
     ) -> pd.DataFrame:
+        """Fetch Alpha Vantage daily JSON per symbol and slice to ``[start, end)``."""
         spec = bar_spec if bar_spec is not None else default_bar_spec()
         if spec.unit != BarUnit.DAYS or spec.step != 1:
             raise ValueError(
@@ -632,6 +665,7 @@ class TiingoMarketDataProvider:
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
     ) -> pd.DataFrame:
+        """Fetch Tiingo EOD JSON per symbol and concatenate single- vs multi-ticker output."""
         spec = bar_spec if bar_spec is not None else default_bar_spec()
         if spec.unit != BarUnit.DAYS or spec.step != 1:
             raise ValueError(

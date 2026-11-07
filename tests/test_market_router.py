@@ -103,3 +103,21 @@ def test_alpaca_provider_passes_feed_matching_bar_feed_upstream(monkeypatch: pyt
     p.download(["AAPL"], "2024-01-01", "2024-01-10")
     assert len(captured) == 1
     assert captured[0].feed == DataFeed.IEX
+
+
+def test_timescale_fints_reads_configured_stored_source(monkeypatch) -> None:
+    from shunya.data.market_data.constants import stored_daily_ohlcv_source
+    from shunya.data.market_data.fints_bridge import resolve_market_data_provider
+    from shunya.schemas import FinTsRequest
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@localhost:1/x")  # not connected at construction
+    monkeypatch.delenv("SHUNYA_STORED_OHLCV_SOURCE", raising=False)
+    assert stored_daily_ohlcv_source() == "yfinance"
+    monkeypatch.setenv("SHUNYA_STORED_OHLCV_SOURCE", "alpaca_iex")
+    req = FinTsRequest(
+        start_date="2024-01-01", end_date="2024-02-01", ticker_list=["AAPL"], market_data_provider="timescale"
+    )
+    assert resolve_market_data_provider(req)._source == "alpaca_iex"
+    monkeypatch.setenv("SHUNYA_STORED_OHLCV_SOURCE", "bogus")
+    with pytest.raises(ValueError, match="SHUNYA_STORED_OHLCV_SOURCE"):
+        stored_daily_ohlcv_source()

@@ -87,6 +87,7 @@ def _tickers_from_symbols_table(*, limit: int | None, offset: int) -> List[str]:
 
 
 def cmd_migrate(_: argparse.Namespace) -> int:
+    """Apply packaged SQL migrations via :func:`apply_migrations`."""
     apply_migrations()
     return 0
 
@@ -106,6 +107,7 @@ def cmd_sync_index_memberships(_: argparse.Namespace) -> int:
 
 
 def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
+    """Ingest OHLCV from yfinance, Alpha Vantage, Tiingo, or Alpaca into ``ohlcv_bars``."""
     import psycopg
 
     if args.symbols_from_db:
@@ -139,6 +141,10 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
         source = "alphavantage"
     if args.provider == "tiingo" and source == "yfinance":
         source = "tiingo"
+    if args.provider == "alpaca" and source == "yfinance":
+        from ..market_data.resolve import env_alpaca_bar_upstream_id
+
+        source = env_alpaca_bar_upstream_id()  # alpaca_iex unless SHUNYA_ALPACA_BAR_FEED says otherwise
 
     if args.provider == "yfinance":
         prov = YFinanceMarketDataProvider(session=session, repair=env_yfinance_repair_default())
@@ -150,6 +156,17 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
             bar_index_policy=policy,
             repair=env_yfinance_repair_default(),
         )
+    elif args.provider == "alpaca":
+        from ..providers import AlpacaHistoricalMarketDataProvider
+
+        prov = AlpacaHistoricalMarketDataProvider(
+            bar_feed_upstream=source,
+            max_missing_fraction=float(args.alpaca_max_missing_fraction),
+        )
+        raw = prov.download(symbols, args.start, args.end, bar_spec=spec, bar_index_policy=policy)
+        if prov.missing_symbols:
+            print(f"alpaca: no bars for {len(prov.missing_symbols)} symbols: {' '.join(prov.missing_symbols[:30])}", file=sys.stderr)
+            symbols = [t for t in symbols if t not in set(prov.missing_symbols)]
     elif args.provider == "tiingo":
         prov = TiingoMarketDataProvider(
             inter_request_delay_seconds=float(args.tiingo_delay_seconds),
@@ -232,6 +249,7 @@ def cmd_ingest_ohlcv(args: argparse.Namespace) -> int:
 
 
 def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
+    """Ingest fundamentals into EAV/wide tables and sync relational events."""
     import psycopg
 
     symbols = _parse_symbols(args.symbols)
@@ -422,6 +440,7 @@ def cmd_ingest_fundamentals(args: argparse.Namespace) -> int:
 
 
 def cmd_ingest_classifications(args: argparse.Namespace) -> int:
+    """Upsert yfinance sector/industry into ``symbol_classifications``."""
     import psycopg
 
     symbols = _parse_symbols(args.symbols)
@@ -477,6 +496,7 @@ def cmd_ingest_classifications(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the ``shunya-timescale`` argparse parser and subcommands."""
     p = argparse.ArgumentParser(
         prog="python -m shunya.data.timescale.cli",
         epilog=(
@@ -498,7 +518,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ohlcv = sub.add_parser(
         "ingest-ohlcv",
-        help="Download OHLCV (yfinance, Alpha Vantage, or Tiingo) and upsert ohlcv_bars",
+        help="Download OHLCV (yfinance, Alpha Vantage, Tiingo, or Alpaca) and upsert ohlcv_bars",
     )
     sym_grp = p_ohlcv.add_mutually_exclusive_group(required=True)
     sym_grp.add_argument(
@@ -520,9 +540,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_ohlcv.add_argument(
         "--provider",
-        choices=["yfinance", "alphavantage", "tiingo"],
+        choices=["yfinance", "alphavantage", "tiingo", "alpaca"],
         default="yfinance",
-        help="Market data API (alphavantage/tiingo: daily only; set API keys per provider)",
+        help="Market data API (alphavantage/tiingo: daily only; alpaca: SHUNYA_ALPACA_BAR_FEED feed, "
+        "split/dividend adjusted per SHUNYA_ALPACA_BAR_ADJUSTMENT; set API keys per provider)",
+    )
+    p_ohlcv.add_argument(
+        "--alpaca-max-missing-fraction",
+        type=float,
+        default=0.2,
+        help="alpaca: skip (not fail) symbols without bars while at most this fraction is missing",
     )
     p_ohlcv.add_argument(
         "--av-outputsize",
@@ -577,6 +604,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Parse argv, require a Postgres DSN, and dispatch the selected subcommand."""
     argv = list(sys.argv[1:] if argv is None else argv)
     argv, argv_durl = _extract_database_url_from_argv(argv)
     parser = build_parser()

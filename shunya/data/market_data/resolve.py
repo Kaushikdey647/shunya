@@ -24,28 +24,33 @@ from shunya.integration.alpaca_settings import try_load_alpaca_settings_from_env
 
 
 def env_demo_relaxed() -> bool:
+    """True when ``SHUNYA_MARKET_DATA_DEMO_RELAXED`` is set to a truthy value."""
     raw = os.environ.get("SHUNYA_MARKET_DATA_DEMO_RELAXED", "")
     return str(raw).strip().lower() in ("1", "true", "yes", "on")
 
 
 def env_alpaca_bar_upstream_id() -> str:
-    raw = (os.environ.get("SHUNYA_ALPACA_BAR_FEED") or "sip").strip().lower()
-    if raw == "iex":
-        return "alpaca_iex"
+    """Resolve ``SHUNYA_ALPACA_BAR_FEED`` to ``alpaca_iex`` (default), ``alpaca_sip``, or delayed SIP."""
+    raw = (os.environ.get("SHUNYA_ALPACA_BAR_FEED") or "iex").strip().lower()
+    if raw == "sip":
+        return "alpaca_sip"
     if raw in ("delayed_sip", "delayed-sip"):
         return "alpaca_delayed_sip"
-    return "alpaca_sip"
+    return "alpaca_iex"
 
 
 def alpaca_market_keys_available() -> bool:
+    """Return whether Alpaca API keys load successfully from the environment."""
     return try_load_alpaca_settings_from_env() is not None
 
 
 def _effective_demo_relaxed(ctx: MarketDataRouteContext) -> bool:
+    """Combine request ``demo_relaxed`` with :func:`env_demo_relaxed`."""
     return bool(ctx.demo_relaxed) or env_demo_relaxed()
 
 
 def _require_alpaca_keys(*, rule_id: str) -> None:
+    """Raise :class:`MarketRouteError` when Alpaca keys are missing."""
     if not alpaca_market_keys_available():
         raise MarketRouteError(
             MARKET_ROUTE_NO_CREDENTIALS,
@@ -55,6 +60,7 @@ def _require_alpaca_keys(*, rule_id: str) -> None:
 
 
 def _reject_yfinance_intraday(ctx: MarketDataRouteContext, *, rule_id: str) -> None:
+    """Forbid yfinance intraday unless demo-relaxed routing is active."""
     if bar_spec_is_intraday(ctx.bar_spec) and not _effective_demo_relaxed(ctx):
         raise MarketRouteError(
             MARKET_ROUTE_YFINANCE_INTRADAY_FORBIDDEN,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
+from shunya.data.market_data.constants import stored_daily_ohlcv_source
 from shunya.data.market_data.context import MarketDataRouteContext
 from shunya.data.market_data.errors import (
     MARKET_ROUTE_NO_CREDENTIALS,
@@ -19,6 +19,7 @@ from shunya.schemas import FinTsRequest, bar_spec_model_to_bar_spec
 
 
 def _fints_route_context(req: FinTsRequest) -> MarketDataRouteContext:
+    """Build a :class:`MarketDataRouteContext` from a :class:`FinTsRequest`."""
     syms = tuple(str(t).strip() for t in req.ticker_list if str(t).strip())
     return MarketDataRouteContext(
         symbols=syms,
@@ -28,6 +29,7 @@ def _fints_route_context(req: FinTsRequest) -> MarketDataRouteContext:
 
 
 def _route_mode_for_fints(provider: str) -> str:
+    """Map FinTS ``alpaca`` provider to the env-configured Alpaca bar upstream id."""
     p = str(provider).strip().lower()
     if p == "alpaca":
         return env_alpaca_bar_upstream_id()
@@ -80,7 +82,7 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
                 status_code=503,
             ) from exc
         try:
-            return TimescaleMarketDataProvider(source=STORED_OHLCV_DEFAULT_UPSTREAM_ID)
+            return TimescaleMarketDataProvider(source=stored_daily_ohlcv_source())
         except ValueError as exc:
             raise FinTsConfigurationError(
                 "Timescale provider requires DATABASE_URL or SHUNYA_DATABASE_URL.",
@@ -93,7 +95,7 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
             try:
                 from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
 
-                return TimescaleMarketDataProvider(source=STORED_OHLCV_DEFAULT_UPSTREAM_ID)
+                return TimescaleMarketDataProvider(source=stored_daily_ohlcv_source())
             except (ImportError, ValueError):
                 return None
         return None
@@ -103,7 +105,7 @@ def resolve_market_data_provider(req: FinTsRequest) -> Optional[MarketDataProvid
             try:
                 from shunya.data.timescale.market_provider import TimescaleMarketDataProvider
 
-                return TimescaleMarketDataProvider(source=STORED_OHLCV_DEFAULT_UPSTREAM_ID)
+                return TimescaleMarketDataProvider(source=stored_daily_ohlcv_source())
             except (ImportError, ValueError):
                 return None
         return None

@@ -16,6 +16,7 @@ from api.services.ohlcv_yfinance_backfill import (
     tickers_for_ohlcv_backfill,
 )
 from api.tunable_config import get_effective_tunables
+from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID, stored_daily_ohlcv_source
 
 # TODO(market-data-router): Index/universe job recovery always backfills via Yahoo; align with
 # market_router execute + provenance when Alpaca or other upstreams can satisfy the window.
@@ -23,6 +24,7 @@ from shunya.errors import ErrorCode
 
 
 def _recoverable_fin_ts_data_error(exc: BaseException) -> bool:
+    """Treat selected ``ValueError`` heads as OHLCV recoverable for Yahoo backfill retry."""
     if not isinstance(exc, ValueError):
         return False
     head = str(exc).split(":", 1)[0].strip()
@@ -36,10 +38,12 @@ def _recoverable_fin_ts_data_error(exc: BaseException) -> bool:
 
 
 def _format_exc(exc: BaseException) -> str:
+    """Format exception message plus traceback for job error text."""
     return f"{exc!s}\n{traceback.format_exc()}"
 
 
 def _truncate(msg: str, limit: int) -> str:
+    """Truncate long messages with an ellipsis marker."""
     if len(msg) <= limit:
         return msg
     return msg[: max(0, limit - 24)] + "\n...[truncated]..."
@@ -78,7 +82,12 @@ def execute_claimed_backtest_job(
     except FinTsConfigurationError as exc:
         return _truncate(exc.message, 8000), exc.code, None, None
     except Exception as exc1:  # noqa: BLE001
-        if not (payload_has_timescale_panel(payload) and _recoverable_fin_ts_data_error(exc1)):
+        # Yahoo backfill only helps when backtests read yfinance-sourced bars.
+        if not (
+            payload_has_timescale_panel(payload)
+            and _recoverable_fin_ts_data_error(exc1)
+            and stored_daily_ohlcv_source() == STORED_OHLCV_DEFAULT_UPSTREAM_ID
+        ):
             return (
                 _truncate(_format_exc(exc1), 8000),
                 str(ErrorCode.BACKTEST_JOB_EXECUTION_ERROR),

@@ -226,3 +226,45 @@ def test_yfinance_provider_intraday_preserves_time_and_sets_interval(monkeypatch
         bar_index_policy=BarIndexPolicy(timezone="UTC"),
     )
     assert out_utc.index[0] == pd.Timestamp("2024-01-02 14:30:00")
+
+
+class _RecordingClient(_ClientWithData):
+    def __init__(self, data):
+        super().__init__(data)
+        self.requests = []
+
+    def get_stock_bars(self, req):
+        self.requests.append(req)
+        return super().get_stock_bars(req)
+
+
+def _one_bar() -> list:
+    return [_Bar(100.0, 101.0, 99.0, 100.5, 1_000, pd.Timestamp("2024-01-02 05:00:00+00:00"))]
+
+
+def test_alpaca_provider_defaults_to_iex_and_adjusted_bars(monkeypatch):
+    from alpaca.data.enums import Adjustment, DataFeed
+
+    monkeypatch.delenv("SHUNYA_ALPACA_BAR_FEED", raising=False)
+    monkeypatch.delenv("SHUNYA_ALPACA_BAR_ADJUSTMENT", raising=False)
+    client = _RecordingClient({"AAPL": _one_bar()})
+    monkeypatch.setattr("shunya.data.providers.build_stock_historical_data_client", lambda _s: client)
+    AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s").download(["AAPL"], "2024-01-01", "2024-01-10")
+    req = client.requests[0]
+    assert req.feed == DataFeed.IEX
+    assert req.adjustment == Adjustment.ALL
+
+    monkeypatch.setenv("SHUNYA_ALPACA_BAR_ADJUSTMENT", "nope")
+    with pytest.raises(ValueError, match="SHUNYA_ALPACA_BAR_ADJUSTMENT"):
+        AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s")
+
+
+def test_alpaca_provider_tolerates_missing_symbols_up_to_fraction(monkeypatch):
+    client = _RecordingClient({t: _one_bar() for t in ("A", "B", "C")})
+    monkeypatch.setattr("shunya.data.providers.build_stock_historical_data_client", lambda _s: client)
+    p = AlpacaHistoricalMarketDataProvider(api_key="k", secret_key="s", max_missing_fraction=0.25)
+    out = p.download(["A", "B", "C", "D"], "2024-01-01", "2024-01-10")
+    assert set(out.columns.get_level_values(0)) == {"A", "B", "C"}
+    assert p.missing_symbols == ["D"]
+    with pytest.raises(ValueError, match="D, E"):
+        p.download(["A", "B", "C", "D", "E"], "2024-01-01", "2024-01-10")
