@@ -1,3 +1,4 @@
+"""Build fin_ts panels and compute per-ticker NaN counts and risk metrics for ``/data/summary``."""
 from __future__ import annotations
 
 import numpy as np
@@ -9,6 +10,7 @@ from api.schemas.models import DataSummaryRequest, DataSummaryResponse, TickerNa
 
 
 def compute_data_summary(req: DataSummaryRequest) -> DataSummaryResponse:
+    """Raise ``ValueError`` when the fin_ts panel is empty, then aggregate NaN and risk rows per ticker."""
     fts = build_fin_ts(req)
     df = fts.df
     if df.empty:

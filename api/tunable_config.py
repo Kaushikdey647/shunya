@@ -40,6 +40,7 @@ class RuntimeOverlayPatch(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class EffectiveTunables:
+    """Frozen effective worker and serializer limits after env and DB overlay merge."""
     worker_poll_interval_seconds: float
     max_target_history_points: int
     max_group_exposure_history_points: int
@@ -51,6 +52,7 @@ class EffectiveTunables:
     ollama_model: str
 
     def as_public_dict(self) -> dict[str, Any]:
+        """Expose tunable fields as a plain dict for settings APIs."""
         return {
             "worker_poll_interval_seconds": self.worker_poll_interval_seconds,
             "max_target_history_points": self.max_target_history_points,
@@ -69,6 +71,7 @@ TUNABLE_KEYS = _TUNABLE_KEYS
 
 
 def clear_tunables_cache() -> None:
+    """Reset the short-lived effective tunables cache."""
     global _cache_mono, _cache_value
     _cache_mono = 0.0
     _cache_value = None
@@ -144,6 +147,7 @@ def tunable_sources() -> dict[str, str]:
 
 
 def merge_overlay_patch(existing: Mapping[str, Any], patch: RuntimeOverlayPatch) -> dict[str, Any]:
+    """Merge non-null ``RuntimeOverlayPatch`` fields into the stored overlay dict."""
     data = dict(existing)
     dumped = patch.model_dump(exclude_none=True)
     for k, v in dumped.items():

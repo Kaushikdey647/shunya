@@ -20,11 +20,13 @@ ConstraintsModeLiteral = Literal["rescale", "raise"]
 
 
 class BarSpecModel(BaseModel):
+    """Pydantic bar cadence for FinTS HTTP and library requests."""
     unit: BarUnitLiteral = "DAYS"
     step: int = Field(default=1, ge=1)
 
 
 class FinTsRequest(BaseModel):
+    """Validated FinTS job payload shared by API and library callers."""
     schema_version: int = Field(default=1, ge=1, description="Bump when persisted FinTs job JSON shape changes.")
     start_date: str
     end_date: str
@@ -45,6 +47,7 @@ class FinTsRequest(BaseModel):
 
 
 class FinStratConfig(BaseModel):
+    """FinStrat runtime parameters for signal decay and neutralization."""
     decay_mode: DecayModeLiteral = "ema"
     decay: float = Field(default=0.0, ge=0.0, lt=1.0)
     decay_window: int = Field(default=1, ge=1)
@@ -68,6 +71,7 @@ class FinStratConfig(BaseModel):
 
 
 class FinBtConfig(BaseModel):
+    """FinBT backtest cash, costs, and portfolio constraint settings."""
     cash: float = Field(default=100_000.0, gt=0.0)
     commission: float = Field(default=0.0, ge=0.0)
     slippage_pct: float = Field(default=0.0, ge=0.0)

@@ -1,3 +1,5 @@
+"""Alpha CRUD and editor assist/lint HTTP routes."""
+
 from __future__ import annotations
 
 from uuid import UUID
@@ -52,6 +54,7 @@ def _validate_default_universe_id(uid: str | None) -> None:
 
 @router.post("/lint-body", response_model=AlphaLintBodyResponse)
 def lint_alpha_body(body: AlphaLintBodyRequest) -> AlphaLintBodyResponse:
+    """Runs pyright on wrapped alpha source and returns diagnostics."""
     wrapped = wrap_alpha_body(body.source_body)
     raw = run_pyright_on_wrapped(wrapped)
     diagnostics = [AlphaLintDiagnostic(**d) for d in raw]
@@ -60,6 +63,7 @@ def lint_alpha_body(body: AlphaLintBodyRequest) -> AlphaLintBodyResponse:
 
 @router.post("/assist-body", response_model=AlphaAssistBodyResponse)
 def assist_alpha_body(body: AlphaAssistBodyRequest) -> AlphaAssistBodyResponse:
+    """Runs alpha assist and returns issues plus editor markers."""
     raw = run_alpha_assist(
         source_body=body.source_body,
         alpha_name=body.alpha_name,
@@ -82,6 +86,7 @@ def assist_alpha_body(body: AlphaAssistBodyRequest) -> AlphaAssistBodyResponse:
 
 @router.post("/assist-backtest-review", response_model=AlphaAssistBacktestReviewResponse)
 def assist_backtest_review(body: AlphaAssistBacktestReviewRequest) -> AlphaAssistBacktestReviewResponse:
+    """Returns structured backtest review bullets from alpha assist."""
     out = run_alpha_backtest_review(
         source_body=body.source_body,
         alpha_name=body.alpha_name,
@@ -94,6 +99,7 @@ def assist_backtest_review(body: AlphaAssistBacktestReviewRequest) -> AlphaAssis
 
 @router.post("", response_model=AlphaOut, status_code=status.HTTP_201_CREATED)
 def create_alpha(body: AlphaCreate, background_tasks: BackgroundTasks) -> AlphaOut:
+    """Inserts an alpha in Postgres and schedules an alpha.created notification."""
     _validate_default_universe_id(body.default_universe_id)
     try:
         out = repo.insert_alpha(body)
@@ -123,11 +129,13 @@ def list_alphas(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> list[AlphaOut]:
+    """Lists stored alphas with limit/offset pagination."""
     return repo.list_alphas(limit=limit, offset=offset)
 
 
 @router.get("/{alpha_id}", response_model=AlphaOut)
 def get_alpha(alpha_id: str) -> AlphaOut:
+    """Fetches one alpha or raises ShunyaError ALPHA_NOT_FOUND."""
     row = repo.get_alpha(alpha_id)
     if row is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
@@ -136,6 +144,7 @@ def get_alpha(alpha_id: str) -> AlphaOut:
 
 @router.patch("/{alpha_id}", response_model=AlphaOut)
 def patch_alpha(alpha_id: str, body: AlphaPatch, background_tasks: BackgroundTasks) -> AlphaOut:
+    """Updates an alpha and schedules alpha.updated notification."""
     if body.import_ref:
         try:
             validate_import_ref(body.import_ref)
@@ -160,6 +169,7 @@ def patch_alpha(alpha_id: str, body: AlphaPatch, background_tasks: BackgroundTas
 
 @router.delete("/{alpha_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_alpha(alpha_id: str, background_tasks: BackgroundTasks) -> None:
+    """Deletes an alpha and schedules alpha.deleted notification."""
     row = repo.get_alpha(alpha_id)
     if row is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)

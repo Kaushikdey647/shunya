@@ -1,3 +1,4 @@
+"""Async loop that claims queued backtest jobs and publishes notifications."""
 from __future__ import annotations
 
 import asyncio
@@ -12,6 +13,7 @@ _log = logging.getLogger(__name__)
 
 
 async def backtest_worker_loop(stop: asyncio.Event) -> None:
+    """Poll ``claim_next_queued_job``, run ``execute_claimed_backtest_job``, and update job status."""
     while not stop.is_set():
         interval = max(0.2, float(get_effective_tunables().worker_poll_interval_seconds))
         row = await asyncio.to_thread(jobs_repo.claim_next_queued_job)

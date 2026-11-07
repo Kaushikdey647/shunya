@@ -110,6 +110,7 @@ class TimescaleMarketDataProvider:
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
     ) -> pd.DataFrame:
+        """Read OHLCV bars from Timescale/Postgres and optionally enforce cache TTL."""
         try:
             import psycopg
         except ModuleNotFoundError as exc:

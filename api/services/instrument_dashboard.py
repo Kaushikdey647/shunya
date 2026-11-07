@@ -86,6 +86,7 @@ _YAHOO_KIND_MAP: dict[str, InstrumentKindLiteral] = {
 
 
 def normalize_instrument_kind(yahoo_quote_type: str | None) -> InstrumentKindLiteral:
+    """Map Yahoo ``quoteType`` to a supported instrument kind literal."""
     if not yahoo_quote_type or not isinstance(yahoo_quote_type, str):
         return "unknown"
     key = yahoo_quote_type.strip().upper()
@@ -329,6 +330,7 @@ def _option_contract_from_info(info: dict[str, Any]) -> InstrumentOptionContract
 
 
 def fetch_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
+    """Return cached overview or build it from Yahoo ``get_info`` and valuation measures."""
     hit = _instrument_cache_get(
         InstrumentOverviewResponse, symbol=symbol, resource_type=DOC_OVERVIEW, resource_key=""
     )
@@ -427,6 +429,7 @@ def fetch_instrument_financials(
     frequency: InstrumentFinancialFrequencyLiteral,
     periods: int,
 ) -> InstrumentFinancialStatementResponse:
+    """Return cached statement table or load the requested Yahoo financials attribute."""
     cap = max(1, min(periods, _MAX_FIN_COLS))
     rk = f"{frequency}|{cap}"
     rt = _financials_resource_type(statement)
@@ -506,6 +509,7 @@ def _holders_df_to_rows(df: pd.DataFrame | None) -> tuple[list[InstrumentHolderR
 
 
 def fetch_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
+    """Return institutional and mutual-fund holder tables from Yahoo."""
     hit = _instrument_cache_get(
         InstrumentHoldersResponse, symbol=symbol, resource_type=DOC_HOLDERS, resource_key=""
     )
@@ -535,6 +539,7 @@ def fetch_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
 
 
 def fetch_option_expirations(symbol: str) -> InstrumentOptionExpirationsResponse:
+    """List available option expiry strings for the underlying symbol."""
     hit = _instrument_cache_get(
         InstrumentOptionExpirationsResponse,
         symbol=symbol,
@@ -591,6 +596,7 @@ def _option_frame_to_rows(df: pd.DataFrame | None) -> list[InstrumentOptionLegRo
 
 
 def fetch_option_chain(symbol: str, expiry: str) -> InstrumentOptionChainResponse:
+    """Return calls and puts for one expiry, validating ``YYYY-MM-DD`` format."""
     if not _EXPIRY_RE.match(expiry.strip()):
         raise HTTPException(status_code=400, detail="invalid expiry format (use YYYY-MM-DD)")
     expiry_clean = expiry.strip()

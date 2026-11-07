@@ -145,6 +145,7 @@ class AlpacaL1FeedHub:
 
     @property
     def max_symbols(self) -> int:
+        """Return the configured distinct-symbol cap for the shared L1 stream."""
         return self._max_symbols
 
     async def would_reject_new_symbol(self, sym: str) -> bool:

@@ -175,6 +175,7 @@ def valuation_measures_to_metrics(df: pd.DataFrame | None) -> InstrumentValuatio
 
 
 def beta_from_valuation_measures(df: pd.DataFrame | None) -> float | None:
+    """Scan valuation measures rows for a beta label and return the first numeric value."""
     if df is None or df.empty or len(df.columns) == 0:
         return None
     val_col = df.columns[0]
@@ -214,6 +215,7 @@ def merge_valuation_metrics(
 
 
 def dict_to_jsonable(d: dict[str, Any] | None) -> dict[str, Any]:
+    """Recursively coerce dict values to JSON-safe scalars and nested structures."""
     if not d:
         return {}
     out: dict[str, Any] = {}

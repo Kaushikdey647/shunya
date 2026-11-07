@@ -20,5 +20,6 @@ class BacktraderBacktestEngine:
         *,
         finbt_kwargs: dict[str, Any],
     ) -> dict[str, Any]:
+        """Run :class:`FinBT` and return ``results(show=False)``."""
         bt = FinBT(fin_strat, fin_ts, **finbt_kwargs).run()
         return bt.results(show=False)

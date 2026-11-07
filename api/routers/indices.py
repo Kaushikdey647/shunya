@@ -1,3 +1,5 @@
+"""Catalog of equity index universes stored in Postgres."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
@@ -10,6 +12,7 @@ router = APIRouter(prefix="/indices", tags=["indices"])
 
 @router.get("", response_model=list[EquityIndexOut])
 def list_equity_indices() -> list[EquityIndexOut]:
+    """Loads index catalog rows from Postgres for the UI."""
     try:
         rows = list_indices_for_api()
     except Exception as exc:  # noqa: BLE001

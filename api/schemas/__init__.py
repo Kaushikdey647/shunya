@@ -1,3 +1,4 @@
+"""Re-exports of commonly used API schema types."""
 from api.schemas.models import (
     AlphaCreate,
     AlphaOut,

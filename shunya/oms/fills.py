@@ -42,4 +42,5 @@ def vwap_avg_price(fills: list[ExecutionFill]) -> float:
 
 
 def utc_now() -> datetime:
+    """Timezone-aware UTC ``datetime`` for fill timestamps."""
     return datetime.now(timezone.utc)

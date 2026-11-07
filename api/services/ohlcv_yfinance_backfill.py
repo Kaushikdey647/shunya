@@ -57,6 +57,7 @@ def payload_has_timescale_panel(payload: dict[str, Any]) -> bool:
 
 
 def payload_has_index_code(payload: dict[str, Any]) -> bool:
+    """Return whether the stored job payload includes a non-empty ``index_code``."""
     ic = payload.get("index_code")
     return isinstance(ic, str) and bool(ic.strip())
 

@@ -1,3 +1,5 @@
+"""Pydantic request and response models for the HTTP API."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -28,6 +30,7 @@ _SOURCE_MAX = 524_288  # 512 KiB, aligned with api.inline_alpha
 
 
 class AlphaCreate(BaseModel):
+    """POST body to persist a new alpha (import_ref and/or source_code required)."""
     name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$")
     description: Optional[str] = Field(default=None, max_length=2048)
     import_ref: Optional[str] = Field(default=None, max_length=256)
@@ -62,6 +65,7 @@ class AlphaCreate(BaseModel):
 
 
 class AlphaPatch(BaseModel):
+    """PATCH body with optional fields for an existing alpha."""
     name: Optional[str] = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_-]+$")
     description: Optional[str] = Field(default=None, max_length=2048)
     import_ref: Optional[str] = Field(default=None, max_length=256)
@@ -85,6 +89,7 @@ class AlphaPatch(BaseModel):
 
 
 class AlphaOut(BaseModel):
+    """Stored alpha definition returned by alpha CRUD routes."""
     id: str
     name: str
     description: Optional[str]
@@ -100,16 +105,19 @@ class AlphaOut(BaseModel):
 
 
 class UniverseCreate(BaseModel):
+    """POST body to create a named user universe."""
     name: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9 _-]+$")
     description: Optional[str] = Field(default=None, max_length=2048)
 
 
 class UniversePatch(BaseModel):
+    """PATCH body for universe name or description."""
     name: Optional[str] = Field(default=None, min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9 _-]+$")
     description: Optional[str] = Field(default=None, max_length=2048)
 
 
 class UniverseOut(BaseModel):
+    """User universe metadata including member_count."""
     id: str
     name: str
     description: Optional[str]
@@ -119,6 +127,7 @@ class UniverseOut(BaseModel):
 
 
 class UniverseMemberOut(BaseModel):
+    """One universe member with optional sector/industry labels."""
     ticker: str
     long_name: Optional[str] = None
     sector_disp: Optional[str] = None
@@ -133,10 +142,12 @@ class UniverseMembersMutationOut(BaseModel):
 
 
 class UniverseTickerListOut(BaseModel):
+    """Flat ticker list for a universe constituents endpoint."""
     tickers: list[str]
 
 
 class UniverseMembersAddRequest(BaseModel):
+    """POST body listing tickers to add (deduped uppercase)."""
     tickers: list[str] = Field(..., min_length=1, max_length=500)
 
     @field_validator("tickers", mode="before")
@@ -156,6 +167,7 @@ class UniverseMembersAddRequest(BaseModel):
 
 
 class UniverseMembersReplaceRequest(BaseModel):
+    """PUT body replacing the full membership list."""
     tickers: list[str] = Field(default_factory=list, max_length=5000)
 
     @field_validator("tickers", mode="before")
@@ -175,12 +187,14 @@ class UniverseMembersReplaceRequest(BaseModel):
 
 
 class UniverseBreakdownSlice(BaseModel):
+    """One sector or industry slice in a universe summary chart."""
     label: str
     count: int
     fraction: float = Field(..., description="Share of classified members (0..1).")
 
 
 class UniverseSummaryOut(BaseModel):
+    """Fundamental breakdown and coverage stats for a universe."""
     member_count: int
     classified_for_breakdown_count: int
     sector_breakdown: list[UniverseBreakdownSlice] = Field(default_factory=list)
@@ -192,6 +206,7 @@ class UniverseSummaryOut(BaseModel):
 
 
 class UniverseTickerWeight(BaseModel):
+    """Ticker with portfolio weight in concentration analytics."""
     ticker: str
     weight: float
 
@@ -208,21 +223,25 @@ class UniverseConcentrationOut(BaseModel):
 
 
 class UniverseXsVolPoint(BaseModel):
+    """Cross-sectional volatility on one aligned date."""
     date: str
     xs_vol: float
 
 
 class UniversePcaScorePoint(BaseModel):
+    """PCA score on one aligned date."""
     date: str
     score: float
 
 
 class UniverseTickerLoading(BaseModel):
+    """Ticker loading on a principal component."""
     ticker: str
     loading: float
 
 
 class UniversePcaLoadingsScatterPoint(BaseModel):
+    """PC1/PC2 loading pair for scatter plots."""
     ticker: str
     pc1_loading: float
     pc2_loading: float
@@ -255,6 +274,7 @@ class UniverseReturnAnalyticsOut(BaseModel):
 
 
 class BacktestCreate(BaseModel):
+    """POST body to queue a backtest (index, universe, or explicit tickers)."""
     alpha_id: str
     index_code: Optional[str] = Field(default=None, max_length=64)
     universe_id: Optional[str] = Field(default=None, max_length=64)
@@ -313,6 +333,7 @@ class BacktestCreate(BaseModel):
 
 
 class EquityIndexOut(BaseModel):
+    """One equity index row from the Postgres index catalog."""
     code: str
     display_name: str
     member_count: int
@@ -323,6 +344,7 @@ class EquityIndexOut(BaseModel):
 
 
 class BacktestJobOut(BaseModel):
+    """Backtest job status row from Postgres."""
     id: str
     alpha_id: str
     alpha_name: Optional[str] = None
@@ -339,6 +361,7 @@ class BacktestJobOut(BaseModel):
 
 
 class BacktestLogLineOut(BaseModel):
+    """Single timestamped line from a job log stream."""
     ts: str
     message: str
 
@@ -350,10 +373,12 @@ class BacktestJobsDeleteBatchRequest(BaseModel):
 
 
 class BacktestJobsDeleteBatchOut(BaseModel):
+    """Count of backtest jobs removed in a batch delete."""
     deleted: int
 
 
 class BacktestResultOut(BaseModel):
+    """Succeeded job metrics plus equity and turnover series."""
     job_id: str
     metrics: dict[str, Any]
     equity_curve: list[dict[str, Any]]
@@ -362,6 +387,7 @@ class BacktestResultOut(BaseModel):
 
 
 class DataSummaryRequest(FinTsRequest):
+    """Fin-ts window for NaN counts and per-ticker risk metrics."""
     columns: Optional[list[str]] = Field(
         default=None,
         description="Subset of numeric columns for NaN counts; default all numeric columns.",
@@ -375,11 +401,13 @@ class DataSummaryRequest(FinTsRequest):
 
 
 class TickerNanRow(BaseModel):
+    """Per-column NaN counts for one ticker in a data summary."""
     ticker: str
     nan_counts: dict[str, int]
 
 
 class TickerRiskRow(BaseModel):
+    """Return and risk metrics for one ticker in a summary or dashboard."""
     ticker: str
     return_pct: Optional[float]
     log_return_pct: Optional[float] = None
@@ -389,6 +417,8 @@ class TickerRiskRow(BaseModel):
 
 
 class DataSummaryResponse(BaseModel):
+    """NaN counts, columns used, and per-ticker risk metrics for a data summary."""
+
     tickers: list[str]
     columns_used: list[str]
     nan_counts: list[TickerNanRow]
@@ -403,12 +433,14 @@ DashboardBucketParamLiteral = Literal["auto", "day", "week", "month"]
 
 
 class DashboardBucketMeta(BaseModel):
+    """Heatmap column index with inclusive start/end timestamps."""
     index: int
     start: str
     end: str
 
 
 class TickerDashboardRow(BaseModel):
+    """Per-ticker coverage and risk row for the data dashboard."""
     ticker: str
     first_ts: Optional[str] = None
     last_ts: Optional[str] = None
@@ -424,11 +456,13 @@ class TickerDashboardRow(BaseModel):
 
 
 class ClassificationLabelCount(BaseModel):
+    """Sector or industry label count in dashboard aggregates."""
     label: str
     count: int
 
 
 class DataDashboardResponse(BaseModel):
+    """Timescale OHLCV coverage heatmap and aggregate risk metrics."""
     interval: str
     source: str
     bucket_granularity: DashboardBucketGranularityLiteral
@@ -453,6 +487,7 @@ class DataDashboardResponse(BaseModel):
 
 
 class InstrumentSearchQuote(BaseModel):
+    """One quote hit from instrument search."""
     symbol: str
     shortname: Optional[str] = None
     longname: Optional[str] = None
@@ -461,17 +496,20 @@ class InstrumentSearchQuote(BaseModel):
 
 
 class InstrumentSearchNewsItem(BaseModel):
+    """One news hit bundled with instrument search."""
     title: str
     link: Optional[str] = None
     publisher: Optional[str] = None
 
 
 class InstrumentNavLink(BaseModel):
+    """External navigation link from search results."""
     title: str
     url: str
 
 
 class InstrumentSearchResponse(BaseModel):
+    """Quotes, news, and nav links for a search query."""
     quotes: list[InstrumentSearchQuote]
     news: list[InstrumentSearchNewsItem]
     nav_links: list[InstrumentNavLink] = Field(default_factory=list)
@@ -501,11 +539,13 @@ class InstrumentTickerNewsItem(BaseModel):
 
 
 class InstrumentTickerNewsResponse(BaseModel):
+    """Ticker-scoped news list for the instrument news route."""
     symbol: str
     news: list[InstrumentTickerNewsItem]
 
 
 class OhlcvBar(BaseModel):
+    """Single OHLCV bar in an instrument or snapshot response."""
     time: str
     open: float
     high: float
@@ -528,6 +568,7 @@ class OhlcvProvenance(BaseModel):
 
 
 class InstrumentOhlcvResponse(BaseModel):
+    """OHLCV series with optional Timescale provenance and storage status."""
     symbol: str
     interval: str
     period: str
@@ -565,6 +606,7 @@ class InstrumentFeatureAvailability(BaseModel):
 
 
 class InstrumentValuationMetrics(BaseModel):
+    """Key valuation ratios on the instrument overview."""
     trailing_pe: Optional[float] = None
     forward_pe: Optional[float] = None
     trailing_eps: Optional[float] = None
@@ -577,12 +619,14 @@ class InstrumentValuationMetrics(BaseModel):
 
 
 class InstrumentExecutive(BaseModel):
+    """Named executive on a company overview."""
     name: Optional[str] = None
     title: Optional[str] = None
     year_born: Optional[int] = None
 
 
 class InstrumentCompanyProfile(BaseModel):
+    """Company profile block on instrument overview."""
     long_business_summary: Optional[str] = None
     sector: Optional[str] = None
     industry: Optional[str] = None
@@ -597,12 +641,14 @@ class InstrumentCompanyProfile(BaseModel):
 
 
 class InstrumentFundTopHolding(BaseModel):
+    """Top holding row for ETF/mutual-fund overview."""
     symbol: str
     name: Optional[str] = None
     holding_percent: Optional[float] = None
 
 
 class InstrumentFundSummary(BaseModel):
+    """Fund metadata and top holdings on overview."""
     fund_family: Optional[str] = None
     category: Optional[str] = None
     expense_ratio: Optional[float] = None
@@ -611,6 +657,7 @@ class InstrumentFundSummary(BaseModel):
 
 
 class InstrumentOptionContractSummary(BaseModel):
+    """Option contract fields when the symbol is an option."""
     underlying_symbol: Optional[str] = None
     strike: Optional[float] = None
     expire_date: Optional[str] = None
@@ -624,6 +671,7 @@ class InstrumentOptionContractSummary(BaseModel):
 
 
 class InstrumentOverviewResponse(BaseModel):
+    """Unified instrument overview for equities, funds, and options."""
     symbol: str
     instrument_kind: InstrumentKindLiteral
     yahoo_quote_type: Optional[str] = None
@@ -642,11 +690,13 @@ class InstrumentOverviewResponse(BaseModel):
 
 
 class InstrumentFinancialLineRow(BaseModel):
+    """One labeled row in a financial statement table."""
     label: str
     values: list[Optional[float]]
 
 
 class InstrumentFinancialStatementResponse(BaseModel):
+    """Income, balance, or cashflow statement for a symbol."""
     symbol: str
     statement: InstrumentStatementLiteral
     frequency: InstrumentFinancialFrequencyLiteral
@@ -657,6 +707,7 @@ class InstrumentFinancialStatementResponse(BaseModel):
 
 
 class InstrumentHolderRow(BaseModel):
+    """Institutional or fund holder row."""
     holder: str
     date_reported: Optional[str] = None
     shares: Optional[float] = None
@@ -666,6 +717,7 @@ class InstrumentHolderRow(BaseModel):
 
 
 class InstrumentHoldersResponse(BaseModel):
+    """Institutional and mutual-fund holder tables."""
     symbol: str
     institutional: list[InstrumentHolderRow] = Field(default_factory=list)
     mutual_funds: list[InstrumentHolderRow] = Field(default_factory=list)
@@ -674,12 +726,14 @@ class InstrumentHoldersResponse(BaseModel):
 
 
 class InstrumentOptionExpirationsResponse(BaseModel):
+    """Listed option expiration dates for a symbol."""
     symbol: str
     expirations: list[str] = Field(default_factory=list)
     available: bool = True
 
 
 class InstrumentOptionLegRow(BaseModel):
+    """One strike row in an option chain."""
     strike: float
     last: Optional[float] = None
     bid: Optional[float] = None
@@ -690,6 +744,7 @@ class InstrumentOptionLegRow(BaseModel):
 
 
 class InstrumentOptionChainResponse(BaseModel):
+    """Calls and puts for one expiry."""
     symbol: str
     expiry: str
     calls: list[InstrumentOptionLegRow] = Field(default_factory=list)
@@ -725,12 +780,14 @@ class InstrumentValuationMeasuresPayload(BaseModel):
 
 
 class InstrumentYfinanceTableResponse(BaseModel):
+    """Generic yfinance table wrapper for analyst/insider routes."""
     symbol: str
     available: bool = False
     data: InstrumentYfinanceTablePayload = Field(default_factory=InstrumentYfinanceTablePayload)
 
 
 class InstrumentAnalystPriceTargetsResponse(BaseModel):
+    """Analyst price target summary for a symbol."""
     symbol: str
     available: bool = False
     current: Optional[float] = None
@@ -749,6 +806,7 @@ class InstrumentJsonBlobResponse(BaseModel):
 
 
 class IngestionRunOut(BaseModel):
+    """One Timescale ingestion_runs row (OHLCV writeback jobs)."""
     id: int
     job: str
     started_at: Optional[str] = None
@@ -765,11 +823,13 @@ OverallHealthStatusLiteral = Literal["ok", "degraded", "error"]
 
 
 class HealthComponentModel(BaseModel):
+    """Single dependency probe result for health checks."""
     status: HealthComponentStatusLiteral
     latency_ms: float = Field(ge=0.0)
 
 
 class HealthResponseModel(BaseModel):
+    """Aggregated API health across backend, Postgres, yfinance, and Alpaca."""
     status: OverallHealthStatusLiteral
     backend: HealthComponentModel
     database: HealthComponentModel
@@ -781,6 +841,7 @@ MoversKindLiteral = Literal["gainers", "losers", "active"]
 
 
 class MarketSnapshotRow(BaseModel):
+    """One symbol row in a batched market snapshot."""
     symbol: str
     last: Optional[float] = None
     pct_change_1d: Optional[float] = None
@@ -790,6 +851,7 @@ class MarketSnapshotRow(BaseModel):
 
 
 class MarketSnapshotRequest(BaseModel):
+    """POST body listing up to 32 symbols for snapshot OHLCV."""
     symbols: list[str] = Field(..., min_length=1, max_length=32)
 
     @model_validator(mode="after")
@@ -800,10 +862,12 @@ class MarketSnapshotRequest(BaseModel):
 
 
 class MarketSnapshotResponse(BaseModel):
+    """Batched snapshot rows built from stored or live bars."""
     rows: list[MarketSnapshotRow]
 
 
 class MarketMoverRow(BaseModel):
+    """One screener mover row."""
     ticker: str
     price: Optional[float] = None
     pct_change: Optional[float] = None
@@ -811,11 +875,13 @@ class MarketMoverRow(BaseModel):
 
 
 class MarketMoversResponse(BaseModel):
+    """Gainers, losers, or active list from the market screener."""
     kind: MoversKindLiteral
     rows: list[MarketMoverRow]
 
 
 class MarketHeadlineItem(BaseModel):
+    """One market-wide headline."""
     title: str
     publisher: Optional[str] = None
     link: Optional[str] = None
@@ -823,6 +889,7 @@ class MarketHeadlineItem(BaseModel):
 
 
 class MarketHeadlinesResponse(BaseModel):
+    """Headline list for the market overview."""
     headlines: list[MarketHeadlineItem]
 
 
@@ -830,6 +897,7 @@ class MarketHeadlinesResponse(BaseModel):
 
 
 class AlphaLintBodyRequest(BaseModel):
+    """POST body with alpha source to lint via pyright."""
     source_body: str = Field(..., max_length=_SOURCE_MAX)
 
     @field_validator("source_body", mode="before")
@@ -841,6 +909,7 @@ class AlphaLintBodyRequest(BaseModel):
 
 
 class AlphaLintDiagnostic(BaseModel):
+    """One pyright diagnostic on wrapped alpha source."""
     severity: str
     message: str
     startLineNumber: int
@@ -850,16 +919,19 @@ class AlphaLintDiagnostic(BaseModel):
 
 
 class AlphaLintBodyResponse(BaseModel):
+    """Lint diagnostics for an alpha function body."""
     diagnostics: list[AlphaLintDiagnostic]
 
 
 class AlphaAssistBodyRequest(BaseModel):
+    """POST body for LLM assist on alpha source."""
     source_body: str = Field(..., max_length=_SOURCE_MAX)
     alpha_name: Optional[str] = Field(default=None, max_length=128)
     alpha_description: Optional[str] = Field(default=None, max_length=2048)
 
 
 class AlphaAssistMarker(BaseModel):
+    """Editor marker mirroring an assist issue range."""
     severity: str
     message: str
     startLineNumber: int
@@ -869,6 +941,7 @@ class AlphaAssistMarker(BaseModel):
 
 
 class AlphaAssistIssue(BaseModel):
+    """Assist suggestion with optional corrected_body."""
     id: str
     severity: str
     message: str
@@ -887,6 +960,7 @@ class AlphaAssistBodyResponse(BaseModel):
 
 
 class AlphaAssistBacktestReviewRequest(BaseModel):
+    """POST body to review backtest metrics against alpha source."""
     source_body: str = Field(..., max_length=_SOURCE_MAX)
     alpha_name: Optional[str] = Field(default=None, max_length=128)
     alpha_description: Optional[str] = Field(default=None, max_length=2048)
@@ -937,6 +1011,7 @@ class PaperCycleRequest(BaseModel):
 
 
 class PaperCycleResponse(BaseModel):
+    """Institutional paper desk cycle output (targets, parent ids, messages)."""
     correlation_id: str
     blend_mode: Optional[str] = None
     tickers: list[str] = Field(default_factory=list)
@@ -1013,11 +1088,13 @@ class AlpacaAccountActivityOut(BaseModel):
 
 
 class AlpacaAccountActivitiesResponse(BaseModel):
+    """Paginated Alpaca account activities from the trade desk."""
     activities: list[AlpacaAccountActivityOut] = Field(default_factory=list)
     next_page_token: Optional[str] = None
 
 
 class AlpacaPortfolioHistoryOut(BaseModel):
+    """Alpaca portfolio history series from the broker API."""
     timestamp: list[int] = Field(default_factory=list)
     equity: list[float] = Field(default_factory=list)
     profit_loss: list[float] = Field(default_factory=list)
@@ -1028,6 +1105,7 @@ class AlpacaPortfolioHistoryOut(BaseModel):
 
 
 class AlpacaAccountConfigurationsOut(BaseModel):
+    """Alpaca account configuration flags from the broker."""
     dtbp_check: str
     fractional_trading: bool
     max_margin_multiplier: str
@@ -1085,6 +1163,7 @@ class OmsOrderPlaceRequest(BaseModel):
 
 
 class OmsParentOrderOut(BaseModel):
+    """Manual OMS parent order row for blotter APIs."""
     parent_id: str
     symbol: str
     side: str
@@ -1103,10 +1182,12 @@ class OmsParentOrderOut(BaseModel):
 
 
 class OmsOrdersResponse(BaseModel):
+    """List wrapper for parent orders."""
     orders: list[OmsParentOrderOut]
 
 
 class OmsFillOut(BaseModel):
+    """Single fill row linked to a parent order."""
     trade_id: str
     parent_order_id: str
     symbol: str
@@ -1119,10 +1200,12 @@ class OmsFillOut(BaseModel):
 
 
 class OmsFillsResponse(BaseModel):
+    """List wrapper for recent or parent-scoped fills."""
     fills: list[OmsFillOut]
 
 
 class OmsPositionOut(BaseModel):
+    """Open position with working order shares from the OMS ledger."""
     symbol: str
     qty: float
     side: str
@@ -1136,11 +1219,13 @@ class OmsPositionOut(BaseModel):
 
 
 class OmsPositionsResponse(BaseModel):
+    """Alpaca positions augmented with working buy/sell quantities."""
     positions: list[OmsPositionOut]
     paper: bool
 
 
 class OmsCancelResponse(BaseModel):
+    """Cancel acknowledgement for a parent order id."""
     parent_id: str
     state: str
     canceled: bool

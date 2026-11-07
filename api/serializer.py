@@ -1,3 +1,4 @@
+"""JSON-safe serialization of backtest engine outputs."""
 from __future__ import annotations
 
 import math
@@ -9,6 +10,7 @@ import pandas as pd
 
 
 def _json_scalar(x: Any) -> Any:
+    """Coerce numpy/pandas scalars to JSON-friendly values, dropping non-finite floats."""
     if x is None:
         return None
     if isinstance(x, (bool, str)):
@@ -36,6 +38,7 @@ def _json_scalar(x: Any) -> Any:
 
 
 def equity_curve_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
+    """Convert an equity DataFrame to ISO-dated record dicts."""
     if df.empty:
         return []
     tmp = df.reset_index()
@@ -53,6 +56,7 @@ def equity_curve_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
 
 
 def turnover_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
+    """Emit one dict per turnover row with ISO ``date`` and scalar columns."""
     if df.empty:
         return []
     out: list[dict[str, Any]] = []
@@ -67,6 +71,7 @@ def turnover_to_records(df: pd.DataFrame) -> list[dict[str, Any]]:
 def _serialize_group_exposure_history(
     raw_list: Any, *, max_points: int
 ) -> list[dict[str, Any]]:
+    """Tail-limit tuple history into gross/net group exposure records."""
     if not isinstance(raw_list, list) or not raw_list:
         return []
     tail = raw_list[-max_points:] if len(raw_list) > max_points else raw_list
@@ -93,6 +98,7 @@ def _serialize_group_exposure_history(
 
 
 def _serialize_exposure_history(df: Any, *, max_points: int) -> list[dict[str, Any]]:
+    """Tail-limit exposure DataFrame via ``turnover_to_records``."""
     if not isinstance(df, pd.DataFrame) or df.empty:
         return []
     tail = df.tail(max_points) if len(df) > max_points else df
@@ -100,6 +106,7 @@ def _serialize_exposure_history(df: Any, *, max_points: int) -> list[dict[str, A
 
 
 def _serialize_trade_events(raw_events: Any, *, max_events: int) -> list[dict[str, Any]]:
+    """Tail-limit trade event dicts with ISO timestamps."""
     if not isinstance(raw_events, list) or not raw_events:
         return []
     tail = raw_events[-max_events:] if len(raw_events) > max_events else raw_events
@@ -133,6 +140,7 @@ def serialize_backtest_result(
     max_exposure_history: int = 500,
     max_trade_events: int = 2000,
 ) -> dict[str, Any]:
+    """Build the API result dict with capped history lists and json-scalar analytics."""
     metrics = {k: _json_scalar(v) for k, v in raw["metrics"].items()}
     eq = raw["equity_curve"]
     equity_records = equity_curve_to_records(eq) if isinstance(eq, pd.DataFrame) else []
@@ -187,6 +195,7 @@ def serialize_backtest_result(
 
 
 def result_summary_from_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
+    """Pick headline metric keys present in ``metrics``."""
     keys = (
         "total_return_pct",
         "cagr_pct",

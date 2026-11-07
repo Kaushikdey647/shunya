@@ -1,3 +1,4 @@
+"""Environment-backed ``SHUNYA_API_*`` settings loaded from repo ``.env``."""
 from __future__ import annotations
 
 from functools import lru_cache
@@ -17,6 +18,7 @@ __all__ = ["Settings", "get_settings", "env_yfinance_repair_default"]
 
 
 class Settings(BaseSettings):
+    """Pydantic settings for Alpaca, database URL, worker tuning, and Ollama assist."""
     model_config = SettingsConfigDict(
         env_prefix="SHUNYA_API_",
         extra="ignore",
@@ -69,4 +71,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return a cached ``Settings`` instance."""
     return Settings()

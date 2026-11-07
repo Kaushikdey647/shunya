@@ -9,6 +9,7 @@ from api.schemas.models import MarketHeadlineItem, MarketMoverRow, MarketSnapsho
 
 @runtime_checkable
 class MarketSnapshotPort(Protocol):
+    """Callable protocol for symbol snapshot rows used by market routes."""
     def __call__(
         self,
         symbols: list[str],
@@ -20,6 +21,7 @@ class MarketSnapshotPort(Protocol):
 
 @runtime_checkable
 class MarketMoversPort(Protocol):
+    """Callable protocol for gainers, losers, or active mover lists."""
     def __call__(
         self,
         kind: Literal["gainers", "losers", "active"],
@@ -32,5 +34,6 @@ class MarketMoversPort(Protocol):
 
 @runtime_checkable
 class MarketHeadlinesPort(Protocol):
+    """Callable protocol for financial headline items."""
     def __call__(self, limit: int, *, session: Any | None = None) -> list[MarketHeadlineItem]:
         ...

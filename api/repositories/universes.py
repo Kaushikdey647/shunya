@@ -21,6 +21,7 @@ from api.schemas.models import (
 
 
 def _parse_uuid(uid: str) -> Optional[UUID]:
+    """Return ``None`` when the string is not a valid UUID."""
     try:
         return UUID(str(uid).strip())
     except ValueError:
@@ -28,6 +29,7 @@ def _parse_uuid(uid: str) -> Optional[UUID]:
 
 
 def universe_exists(universe_id: str) -> bool:
+    """Check ``api_universes`` for the parsed universe id."""
     u = _parse_uuid(universe_id)
     if u is None:
         return False
@@ -40,6 +42,7 @@ def universe_exists(universe_id: str) -> bool:
 
 
 def constituent_tickers(universe_id: str) -> list[str]:
+    """List tickers for universe members via ``api_universe_members``."""
     u = _parse_uuid(universe_id)
     if u is None:
         return []
@@ -61,6 +64,7 @@ def constituent_tickers(universe_id: str) -> list[str]:
 
 
 def _row_universe_out(row: dict[str, Any]) -> UniverseOut:
+    """Build ``UniverseOut`` including ``member_count`` from the query row."""
     return UniverseOut(
         id=str(row["id"]),
         name=row["name"],
@@ -72,6 +76,7 @@ def _row_universe_out(row: dict[str, Any]) -> UniverseOut:
 
 
 def insert_universe(body: UniverseCreate) -> UniverseOut:
+    """Insert into ``api_universes`` and surface duplicate names as ``RuntimeError``."""
     import psycopg
     from psycopg import errors as pg_errors
 
@@ -97,6 +102,7 @@ def insert_universe(body: UniverseCreate) -> UniverseOut:
 
 
 def list_universes(*, limit: int = 100, offset: int = 0) -> list[UniverseOut]:
+    """List universes ordered by ``updated_at`` descending."""
     import psycopg
 
     with psycopg.connect(resolve_database_url()) as conn:
@@ -116,6 +122,7 @@ def list_universes(*, limit: int = 100, offset: int = 0) -> list[UniverseOut]:
 
 
 def get_universe(universe_id: str) -> Optional[UniverseOut]:
+    """Fetch one universe row with member count, or ``None``."""
     u = _parse_uuid(universe_id)
     if u is None:
         return None
@@ -137,6 +144,7 @@ def get_universe(universe_id: str) -> Optional[UniverseOut]:
 
 
 def update_universe(universe_id: str, patch: UniversePatch) -> Optional[UniverseOut]:
+    """Patch name or description and bump ``updated_at``."""
     u = _parse_uuid(universe_id)
     if u is None:
         return None
@@ -177,6 +185,7 @@ def update_universe(universe_id: str, patch: UniversePatch) -> Optional[Universe
 
 
 def delete_universe(universe_id: str) -> bool:
+    """Delete the universe row when the id is valid."""
     u = _parse_uuid(universe_id)
     if u is None:
         return False
@@ -196,6 +205,7 @@ def list_members(
     limit: int = 200,
     offset: int = 0,
 ) -> tuple[list[UniverseMemberOut], int]:
+    """Return paginated member rows with latest classification labels and total count."""
     u = _parse_uuid(universe_id)
     if u is None:
         return [], 0
@@ -244,6 +254,7 @@ def list_members(
 
 
 def _latest_quote_types(cur: Any, tickers: list[str]) -> dict[str, Optional[str]]:
+    """Map tickers to latest ``quote_type`` from ``symbol_classifications``."""
     if not tickers:
         return {}
     cur.execute(
@@ -351,6 +362,7 @@ def add_members_strict(universe_id: str, tickers: list[str]) -> int:
 
 
 def remove_members(universe_id: str, tickers: list[str]) -> int:
+    """Delete membership rows matching the given tickers."""
     u = _parse_uuid(universe_id)
     if u is None:
         return 0
@@ -374,6 +386,7 @@ def remove_members(universe_id: str, tickers: list[str]) -> int:
 
 
 def replace_members(universe_id: str, tickers: list[str]) -> None:
+    """Replace all members, raising on unknown tickers after clearing existing rows."""
     u = _parse_uuid(universe_id)
     if u is None:
         raise ValueError("invalid_universe_id")
@@ -398,6 +411,7 @@ def replace_members(universe_id: str, tickers: list[str]) -> None:
 
 
 def universe_summary(universe_id: str) -> Optional[UniverseSummaryOut]:
+    """Aggregate sector/industry breakdown and latest ``fundamentals_daily`` stats for members."""
     u = _parse_uuid(universe_id)
     if u is None:
         return None

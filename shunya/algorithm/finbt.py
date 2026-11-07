@@ -1,3 +1,5 @@
+"""FinBT: Backtrader cerebro wrapper around :class:`~shunya.algorithm.finstrat.FinStrat`."""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -62,6 +64,7 @@ class _FinBTStrategy(bt.Strategy):
         return pd.Timestamp(bt.num2date(self.datas[0].datetime[0]))
 
     def notify_order(self, order: Any) -> None:
+        """Record completed Backtrader fills into ``trade_events``."""
         if order.status != order.Completed:
             return
         ex = order.executed
@@ -86,6 +89,7 @@ class _FinBTStrategy(bt.Strategy):
         )
 
     def next(self) -> None:
+        """Rebalance each bar via ``FinStrat.pass_`` and ``order_target_value``."""
         dt = self._current_dt()
         fs: FinStrat = self.p.fin_strat
         ts = fs._ts

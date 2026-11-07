@@ -138,6 +138,7 @@ class KiteHistoricalMarketDataProvider:
         bar_spec: Optional[BarSpec] = None,
         bar_index_policy: Optional[BarIndexPolicy] = None,
     ) -> pd.DataFrame:
+        """Download Kite historical candles per symbol and merge multi-ticker frames."""
         if not ticker_list:
             return pd.DataFrame()
 

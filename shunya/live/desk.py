@@ -39,6 +39,7 @@ class PaperCycleResult:
     messages: List[str] = field(default_factory=list)
 
     def as_dict(self) -> Dict[str, Any]:
+        """Serialize correlation id, targets, intents, and EMS parent ids for logging."""
         return {
             "correlation_id": self.correlation_id,
             "blend_mode": self.blend_mode,
@@ -216,4 +217,5 @@ class InstitutionalPaperDesk:
 
 
 def new_correlation_id(prefix: str = "paper") -> str:
+    """Generate a short correlation id with an optional prefix."""
     return f"{prefix}-{uuid.uuid4().hex[:16]}"

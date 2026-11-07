@@ -34,14 +34,17 @@ class NotificationHub:
         self._lock = asyncio.Lock()
 
     async def attach(self, websocket: WebSocket) -> None:
+        """Track a WebSocket client for notification fan-out."""
         async with self._lock:
             self._clients.add(websocket)
 
     async def detach(self, websocket: WebSocket) -> None:
+        """Stop sending notifications to a WebSocket client."""
         async with self._lock:
             self._clients.discard(websocket)
 
     async def publish(self, payload: dict[str, Any]) -> None:
+        """Send JSON to all attached clients, dropping dead connections."""
         async with self._lock:
             targets = list(self._clients)
         dead: list[WebSocket] = []

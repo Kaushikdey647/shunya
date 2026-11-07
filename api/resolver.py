@@ -1,3 +1,4 @@
+"""Resolve packaged or inline alpha callables for backtests."""
 from __future__ import annotations
 
 import importlib
@@ -11,6 +12,7 @@ from api.inline_alpha import resolve_alpha_from_source
 
 
 def resolve_alpha(import_ref: str) -> Callable[[AlphaContext], Any]:
+    """Import ``import_ref`` module:attribute after ``validate_import_ref``."""
     validate_import_ref(import_ref)
     mod_name, _, attr = import_ref.partition(":")
     if not mod_name or not attr:

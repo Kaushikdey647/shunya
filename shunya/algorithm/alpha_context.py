@@ -1,3 +1,5 @@
+"""AlphaContext, AlphaSeries, and operator namespaces for declarative JAX alphas."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -44,10 +46,12 @@ class AlphaSeries:
 
     @property
     def latest(self) -> jnp.ndarray:
+        """Cross-section at the final time row ``data[-1, :]``."""
         return self.data[-1, :]
 
     @property
     def shape(self) -> tuple[int, ...]:
+        """Shape of the underlying ``(time, n_tickers)`` tensor."""
         return tuple(self.data.shape)
 
     def _binary(self, other: Any, op: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray]) -> AlphaSeries:
@@ -101,30 +105,37 @@ class TimeSeriesOps:
 
     @staticmethod
     def delay(x: AlphaSeries | jnp.ndarray, lag: int) -> AlphaSeries:
+        """Lag history via :func:`~shunya.algorithm.time_series.tsdelay`."""
         return AlphaSeries(time_series.tsdelay(_coerce_series_data(x), lag))
 
     @staticmethod
     def delta(x: AlphaSeries | jnp.ndarray, lag: int) -> AlphaSeries:
+        """Bar-over-bar change via :func:`~shunya.algorithm.time_series.tsdelta`."""
         return AlphaSeries(time_series.tsdelta(_coerce_series_data(x), lag))
 
     @staticmethod
     def sum(x: AlphaSeries | jnp.ndarray, window: int) -> AlphaSeries:
+        """Rolling sum via :func:`~shunya.algorithm.time_series.tssum`."""
         return AlphaSeries(time_series.tssum(_coerce_series_data(x), window))
 
     @staticmethod
     def mean(x: AlphaSeries | jnp.ndarray, window: int) -> AlphaSeries:
+        """Rolling mean via :func:`~shunya.algorithm.time_series.tsmean`."""
         return AlphaSeries(time_series.tsmean(_coerce_series_data(x), window))
 
     @staticmethod
     def std(x: AlphaSeries | jnp.ndarray, window: int) -> AlphaSeries:
+        """Rolling std via :func:`~shunya.algorithm.time_series.tsstddev`."""
         return AlphaSeries(time_series.tsstddev(_coerce_series_data(x), window))
 
     @staticmethod
     def zscore(x: AlphaSeries | jnp.ndarray, window: int) -> AlphaSeries:
+        """Rolling z-score via :func:`~shunya.algorithm.time_series.tszscore`."""
         return AlphaSeries(time_series.tszscore(_coerce_series_data(x), window))
 
     @staticmethod
     def rank(x: AlphaSeries | jnp.ndarray, window: int) -> AlphaSeries:
+        """Rolling rank via :func:`~shunya.algorithm.time_series.tsrank`."""
         return AlphaSeries(time_series.tsrank(_coerce_series_data(x), window))
 
     @staticmethod
@@ -135,6 +146,7 @@ class TimeSeriesOps:
         lag: int = 0,
         retval: str = "b",
     ) -> AlphaSeries:
+        """Rolling OLS via :func:`~shunya.algorithm.time_series.tsregression`."""
         return AlphaSeries(
             time_series.tsregression(
                 _coerce_series_data(y),
@@ -147,6 +159,7 @@ class TimeSeriesOps:
 
     @staticmethod
     def humpdecay(x: AlphaSeries | jnp.ndarray, hump: float) -> AlphaSeries:
+        """Hump decay via :func:`~shunya.algorithm.time_series.humpdecay`."""
         return AlphaSeries(time_series.humpdecay(_coerce_series_data(x), hump))
 
 
@@ -165,26 +178,33 @@ class CrossSectionOps:
         raise ValueError(f"Cross-sectional input must be 1D or 2D, got shape {arr.shape}")
 
     def rank(self, x: AlphaSeries | jnp.ndarray) -> jnp.ndarray:
+        """Cross-sectional rank on the latest bar."""
         return cross_section.rank(self._latest(x))
 
     def zscore(self, x: AlphaSeries | jnp.ndarray) -> jnp.ndarray:
+        """Cross-sectional z-score on the latest bar."""
         return cross_section.zscore(self._latest(x))
 
     def scale(self, x: AlphaSeries | jnp.ndarray, *, target: float = 1.0) -> jnp.ndarray:
+        """Rescale latest cross-section to ``target`` gross."""
         return cross_section.scale(self._latest(x), target=target)
 
     def sign(self, x: AlphaSeries | jnp.ndarray) -> jnp.ndarray:
+        """Elementwise sign of the latest cross-section."""
         return cross_section.sign(self._latest(x))
 
     def winsorize(self, x: AlphaSeries | jnp.ndarray, tail: float) -> jnp.ndarray:
+        """Winsorize tails on the latest cross-section."""
         return cross_section.winsorize(self._latest(x), tail)
 
     def neutralize_market(self, x: AlphaSeries | jnp.ndarray) -> jnp.ndarray:
+        """Demean the latest cross-section."""
         return cross_section.neutralize_market(self._latest(x))
 
     def neutralize_groups(
         self, x: AlphaSeries | jnp.ndarray, group_ids: jnp.ndarray
     ) -> jnp.ndarray:
+        """Group demean on the latest cross-section."""
         return cross_section.neutralize_groups(self._latest(x), group_ids)
 
 
@@ -269,13 +289,16 @@ class AlphaContext:
 
     @property
     def n_tickers(self) -> int:
+        """Number of tickers (width of OHLCV tensors)."""
         return int(self.close.shape[1])
 
     @property
     def feature_names(self) -> tuple[str, ...]:
+        """Sorted names in the extra ``features`` map."""
         return tuple(self.features.keys())
 
     def feature(self, name: str) -> AlphaSeries:
+        """Resolve alias and return a named fundamental or custom feature tensor."""
         key = resolve_fundamental_feature_alias(str(name))
         if key not in self.features:
             raise KeyError(f"AlphaContext feature {name!r} is not available")

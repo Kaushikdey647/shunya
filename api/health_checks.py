@@ -1,3 +1,4 @@
+"""Aggregate component health probes for ``GET /health``."""
 from __future__ import annotations
 
 import logging
@@ -25,6 +26,7 @@ def _elapsed_ms(t0: float) -> float:
 
 
 def check_backend() -> HealthComponentModel:
+    """Return ``error`` when ``get_settings()`` raises."""
     t0 = time.perf_counter()
     try:
         get_settings()
@@ -35,6 +37,7 @@ def check_backend() -> HealthComponentModel:
 
 
 def check_database() -> HealthComponentModel:
+    """Run ``SELECT 1`` against the API Postgres URL."""
     t0 = time.perf_counter()
     try:
         from api.db import resolve_database_url
@@ -90,6 +93,7 @@ def check_alpaca() -> HealthComponentModel:
 
 
 def collect_health() -> HealthResponseModel:
+    """Mark overall status ``error`` when backend or database fails, else ``degraded`` on provider errors."""
     backend = check_backend()
     database = check_database()
     yfinance = check_yfinance()

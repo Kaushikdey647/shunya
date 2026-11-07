@@ -28,6 +28,7 @@ def sync_valuation_measures_to_db(
     columns: Sequence[str],
     records: Sequence[Mapping[str, Any]],
 ) -> None:
+    """Best-effort upsert of valuation measures into ``fundamentals_daily`` when a DSN exists."""
     dsn = try_market_cache_dsn()
     if not dsn or not records:
         return
@@ -58,6 +59,7 @@ def sync_insider_transactions_table_to_db(
     columns: Sequence[str],
     records: Sequence[Mapping[str, Any]],
 ) -> None:
+    """Best-effort upsert of insider transaction rows when a DSN exists."""
     dsn = try_market_cache_dsn()
     if not dsn or not records:
         return
@@ -86,6 +88,7 @@ def sync_calendar_dict_to_earnings_db(
     source: str,
     data: Mapping[str, Any],
 ) -> None:
+    """Best-effort upsert of earnings calendar rows when a DSN exists."""
     dsn = try_market_cache_dsn()
     if not dsn or not data:
         return

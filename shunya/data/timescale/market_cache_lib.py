@@ -88,6 +88,7 @@ def default_market_cache_ttl_days() -> int:
 
 
 def try_market_cache_dsn() -> str | None:
+    """Return a Postgres DSN when env vars are set and :func:`get_database_url` succeeds."""
     if not (os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL")):
         return None
     try:
@@ -135,6 +136,7 @@ def ohlcv_manifest_is_fresh(
     ttl_days: int,
     now: datetime | None = None,
 ) -> bool:
+    """Return whether ``last_refresh_at`` is within ``ttl_days`` of ``now``."""
     if last_refresh_at is None:
         return False
     now_ = now or datetime.now(timezone.utc)
@@ -153,6 +155,7 @@ def fetch_ohlcv_manifest_last_refresh_sync(
     interval: str,
     source: str,
 ) -> datetime | None:
+    """Load ``last_refresh_at`` for one ticker/interval/source manifest row."""
     import psycopg
 
     with psycopg.connect(dsn, connect_timeout=5) as conn:
@@ -182,6 +185,7 @@ def touch_ohlcv_refresh_manifest_on_cursor(
     interval: str,
     source: str,
 ) -> None:
+    """Upsert ``ohlcv_symbol_interval_refresh.last_refresh_at`` to ``now()`` on ``cur``."""
     cur.execute(
         """
         INSERT INTO ohlcv_symbol_interval_refresh (symbol_id, interval, source, last_refresh_at, last_error, updated_at)
@@ -202,6 +206,7 @@ def touch_ohlcv_refresh_manifest_sync(
     interval: str,
     source: str,
 ) -> None:
+    """Ensure the symbol row exists, then touch the OHLCV refresh manifest."""
     import psycopg
 
     from shunya.data.timescale.ingest_lib import ensure_symbols
@@ -225,6 +230,7 @@ def get_instrument_document_payload_if_fresh(
     ttl_days: int,
     now: datetime | None = None,
 ) -> dict[str, Any] | None:
+    """Return cached instrument JSON when ``fetched_at`` is within ``ttl_days``."""
     import psycopg
 
     now_ = now or datetime.now(timezone.utc)
@@ -257,6 +263,7 @@ def upsert_instrument_document_sync(
     resource_key: str,
     payload: Mapping[str, Any],
 ) -> None:
+    """Upsert a yfinance instrument document payload for ``ticker``."""
     import psycopg
     from psycopg.types.json import Json
 

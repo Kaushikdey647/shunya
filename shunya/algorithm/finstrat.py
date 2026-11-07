@@ -1,3 +1,5 @@
+"""FinStrat: BRAIN-style alpha pipeline (decay, truncate, neutralize, scale) on finTs panels."""
+
 from __future__ import annotations
 
 from collections import deque
@@ -157,34 +159,42 @@ class FinStrat:
 
     @property
     def decay(self) -> float:
+        """EMA or linear decay strength (0 disables temporal smoothing)."""
         return self._decay
 
     @property
     def decay_mode(self) -> DecayMode:
+        """``ema`` or ``linear`` temporal decay mode."""
         return self._decay_mode
 
     @property
     def decay_window(self) -> int:
+        """Lookback length when ``decay_mode`` is ``linear``."""
         return self._decay_window
 
     @property
     def signal_delay(self) -> int:
+        """Panel bars to lag before reading features at execution time."""
         return self._signal_delay
 
     @property
     def intraday_session_isolated_lag(self) -> bool:
+        """Reset decay state when the trading session changes on intraday bars."""
         return self._intraday_session_isolated_lag
 
     @property
     def neutralization(self) -> Neutralization:
+        """Cross-section neutralization applied after truncation."""
         return self._neutralization
 
     @property
     def temporal_mode(self) -> TemporalMode:
+        """Whether decay advances per bar step or elapsed trading time."""
         return self._temporal_mode
 
     @property
     def truncation(self) -> float:
+        """Winsor tail fraction (0 skips truncation)."""
         return self._truncation
 
     def reset_pipeline_state(self) -> None:
@@ -525,6 +535,7 @@ class FinStrat:
         return vec
 
     def scores(self, indicators: jnp.ndarray) -> jnp.ndarray:
+        """Removed API; raises ``NotImplementedError`` directing callers to ``scores_at``."""
         raise NotImplementedError(
             "scores(indicators) was removed. Use context-based alpha authoring and "
             "call scores_at(execution_date=..., tickers=...)."

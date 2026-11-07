@@ -49,6 +49,7 @@ class PendingOhlcvWriteback:
 
 @dataclass
 class InstrumentOhlcvResult:
+    """OHLCV HTTP response plus optional deferred Timescale writeback work."""
     response: InstrumentOhlcvResponse
     pending_deferred_writeback: PendingOhlcvWriteback | None = None
 
@@ -137,6 +138,7 @@ def resolve_instrument_ohlcv_sync(
     defer_storage: bool = False,
     route: str = "auto",
 ) -> InstrumentOhlcvResult:
+    """Resolve market route, fetch OHLCV, and optionally schedule Timescale writeback."""
     bar_spec = yfinance_interval_to_bar_spec(interval)
     interval_key = bar_spec_to_interval_key(bar_spec)
     start_inclusive, end_exclusive = period_to_utc_bounds(period)

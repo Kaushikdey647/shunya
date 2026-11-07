@@ -200,6 +200,7 @@ def yfinance_dividends_splits_to_corporate_actions(
     splits: pd.Series | None,
     source: str,
 ) -> list[tuple[Any, ...]]:
+    """Convert yfinance dividend/split series into corporate-action upsert tuples."""
     rows: list[tuple[Any, ...]] = []
     if dividends is not None and len(dividends):
         for ts, amt in dividends.items():
@@ -313,6 +314,7 @@ def earnings_dates_dataframe_to_rows(
     *,
     source: str,
 ) -> list[tuple[Any, ...]]:
+    """Map an earnings-dates frame into ``earnings_dates`` upsert tuples."""
     if df is None or df.empty:
         return []
     rows: list[tuple[Any, ...]] = []

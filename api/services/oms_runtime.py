@@ -30,6 +30,7 @@ _log = logging.getLogger(__name__)
 
 
 def _parent_to_event_dict(p: ParentOrder) -> dict:
+    """Serialize parent order fields for SSE/WebSocket event payloads."""
     return {
         "parent_id": p.parent_id,
         "symbol": p.symbol,
@@ -42,6 +43,7 @@ def _parent_to_event_dict(p: ParentOrder) -> dict:
 
 
 def _fill_to_event_dict(f: ExecutionFill) -> dict:
+    """Serialize fill fields with ISO timestamp for event payloads."""
     return {
         "trade_id": f.trade_id,
         "parent_order_id": f.parent_order_id,
@@ -65,18 +67,22 @@ class PersistingOMS(InstitutionalOMS):
         hub: OrderEventHub,
         **kwargs: object,
     ) -> None:
+        """Store optional Postgres repo, event hub, and broker id map on the OMS."""
         super().__init__(**kwargs)  # type: ignore[arg-type]
         self._repo = repo
         self._hub = hub
         self.broker_order_id_by_parent: dict[str, str] = {}
 
     def set_broker_order_id(self, parent_id: str, broker_order_id: str) -> None:
+        """Remember Alpaca broker order id for a parent."""
         self.broker_order_id_by_parent[parent_id] = broker_order_id
 
     def get_broker_order_id(self, parent_id: str) -> Optional[str]:
+        """Look up stored Alpaca broker order id for a parent."""
         return self.broker_order_id_by_parent.get(parent_id)
 
     def _persist_parent(self, p: ParentOrder, *, origin: Optional[str] = None) -> None:
+        """Upsert parent snapshot to Postgres when a repo is configured."""
         if self._repo is None:
             return
         try:
@@ -96,12 +102,14 @@ class PersistingOMS(InstitutionalOMS):
             _log.exception("Failed to persist OMS parent snapshot for %s", p.parent_id)
 
     def create_parent_order(self, intent: ParentIntent) -> ParentOrder:
+        """Create parent in ledger, persist, and publish an order event."""
         p = super().create_parent_order(intent)
         self._persist_parent(p, origin="manual")
         self._hub.publish_threadsafe({"type": "order", "order": _parent_to_event_dict(p)})
         return p
 
     def mark_parent_working(self, parent_id: str, client_order_id: Optional[str] = None) -> None:
+        """Mark parent working, persist, and publish updated order state."""
         super().mark_parent_working(parent_id, client_order_id)
         p = self.ledger.get_parent(parent_id)
         if p is not None:
@@ -109,6 +117,7 @@ class PersistingOMS(InstitutionalOMS):
             self._hub.publish_threadsafe({"type": "order", "order": _parent_to_event_dict(p)})
 
     def record_fill(self, fill: ExecutionFill) -> None:
+        """Record fill in ledger, persist fill and parent, and publish fill event."""
         if fill.quantity != int(fill.quantity):
             _log.warning(
                 "Fractional fill quantity %s for parent %s; ledger tracks whole shares, "
@@ -128,6 +137,7 @@ class PersistingOMS(InstitutionalOMS):
         self._hub.publish_threadsafe({"type": "fill", "fill": _fill_to_event_dict(fill)})
 
     def apply_alpaca_trade_update(self, data: object, *, fee: float = 0.0) -> None:
+        """Apply Alpaca trade update then persist and publish parent state when owned."""
         from shunya.oms.stream_events import parent_id_from_client_order_id, normalize_alpaca_trade_update
 
         evt = normalize_alpaca_trade_update(data)
@@ -165,6 +175,7 @@ def _sqlalchemy_psycopg_url(raw: str) -> str:
 
 
 def _try_build_repo() -> Optional["OMSRepository"]:
+    """Create OMS Postgres repository or log and return ``None`` when unavailable."""
     try:
         from api.db import resolve_database_url
     except Exception:  # noqa: BLE001
@@ -187,6 +198,7 @@ def _try_build_repo() -> Optional["OMSRepository"]:
 
 
 def build_oms_runtime(alpaca_settings: AlpacaRuntimeSettings) -> OMSRuntime:
+    """Wire PersistingOMS, optional repo, Alpaca trade stream, and event hub."""
     from shunya.oms.alpaca_stream import AlpacaOMSTradeStream
 
     repo = _try_build_repo()

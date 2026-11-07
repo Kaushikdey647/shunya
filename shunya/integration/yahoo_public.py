@@ -24,9 +24,11 @@ class YahooPublicAdapter:
 
     @property
     def session(self) -> Any:
+        """Shared ``requests`` session used for yfinance calls."""
         return self._session
 
     def ticker(self, symbol: str) -> yf.Ticker:
+        """Return a :class:`yfinance.Ticker` bound to this adapter's session."""
         return yf.Ticker(symbol, session=self._session)
 
     def download_daily_snapshot(self, symbols: list[str]) -> pd.DataFrame:
@@ -44,6 +46,7 @@ class YahooPublicAdapter:
         return raw if isinstance(raw, pd.DataFrame) else pd.DataFrame()
 
     def predefined_screen(self, screen_key: str, *, count: int) -> Any:
+        """Call ``yf.screen`` for a predefined screener key."""
         return yf.screen(screen_key, count=count, session=self._session)
 
     def search_headlines(
@@ -54,6 +57,7 @@ class YahooPublicAdapter:
         news_count: int,
         timeout: int = 25,
     ) -> Any:
+        """Run ``yf.Search`` for news headlines with nav links disabled."""
         return yf.Search(
             query,
             max_results=max_results,
@@ -73,6 +77,7 @@ class YahooPublicAdapter:
         include_nav_links: bool = True,
         timeout: int = 25,
     ) -> Any:
+        """Run ``yf.Search`` for instrument discovery with configurable nav links."""
         return yf.Search(
             query,
             max_results=max_results,

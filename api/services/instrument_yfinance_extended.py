@@ -114,6 +114,7 @@ def _fetch_df_cached(
 
 
 def fetch_instrument_valuation_measures(symbol: str) -> InstrumentValuationMeasuresPayload:
+    """Return cached or live yfinance valuation measures and sync to DB when available."""
     hit = instrument_yfinance_document_get(
         InstrumentValuationMeasuresPayload,
         symbol=symbol,
@@ -146,6 +147,7 @@ def fetch_instrument_valuation_measures(symbol: str) -> InstrumentValuationMeasu
 
 
 def fetch_instrument_analyst_price_targets(symbol: str) -> InstrumentAnalystPriceTargetsResponse:
+    """Return cached or live analyst price target dict fields for the symbol."""
     hit = instrument_yfinance_document_get(
         InstrumentAnalystPriceTargetsResponse,
         symbol=symbol,
@@ -179,6 +181,7 @@ def fetch_instrument_analyst_price_targets(symbol: str) -> InstrumentAnalystPric
 
 
 def fetch_instrument_earnings_estimate(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load earnings estimate table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_EARNINGS_ESTIMATE,
@@ -188,6 +191,7 @@ def fetch_instrument_earnings_estimate(symbol: str) -> InstrumentYfinanceTableRe
 
 
 def fetch_instrument_revenue_estimate(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load revenue estimate table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_REVENUE_ESTIMATE,
@@ -197,6 +201,7 @@ def fetch_instrument_revenue_estimate(symbol: str) -> InstrumentYfinanceTableRes
 
 
 def fetch_instrument_earnings_history(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load earnings history table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_EARNINGS_HISTORY,
@@ -206,6 +211,7 @@ def fetch_instrument_earnings_history(symbol: str) -> InstrumentYfinanceTableRes
 
 
 def fetch_instrument_eps_trend(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load EPS trend table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_EPS_TREND,
@@ -215,6 +221,7 @@ def fetch_instrument_eps_trend(symbol: str) -> InstrumentYfinanceTableResponse:
 
 
 def fetch_instrument_eps_revisions(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load EPS revisions table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_EPS_REVISIONS,
@@ -224,6 +231,7 @@ def fetch_instrument_eps_revisions(symbol: str) -> InstrumentYfinanceTableRespon
 
 
 def fetch_instrument_growth_estimates(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load growth estimates table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_GROWTH_ESTIMATES,
@@ -233,6 +241,7 @@ def fetch_instrument_growth_estimates(symbol: str) -> InstrumentYfinanceTableRes
 
 
 def fetch_instrument_recommendations(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load analyst recommendations table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_RECOMMENDATIONS,
@@ -242,6 +251,7 @@ def fetch_instrument_recommendations(symbol: str) -> InstrumentYfinanceTableResp
 
 
 def fetch_instrument_recommendations_summary(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load recommendations summary table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_RECOMMENDATIONS_SUMMARY,
@@ -251,6 +261,7 @@ def fetch_instrument_recommendations_summary(symbol: str) -> InstrumentYfinanceT
 
 
 def fetch_instrument_upgrades_downgrades(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load upgrades/downgrades table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_UPGRADES_DOWNGRADES,
@@ -260,6 +271,7 @@ def fetch_instrument_upgrades_downgrades(symbol: str) -> InstrumentYfinanceTable
 
 
 def fetch_instrument_sustainability(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load sustainability scores table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_SUSTAINABILITY,
@@ -269,6 +281,7 @@ def fetch_instrument_sustainability(symbol: str) -> InstrumentYfinanceTableRespo
 
 
 def fetch_instrument_insider_purchases(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load insider purchases table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_INSIDER_PURCHASES,
@@ -278,6 +291,7 @@ def fetch_instrument_insider_purchases(symbol: str) -> InstrumentYfinanceTableRe
 
 
 def fetch_instrument_insider_transactions(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load insider transactions table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_INSIDER_TRANSACTIONS,
@@ -287,6 +301,7 @@ def fetch_instrument_insider_transactions(symbol: str) -> InstrumentYfinanceTabl
 
 
 def fetch_instrument_insider_roster_holders(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load insider roster holders table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_INSIDER_ROSTER_HOLDERS,
@@ -296,6 +311,7 @@ def fetch_instrument_insider_roster_holders(symbol: str) -> InstrumentYfinanceTa
 
 
 def fetch_instrument_major_holders(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Load major holders table via shared yfinance document cache."""
     return _fetch_df_cached(
         symbol,
         resource_type=DOC_MAJOR_HOLDERS,
@@ -305,6 +321,7 @@ def fetch_instrument_major_holders(symbol: str) -> InstrumentYfinanceTableRespon
 
 
 def fetch_instrument_calendar(symbol: str) -> InstrumentJsonBlobResponse:
+    """Return cached or live earnings calendar JSON and sync earnings rows when present."""
     hit = instrument_yfinance_document_get(
         InstrumentJsonBlobResponse, symbol=symbol, resource_type=DOC_CALENDAR, resource_key=""
     )
@@ -327,6 +344,7 @@ def fetch_instrument_calendar(symbol: str) -> InstrumentJsonBlobResponse:
 
 
 def fetch_instrument_sec_filings(symbol: str) -> InstrumentJsonBlobResponse:
+    """Return cached or live SEC filings JSON blob for the symbol."""
     hit = instrument_yfinance_document_get(
         InstrumentJsonBlobResponse, symbol=symbol, resource_type=DOC_SEC_FILINGS, resource_key=""
     )

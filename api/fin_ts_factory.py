@@ -1,3 +1,4 @@
+"""Construct :class:`~shunya.data.fints.finTs` from API ``FinTsRequest`` payloads."""
 from __future__ import annotations
 
 import os
@@ -13,6 +14,7 @@ from api.timescale_classifications import load_classifications_for_tickers
 
 
 def build_fin_ts(req: FinTsRequest) -> finTs:
+    """Raise ``FinTsConfigurationError`` when Timescale or fundamentals DSN requirements are unmet."""
     bar_spec = bar_spec_model_to_bar_spec(req.bar_spec)
     md: MarketDataProvider | None = resolve_market_data_provider(req)
     if req.market_data_provider == "timescale" and md is None:

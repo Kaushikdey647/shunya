@@ -25,6 +25,7 @@ def instrument_yfinance_document_get(
     resource_type: str,
     resource_key: str = "",
 ) -> _TCacheModel | None:
+    """Load a fresh cached yfinance document from Timescale when DSN and TTL allow."""
     dsn = try_market_cache_dsn()
     if not dsn:
         return None
@@ -53,6 +54,7 @@ def instrument_yfinance_document_put(
     resource_key: str,
     obj: Any,
 ) -> None:
+    """Upsert a yfinance instrument document payload into Timescale when DSN is set."""
     dsn = try_market_cache_dsn()
     if not dsn:
         return

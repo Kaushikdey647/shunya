@@ -126,6 +126,7 @@ def cancel_manual_parent(rt: "TradeDeskRuntime", oms_rt: "OMSRuntime", parent_id
 
 
 def _utc_now():
+    """Delegate to ``shunya.oms.fills.utc_now`` for persisted timestamps."""
     from shunya.oms.fills import utc_now
 
     return utc_now()

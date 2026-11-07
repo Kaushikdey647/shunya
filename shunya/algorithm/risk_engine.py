@@ -48,6 +48,7 @@ _BP_SUBSTRINGS = (
 
 
 def cvxpy_available() -> bool:
+    """True when optional ``cvxpy`` import succeeds."""
     try:
         import cvxpy  # noqa: F401
 
@@ -57,6 +58,7 @@ def cvxpy_available() -> bool:
 
 
 def ledoit_wolf_available() -> bool:
+    """True when ``sklearn.covariance.LedoitWolf`` is importable."""
     try:
         from sklearn.covariance import LedoitWolf  # noqa: F401
 
@@ -132,6 +134,7 @@ class RiskEngineState:
     last_rejection_reason: Optional[str] = None
 
     def reset_tighten(self) -> None:
+        """Clear buying-power ratchet after a successful vet cycle."""
         self.buying_power_tighten = 1.0
         self.last_rejection_reason = None
 
@@ -614,10 +617,12 @@ class DrawdownSentinel:
 
     @property
     def triggered(self) -> bool:
+        """Whether drawdown breached ``max_drawdown_pct`` and kill switch ran."""
         return self._triggered
 
     @property
     def high_water_mark(self) -> float:
+        """Peak account equity observed by the sentinel loop."""
         return self._hwm
 
     async def _resolve_equity(self) -> float:

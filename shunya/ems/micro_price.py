@@ -21,11 +21,13 @@ class MicroPriceUrgency(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class QuoteL1:
+    """Top-of-book bid and ask used for EMS child limit pricing."""
     bid: float
     ask: float
 
     @property
     def mid(self) -> float:
+        """Midpoint when both sides are positive, else the best available side."""
         if self.bid <= 0 or self.ask <= 0:
             return max(self.bid, self.ask, 0.0)
         return (self.bid + self.ask) / 2.0

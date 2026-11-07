@@ -17,6 +17,7 @@ TERMINAL_STATES: Tuple[str, ...] = ("FILLED", "CANCELED", "REJECTED")
 
 
 def _unwired_fsm_trigger() -> bool:
+    """Placeholder FSM trigger that always returns ``False`` before wiring."""
     return False
 
 
@@ -94,6 +95,7 @@ class ParentOrder:
 
     @property
     def state(self) -> str:
+        """Current parent lifecycle state from the ``transitions`` machine."""
         return str(getattr(self, "machine_state", "PENDING_SUBMIT"))
 
     def apply_fill(self, qty: int) -> None:
@@ -117,4 +119,5 @@ class ParentOrder:
         return max(0, self.quantity_ordered - self.quantity_filled)
 
     def is_terminal(self) -> bool:
+        """Return whether the parent is in a terminal FSM state."""
         return self.state in TERMINAL_STATES

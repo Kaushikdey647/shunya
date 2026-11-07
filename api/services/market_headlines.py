@@ -44,6 +44,7 @@ def _headline_from_raw(item: dict[str, Any]) -> MarketHeadlineItem | None:
 
 
 def fetch_market_headlines(limit: int, *, session: Any | None = None) -> list[MarketHeadlineItem]:
+    """Search Yahoo headlines for the default market query and cap the result count."""
     cap = max(1, min(limit, 100))
     adapter = YahooPublicAdapter(session=session)
     try:

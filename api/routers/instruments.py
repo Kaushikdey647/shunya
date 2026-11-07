@@ -1,3 +1,5 @@
+"""Instrument search, yfinance-backed detail, and OHLCV resolution."""
+
 from __future__ import annotations
 
 # TODO(market-data-router): Instrument routes using yfinance directly should delegate to router/adapter stack.
@@ -345,6 +347,7 @@ def _deferred_replace_task(pw: PendingOhlcvWriteback, run_id: int) -> None:
 async def get_instrument_search(
     q: str = Query(..., min_length=1, max_length=MAX_SEARCH_LEN),
 ) -> InstrumentSearchResponse:
+    """Runs yfinance-backed instrument search for query q."""
     query = q.strip()
     if not query:
         raise HTTPException(status_code=400, detail="q is required")
@@ -353,6 +356,7 @@ async def get_instrument_search(
 
 @router.get("/ingestion-runs/{run_id}", response_model=IngestionRunOut)
 async def get_ingestion_run(run_id: int) -> IngestionRunOut:
+    """Loads one Timescale ingestion_runs row by id."""
     if run_id < 1:
         raise HTTPException(status_code=400, detail="invalid run id")
     try:
@@ -370,6 +374,7 @@ async def get_ingestion_run(run_id: int) -> IngestionRunOut:
 
 @router.get("/{symbol}/overview", response_model=InstrumentOverviewResponse)
 async def get_instrument_overview(symbol: str) -> InstrumentOverviewResponse:
+    """Returns lazy instrument overview for a normalized symbol."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_overview, sym)
 
@@ -381,6 +386,7 @@ async def get_instrument_financials(
     frequency: InstrumentFinancialFrequencyLiteral = Query("quarterly"),
     periods: int = Query(8, ge=1, le=8),
 ) -> InstrumentFinancialStatementResponse:
+    """Returns income, balance, or cashflow statement slices."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(
         fetch_instrument_financials,
@@ -393,12 +399,14 @@ async def get_instrument_financials(
 
 @router.get("/{symbol}/holders", response_model=InstrumentHoldersResponse)
 async def get_instrument_holders(symbol: str) -> InstrumentHoldersResponse:
+    """Returns institutional and mutual-fund holder tables."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_holders, sym)
 
 
 @router.get("/{symbol}/options/expirations", response_model=InstrumentOptionExpirationsResponse)
 async def get_instrument_option_expirations(symbol: str) -> InstrumentOptionExpirationsResponse:
+    """Lists option expiration dates for the underlying."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_option_expirations, sym)
 
@@ -408,6 +416,7 @@ async def get_instrument_option_chain(
     symbol: str,
     expiry: str = Query(..., min_length=10, max_length=10, description="Expiry YYYY-MM-DD"),
 ) -> InstrumentOptionChainResponse:
+    """Returns calls and puts for one expiry date."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_option_chain, sym, expiry)
 
@@ -417,114 +426,133 @@ async def get_instrument_option_iv_heatmap(
     symbol: str,
     max_expirations: int = Query(24, ge=1, le=40),
 ) -> InstrumentIvHeatmapResponse:
+    """Builds strike × expiry implied-volatility matrices."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_option_iv_heatmap, sym, max_expirations)
 
 
 @router.get("/{symbol}/valuation-measures", response_model=InstrumentValuationMeasuresPayload)
 async def get_instrument_valuation_measures(symbol: str) -> InstrumentValuationMeasuresPayload:
+    """Returns cached valuation measures table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_valuation_measures, sym)
 
 
 @router.get("/{symbol}/analyst/price-targets", response_model=InstrumentAnalystPriceTargetsResponse)
 async def get_instrument_analyst_price_targets(symbol: str) -> InstrumentAnalystPriceTargetsResponse:
+    """Returns analyst price target summary."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_analyst_price_targets, sym)
 
 
 @router.get("/{symbol}/analyst/earnings-estimate", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_earnings_estimate(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance earnings estimate table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_earnings_estimate, sym)
 
 
 @router.get("/{symbol}/analyst/revenue-estimate", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_revenue_estimate(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance revenue estimate table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_revenue_estimate, sym)
 
 
 @router.get("/{symbol}/analyst/earnings-history", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_earnings_history(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance earnings history table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_earnings_history, sym)
 
 
 @router.get("/{symbol}/analyst/eps-trend", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_eps_trend(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance EPS trend table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_eps_trend, sym)
 
 
 @router.get("/{symbol}/analyst/eps-revisions", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_eps_revisions(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance EPS revisions table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_eps_revisions, sym)
 
 
 @router.get("/{symbol}/analyst/growth-estimates", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_growth_estimates(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance growth estimates table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_growth_estimates, sym)
 
 
 @router.get("/{symbol}/analyst/recommendations", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_recommendations(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance recommendations table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_recommendations, sym)
 
 
 @router.get("/{symbol}/analyst/recommendations-summary", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_recommendations_summary(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance recommendations summary table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_recommendations_summary, sym)
 
 
 @router.get("/{symbol}/analyst/upgrades-downgrades", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_upgrades_downgrades(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance upgrades/downgrades table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_upgrades_downgrades, sym)
 
 
 @router.get("/{symbol}/sustainability", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_sustainability(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance sustainability table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_sustainability, sym)
 
 
 @router.get("/{symbol}/insider/purchases", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_insider_purchases(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance insider purchases table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_insider_purchases, sym)
 
 
 @router.get("/{symbol}/insider/transactions", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_insider_transactions(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance insider transactions table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_insider_transactions, sym)
 
 
 @router.get("/{symbol}/insider/roster-holders", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_insider_roster_holders(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance insider roster holders table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_insider_roster_holders, sym)
 
 
 @router.get("/{symbol}/insider/major-holders", response_model=InstrumentYfinanceTableResponse)
 async def get_instrument_major_holders(symbol: str) -> InstrumentYfinanceTableResponse:
+    """Returns yfinance major holders table."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_major_holders, sym)
 
 
 @router.get("/{symbol}/calendar", response_model=InstrumentJsonBlobResponse)
 async def get_instrument_calendar(symbol: str) -> InstrumentJsonBlobResponse:
+    """Returns earnings calendar JSON blob."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_calendar, sym)
 
 
 @router.get("/{symbol}/sec-filings", response_model=InstrumentJsonBlobResponse)
 async def get_instrument_sec_filings(symbol: str) -> InstrumentJsonBlobResponse:
+    """Returns SEC filings JSON blob."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(fetch_instrument_sec_filings, sym)
 
@@ -534,6 +562,7 @@ async def get_instrument_news(
     symbol: str,
     limit: int = Query(40, ge=1, le=100),
 ) -> InstrumentTickerNewsResponse:
+    """Returns ticker news via _run_ticker_news."""
     sym = _normalize_symbol(symbol)
     return await asyncio.to_thread(_run_ticker_news, sym, limit)
 
@@ -566,6 +595,7 @@ async def get_instrument_ohlcv(
         description="Market route: auto, best_effort, or explicit upstream (yfinance, alpaca_sip, …).",
     ),
 ) -> InstrumentOhlcvResponse:
+    """Resolves OHLCV with optional deferred Timescale writeback job."""
     sym = _normalize_symbol(symbol)
     if interval not in ALLOWED_INTERVALS:
         raise HTTPException(status_code=400, detail="invalid interval")

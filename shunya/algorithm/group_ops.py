@@ -20,6 +20,7 @@ def _validate_shapes(x: np.ndarray, g: np.ndarray) -> None:
 
 
 def group_mean(x: jnp.ndarray, group_ids: jnp.ndarray) -> jnp.ndarray:
+    """Per-group mean of ``x`` (NumPy loop; returns JAX ``float32``)."""
     x_np = np.asarray(x, dtype=float)
     g_np = np.asarray(group_ids)
     _validate_shapes(x_np, g_np)
@@ -37,10 +38,12 @@ def group_mean(x: jnp.ndarray, group_ids: jnp.ndarray) -> jnp.ndarray:
 
 
 def group_neutralize(x: jnp.ndarray, group_ids: jnp.ndarray) -> jnp.ndarray:
+    """Delegate to :func:`~shunya.algorithm.cross_section.neutralize_groups`."""
     return cross_section.neutralize_groups(x, group_ids)
 
 
 def group_zscore(x: jnp.ndarray, group_ids: jnp.ndarray, *, eps: float = _EPS) -> jnp.ndarray:
+    """Per-group z-score; zero when group std is below ``eps``."""
     x_np = np.asarray(x, dtype=float)
     g_np = np.asarray(group_ids)
     _validate_shapes(x_np, g_np)
@@ -62,6 +65,7 @@ def group_zscore(x: jnp.ndarray, group_ids: jnp.ndarray, *, eps: float = _EPS) -
 
 
 def group_rank(x: jnp.ndarray, group_ids: jnp.ndarray) -> jnp.ndarray:
+    """Per-group rank in ``[0, 1]`` (stable sort within each group)."""
     x_np = np.asarray(x, dtype=float)
     g_np = np.asarray(group_ids)
     _validate_shapes(x_np, g_np)

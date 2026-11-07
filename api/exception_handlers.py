@@ -21,6 +21,7 @@ def _validation_detail(exc: RequestValidationError) -> dict[str, Any]:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    """Wire ``ShunyaError`` and ``RequestValidationError`` handlers onto the FastAPI app."""
     @app.exception_handler(ShunyaError)
     async def shunya_error_handler(_request: Request, exc: ShunyaError) -> JSONResponse:
         return JSONResponse(

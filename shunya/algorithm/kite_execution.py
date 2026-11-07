@@ -69,6 +69,7 @@ class KiteExecutionAdapter:
         dry_run: bool,
         correlation_id: str,
     ) -> List[OrderAttempt]:
+        """Map each :class:`OrderSpec` to Kite ``place_order`` (or dry-run)."""
         attempts: List[OrderAttempt] = []
         for spec in orders:
             oid = f"{correlation_id}-{spec.symbol}-{uuid.uuid4().hex[:12]}"

@@ -78,22 +78,27 @@ class MarketClockHub:
         self._lock = asyncio.Lock()
 
     async def attach_websocket(self, websocket: WebSocket) -> None:
+        """Register a browser WebSocket for tick broadcasts."""
         async with self._lock:
             self._clients.add(websocket)
 
     async def detach_websocket(self, websocket: WebSocket) -> None:
+        """Remove a WebSocket from tick fan-out."""
         async with self._lock:
             self._clients.discard(websocket)
 
     async def register_queue(self, queue: asyncio.Queue[MarketClockSnapshot]) -> None:
+        """Register an in-process queue subscriber for snapshots."""
         async with self._lock:
             self._queues.add(queue)
 
     async def unregister_queue(self, queue: asyncio.Queue[MarketClockSnapshot]) -> None:
+        """Remove a queue subscriber."""
         async with self._lock:
             self._queues.discard(queue)
 
     async def broadcast(self, snap: MarketClockSnapshot) -> None:
+        """Send tick JSON to websockets and enqueue snapshots for internal queues."""
         payload = snapshot_to_tick_payload(snap)
         async with self._lock:
             clients = list(self._clients)
@@ -130,6 +135,7 @@ async def create_market_clock_subscription(*, maxsize: int = 4) -> asyncio.Queue
 
 
 async def release_market_clock_subscription(queue: asyncio.Queue[MarketClockSnapshot]) -> None:
+    """Unregister a queue from the process-wide market clock hub."""
     hub = await get_market_clock_hub()
     await hub.unregister_queue(queue)
 

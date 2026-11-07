@@ -15,6 +15,7 @@ _LOG = logging.getLogger(__name__)
 
 
 def _interval_key_from_fin_ts_bar_spec(bar_spec: BarSpecModel | None) -> str:
+    """Map request bar spec to Timescale ``interval`` key, defaulting when omitted."""
     if bar_spec is None:
         return bar_spec_to_interval_key(default_bar_spec())
     spec = BarSpec(unit=BarUnit(bar_spec.unit), step=int(bar_spec.step))

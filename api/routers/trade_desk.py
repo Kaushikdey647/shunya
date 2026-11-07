@@ -93,6 +93,7 @@ def _runtime(request: Request) -> TradeDeskRuntime:
 def require_trade_desk_token(
     x_token: Annotated[Optional[str], Header(alias="X-Shunya-Trade-Desk-Token")] = None,
 ) -> None:
+    """FastAPI dependency enforcing X-Shunya-Trade-Desk-Token for trade routes."""
     settings = get_settings()
     expected = settings.trade_desk_token
     if not expected:
@@ -212,6 +213,7 @@ async def paper_cycle(
     body: PaperCycleRequest,
     request: Request,
 ) -> PaperCycleResponse:
+    """Runs InstitutionalPaperDesk demo PCS or vetted targets on Alpaca paper."""
     rt = _runtime(request)
     desk = InstitutionalPaperDesk(
         rt.trading_client,
@@ -244,6 +246,7 @@ async def paper_cycle(
     dependencies=[Depends(require_trade_desk_token)],
 )
 def trade_account_equity(request: Request) -> AlpacaEquityAccountOut:
+    """Proxies Alpaca GET /account into AlpacaEquityAccountOut."""
     rt = _runtime(request)
     try:
         raw = rt.trading_client.get("/account")
@@ -270,6 +273,7 @@ def trade_account_activities(
     after: Optional[str] = Query(default=None, description="RFC3339 or YYYY-MM-DD"),
     until: Optional[str] = Query(default=None, description="RFC3339 or YYYY-MM-DD"),
 ) -> AlpacaAccountActivitiesResponse:
+    """Lists Alpaca account activities with optional paging filters."""
     rt = _runtime(request)
     types_list = _parse_activity_types_param(activity_types)
     params: dict[str, Any] = {
@@ -322,6 +326,7 @@ def trade_account_portfolio_history(
     intraday_reporting: Optional[str] = Query(default=None),
     pnl_reset: Optional[str] = Query(default=None),
 ) -> AlpacaPortfolioHistoryOut:
+    """Returns Alpaca portfolio history for allowed period/timeframe."""
     if period not in _ALLOWED_PORTFOLIO_PERIODS:
         raise HTTPException(status_code=400, detail="Invalid period.")
     if timeframe is not None and timeframe not in _ALLOWED_PORTFOLIO_TIMEFRAMES:
@@ -355,6 +360,7 @@ def trade_account_portfolio_history(
     dependencies=[Depends(require_trade_desk_token)],
 )
 def trade_account_configurations_get(request: Request) -> AlpacaAccountConfigurationsOut:
+    """Reads Alpaca account configuration flags."""
     rt = _runtime(request)
     try:
         cfg = rt.trading_client.get_account_configurations()
@@ -374,6 +380,7 @@ def trade_account_configurations_patch(
     request: Request,
     body: AlpacaAccountConfigurationsPatch,
 ) -> AlpacaAccountConfigurationsOut:
+    """Patches Alpaca account configuration via the trading client."""
     rt = _runtime(request)
     try:
         current = rt.trading_client.get_account_configurations()

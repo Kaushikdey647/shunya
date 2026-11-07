@@ -1,3 +1,4 @@
+"""Postgres connection helpers for API repositories."""
 from __future__ import annotations
 
 import os
@@ -11,6 +12,7 @@ from api.settings import get_settings
 
 
 def resolve_database_url() -> str:
+    """Raise ``RuntimeError`` when no API database URL is configured in settings or environment."""
     s = get_settings()
     if s.database_url:
         return str(s.database_url)
@@ -24,6 +26,7 @@ def resolve_database_url() -> str:
 
 @contextmanager
 def cursor_dict() -> Iterator[psycopg.Cursor]:
+    """Yield a psycopg dict-row cursor on a fresh connection to the API database."""
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             yield cur

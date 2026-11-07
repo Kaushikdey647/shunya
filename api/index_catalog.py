@@ -40,4 +40,5 @@ def benchmark_for_index(index_code: str) -> str:
 
 
 def known_index_codes() -> frozenset[str]:
+    """Return the frozen set of index codes with raw Yahoo benchmark tickers."""
     return frozenset(RAW_INDEX_TICKER_BY_CODE.keys())

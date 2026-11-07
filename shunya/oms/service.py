@@ -42,11 +42,13 @@ class InstitutionalOMS:
         *,
         risk_policy: Optional[RiskPolicy] = None,
     ) -> None:
+        """Initialize the ledger and default :class:`RiskPolicy`."""
         self._ledger = ledger or InMemoryLedger()
         self._risk_policy = risk_policy or RiskPolicy()
 
     @property
     def ledger(self) -> InMemoryLedger:
+        """Underlying in-memory ledger for parents and fills."""
         return self._ledger
 
     def ingest_vetted_usd_targets(
@@ -98,6 +100,7 @@ class InstitutionalOMS:
         return intents
 
     def create_parent_order(self, intent: ParentIntent) -> ParentOrder:
+        """Create a :class:`ParentOrder` from an intent and register it."""
         p = ParentOrder(
             parent_id=intent.parent_id,
             symbol=intent.symbol,
@@ -108,6 +111,7 @@ class InstitutionalOMS:
         return p
 
     def mark_parent_working(self, parent_id: str, client_order_id: Optional[str] = None) -> None:
+        """Mark a parent working via the ``broker_accept`` FSM transition."""
         p = self._ledger.get_parent(parent_id)
         if p is None:
             raise KeyError(parent_id)
@@ -119,6 +123,7 @@ class InstitutionalOMS:
         self._ledger.append_fill(fill)
 
     def refresh_settled_from_broker(self, positions_shares: Mapping[str, float]) -> None:
+        """Refresh settled shares from a broker positions mapping."""
         self._ledger.merge_settled_from_broker(positions_shares)
 
     def refresh_settled_shares_from_alpaca(self, client: "TradingClient") -> None:

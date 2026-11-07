@@ -16,16 +16,19 @@ from .schema import Base, ExecutionFillRow, ParentOrderRow
 
 
 def utc_now() -> datetime:
+    """Current UTC timestamp for ``updated_at`` fields."""
     return datetime.now(timezone.utc)
 
 
 def create_engine(url: str) -> Engine:
+    """Create a SQLAlchemy engine with ``future=True``."""
     from sqlalchemy import create_engine as sa_create_engine
 
     return sa_create_engine(url, future=True)
 
 
 def create_all(engine: Engine) -> None:
+    """Create OMS tables from :class:`Base` metadata."""
     Base.metadata.create_all(engine)
 
 
@@ -33,6 +36,7 @@ class OMSRepository:
     """Append-only fills and parent-order upserts."""
 
     def __init__(self, engine: Engine) -> None:
+        """Bind a session factory to the given SQLAlchemy engine."""
         self._engine = engine
         self._session_factory = sessionmaker(engine, expire_on_commit=False, class_=Session)
 
@@ -53,6 +57,7 @@ class OMSRepository:
         broker_order_id: Optional[str] = None,
         origin: Optional[str] = None,
     ) -> None:
+        """Insert or update a parent order snapshot row in Postgres."""
         with self._session_factory() as s:
             row = s.get(ParentOrderRow, parent_id)
             if row is None:
@@ -92,6 +97,7 @@ class OMSRepository:
             s.commit()
 
     def get_parent(self, parent_id: str) -> Optional[ParentOrderRow]:
+        """Load one ``ParentOrderRow`` by primary key."""
         with self._session_factory() as s:
             return s.get(ParentOrderRow, parent_id)
 
@@ -102,6 +108,7 @@ class OMSRepository:
         symbol: Optional[str] = None,
         limit: int = 200,
     ) -> list[ParentOrderRow]:
+        """List parent orders filtered by state and symbol."""
         with self._session_factory() as s:
             stmt = select(ParentOrderRow)
             if states:
@@ -112,6 +119,7 @@ class OMSRepository:
             return list(s.scalars(stmt).all())
 
     def list_open_parents(self) -> list[ParentOrderRow]:
+        """Return parents in non-terminal working states."""
         return self.list_parents(
             states=("PENDING_SUBMIT", "WORKING", "PARTIAL_FILL"), limit=1000
         )
@@ -119,6 +127,7 @@ class OMSRepository:
     def list_recent_fills(
         self, *, limit: int = 200, symbol: Optional[str] = None
     ) -> list[ExecutionFill]:
+        """Load recent fills as :class:`ExecutionFill` records."""
         with self._session_factory() as s:
             stmt = select(ExecutionFillRow)
             if symbol:
@@ -167,6 +176,7 @@ class OMSRepository:
             return res.rowcount == 1  # type: ignore[union-attr]
 
     def list_fills_for_parent(self, parent_id: str) -> list[ExecutionFill]:
+        """Return all fills for a single parent order id."""
         with self._session_factory() as s:
             rows = s.scalars(
                 select(ExecutionFillRow).where(ExecutionFillRow.parent_order_id == parent_id)

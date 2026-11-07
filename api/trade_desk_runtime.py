@@ -26,6 +26,7 @@ class TradeDeskRuntime:
 
 
 def build_trade_desk_runtime(settings: AlpacaRuntimeSettings) -> TradeDeskRuntime:
+    """Build shared Alpaca trading and historical data clients from runtime settings."""
     return TradeDeskRuntime(
         settings=settings,
         trading_client=build_trading_client(settings),

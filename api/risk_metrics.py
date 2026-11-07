@@ -1,3 +1,4 @@
+"""Annualization helpers for bar-spec risk stats."""
 from __future__ import annotations
 
 import math
@@ -10,6 +11,7 @@ from shunya.data.timeframes import BarSpec
 
 
 def periods_per_year_from_bar_spec(bar: BarSpec) -> float:
+    """Return trading-year periods per bar for the bar unit and step."""
     if bar.unit.name == "SECONDS":
         return (252.0 * 6.5 * 60.0 * 60.0) / max(1.0, float(bar.step))
     if bar.unit.name == "MINUTES":

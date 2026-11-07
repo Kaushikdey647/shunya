@@ -40,6 +40,7 @@ class AppSettingsEnvironmentOut(BaseModel):
 
 
 class AppSettingsResponse(BaseModel):
+    """Effective runtime tunables and environment flags."""
     environment: AppSettingsEnvironmentOut
     runtime: dict[str, Any]
     sources: dict[str, str]
@@ -62,6 +63,7 @@ class MarketClockResponse(BaseModel):
 def require_trade_desk_token_for_settings(
     x_token: Annotated[Optional[str], Header(alias="X-Shunya-Trade-Desk-Token")] = None,
 ) -> None:
+    """Requires X-Shunya-Trade-Desk-Token when runtime PATCH is enabled."""
     settings = get_settings()
     expected = settings.trade_desk_token
     if not expected:

@@ -11,6 +11,7 @@ class MarketRouteError(Exception):
     """
 
     def __init__(self, code: str, message: str, *, rule_id: str | None = None) -> None:
+        """Attach stable ``code``, client-safe ``message``, and optional ``rule_id``."""
         super().__init__(message)
         self.code = code
         self.message = message

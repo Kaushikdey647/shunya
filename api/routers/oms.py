@@ -102,6 +102,7 @@ def place_order(
     body: OmsOrderPlaceRequest,
     request: Request,
 ) -> OmsParentOrderOut:
+    """Submits a manual parent order through the OMS runtime and returns ledger state."""
     rt = _trade_desk_runtime(request)
     oms_rt = _oms_runtime(request)
     try:
@@ -125,6 +126,7 @@ def place_order(
     "/orders/{parent_id}", response_model=OmsCancelResponse, dependencies=[Depends(require_trade_desk_token)]
 )
 def cancel_order(parent_id: str, request: Request) -> OmsCancelResponse:
+    """Cancels a manual parent order via cancel_manual_parent."""
     rt = _trade_desk_runtime(request)
     oms_rt = _oms_runtime(request)
     parent = oms_rt.oms.ledger.get_parent(parent_id)
@@ -146,6 +148,7 @@ def list_orders(
     symbol: Optional[str] = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> OmsOrdersResponse:
+    """Lists parent orders from Postgres or in-memory ledger with VWAP fills."""
     oms_rt = _oms_runtime(request)
     sym = symbol.strip().upper() if symbol else None
 
@@ -171,6 +174,7 @@ def list_orders(
     "/orders/{parent_id}", response_model=OmsParentOrderOut, dependencies=[Depends(require_trade_desk_token)]
 )
 def get_order(parent_id: str, request: Request) -> OmsParentOrderOut:
+    """Fetches one parent order with average fill price when fills exist."""
     oms_rt = _oms_runtime(request)
     fills = oms_rt.repo.list_fills_for_parent(parent_id) if oms_rt.repo is not None else []
     avg = vwap_avg_price(fills) if fills else None
@@ -190,6 +194,7 @@ def get_order(parent_id: str, request: Request) -> OmsParentOrderOut:
     dependencies=[Depends(require_trade_desk_token)],
 )
 def get_order_fills(parent_id: str, request: Request) -> OmsFillsResponse:
+    """Lists fills for a parent order id."""
     oms_rt = _oms_runtime(request)
     if oms_rt.repo is not None:
         fills = oms_rt.repo.list_fills_for_parent(parent_id)
@@ -204,6 +209,7 @@ def list_fills(
     symbol: Optional[str] = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ) -> OmsFillsResponse:
+    """Lists recent fills optionally filtered by symbol."""
     oms_rt = _oms_runtime(request)
     sym = symbol.strip().upper() if symbol else None
     if oms_rt.repo is not None:
@@ -220,6 +226,7 @@ def list_fills(
     "/positions", response_model=OmsPositionsResponse, dependencies=[Depends(require_trade_desk_token)]
 )
 def list_positions(request: Request) -> OmsPositionsResponse:
+    """Merges Alpaca positions with working buy/sell from the OMS ledger."""
     rt = _trade_desk_runtime(request)
     oms_rt = _oms_runtime(request)
     try:
@@ -260,6 +267,7 @@ async def _wait_websocket_disconnect(websocket: WebSocket) -> None:
 
 @router.websocket("/orders/stream")
 async def orders_stream_ws(websocket: WebSocket) -> None:
+    """WebSocket order updates after trade-desk token and OMS runtime checks."""
     await websocket.accept()
 
     settings = get_settings()

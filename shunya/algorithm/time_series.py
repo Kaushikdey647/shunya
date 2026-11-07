@@ -42,6 +42,7 @@ def _validate_lag(lag: int) -> None:
 
 
 def tsdelay(x: jnp.ndarray | np.ndarray, lag: int) -> jnp.ndarray:
+    """Shift series forward by ``lag`` bars (leading rows are ``nan``)."""
     _validate_lag(lag)
     arr, squeeze = _as_2d(x)
     out = np.full_like(arr, np.nan, dtype=float)
@@ -53,12 +54,14 @@ def tsdelay(x: jnp.ndarray | np.ndarray, lag: int) -> jnp.ndarray:
 
 
 def tsdelta(x: jnp.ndarray | np.ndarray, lag: int) -> jnp.ndarray:
+    """``x - tsdelay(x, lag)``."""
     arr, squeeze = _as_2d(x)
     out = arr - np.asarray(tsdelay(arr, lag), dtype=float).reshape(arr.shape)
     return _restore(out, squeeze)
 
 
 def tssum(x: jnp.ndarray | np.ndarray, window: int) -> jnp.ndarray:
+    """Rolling sum over ``window`` bars (requires full finite window)."""
     _validate_window(window)
     arr, squeeze = _as_2d(x)
     out = np.full_like(arr, np.nan, dtype=float)
@@ -73,12 +76,14 @@ def tssum(x: jnp.ndarray | np.ndarray, window: int) -> jnp.ndarray:
 
 
 def tsmean(x: jnp.ndarray | np.ndarray, window: int) -> jnp.ndarray:
+    """Rolling mean ``tssum / window``."""
     return tssum(x, window) / float(window)
 
 
 def tsstddev(
     x: jnp.ndarray | np.ndarray, window: int, *, eps: float = _EPS
 ) -> jnp.ndarray:
+    """Rolling population std; emits 0 when std ≤ ``eps``."""
     _validate_window(window)
     arr, squeeze = _as_2d(x)
     out = np.full_like(arr, np.nan, dtype=float)
@@ -96,6 +101,7 @@ def tsstddev(
 def tszscore(
     x: jnp.ndarray | np.ndarray, window: int, *, eps: float = _EPS
 ) -> jnp.ndarray:
+    """Rolling z-score from ``tsmean`` and ``tsstddev``."""
     arr, squeeze = _as_2d(x)
     mean = np.asarray(tsmean(arr, window), dtype=float).reshape(arr.shape)
     std = np.asarray(tsstddev(arr, window, eps=eps), dtype=float).reshape(arr.shape)
@@ -109,6 +115,7 @@ def tszscore(
 
 
 def tsrank(x: jnp.ndarray | np.ndarray, window: int) -> jnp.ndarray:
+    """Rolling percentile rank of the current bar within the window."""
     _validate_window(window)
     arr, squeeze = _as_2d(x)
     out = np.full_like(arr, np.nan, dtype=float)
@@ -141,6 +148,7 @@ def tsregression(
     *,
     eps: float = _EPS,
 ) -> jnp.ndarray:
+    """Rolling OLS of ``y`` on lagged ``x``; ``retval`` selects coefficient or residual."""
     _validate_window(window)
     _validate_lag(lag)
     if retval not in {"error", "a", "b", "estimate"}:
@@ -185,6 +193,7 @@ def tsregression(
 
 
 def humpdecay(x: jnp.ndarray | np.ndarray, hump: float) -> jnp.ndarray:
+    """Limit bar-to-bar moves to ±``hump`` (raises if ``hump`` is negative)."""
     if hump < 0:
         raise ValueError(f"hump must be non-negative, got {hump}")
     arr, squeeze = _as_2d(x)

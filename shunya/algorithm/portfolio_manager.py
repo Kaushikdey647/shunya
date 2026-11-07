@@ -38,6 +38,8 @@ class TickerUniversePolicy(str, Enum):
 
 
 class BlendModeKind(str, Enum):
+    """``target`` late aggregation vs ``alpha`` early score blend."""
+
     TARGET = "target"
     ALPHA = "alpha"
 
@@ -169,6 +171,7 @@ class StrategyRegistry:
 
     @staticmethod
     def from_specs(specs: Sequence[StrategySpec]) -> StrategyRegistry:
+        """Build a registry from a sequence (tuple-copied)."""
         return StrategyRegistry(tuple(specs))
 
 
@@ -184,17 +187,21 @@ class VirtualLedger:
     _rows: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     def reset(self) -> None:
+        """Drop all strategy rows."""
         self._rows.clear()
 
     def snapshot(self) -> Dict[str, Dict[str, float]]:
+        """Deep copy of strategy → symbol → USD notional."""
         return {sid: dict(m) for sid, m in self._rows.items()}
 
     def apply_delta(self, strategy_id: str, symbol: str, delta_usd: float) -> None:
+        """Increment one symbol row for a sub-strategy."""
         sid, sym = str(strategy_id), str(symbol)
         row = self._rows.setdefault(sid, {})
         row[sym] = float(row.get(sym, 0.0)) + float(delta_usd)
 
     def position_usd(self, strategy_id: str, symbol: str) -> float:
+        """USD notional for one strategy/symbol (0 if unset)."""
         return float(self._rows.get(str(strategy_id), {}).get(str(symbol), 0.0))
 
 
@@ -238,6 +245,7 @@ class RollingSharpeTracker:
     _series: Dict[str, Deque[float]] = field(default_factory=dict)
 
     def record_return(self, key: str, daily_return: float) -> None:
+        """Append one simple return for ``key`` (raises if ``window < 2``)."""
         if self.window < 2:
             raise ValueError("window must be >= 2 for Sharpe estimation")
         if key not in self._series:
@@ -245,6 +253,7 @@ class RollingSharpeTracker:
         self._series[key].append(float(daily_return))
 
     def rolling_sharpe(self, key: str) -> Optional[float]:
+        """Annualized Sharpe from the deque for ``key``, or None until enough data."""
         dq = self._series.get(key)
         if dq is None or len(dq) < 2:
             return None
@@ -256,6 +265,7 @@ class RollingSharpeTracker:
         return (mu / sd) * float(np.sqrt(self.annualization_factor))
 
     def rolling_std(self, key: str) -> Optional[float]:
+        """Sample std of recorded returns for ``key``."""
         dq = self._series.get(key)
         if dq is None or len(dq) < 2:
             return None
@@ -540,6 +550,7 @@ class PortfolioConstructionService:
         group_column: Optional[str] = "Sector",
         record_raw_history: bool = True,
     ) -> PortfolioConstructionResult:
+        """Dispatch target vs alpha blend and return structured construction output."""
         self._maybe_record_returns_from_feed(execution_date)
         if isinstance(self.book, TargetBlendConfig):
             return _construct_target_blend(
@@ -566,6 +577,7 @@ class PortfolioConstructionService:
         group_column: Optional[str] = "Sector",
         record_raw_history: bool = True,
     ) -> Dict[str, float]:
+        """USD targets only (see :meth:`construct`)."""
         return self.construct(
             capital=capital,
             execution_date=execution_date,
@@ -580,6 +592,7 @@ class PortfolioConstructionService:
         execution_date: pd.Timestamp,
         group_column: Optional[str] = "Sector",
     ) -> List[Tuple[str, Dict[str, float]]]:
+        """Per-strategy ``pass_`` maps for a target-blend book only."""
         if not isinstance(self.book, TargetBlendConfig):
             raise TypeError("targets_by_strategy is only defined for TargetBlendConfig")
         fts = _assert_shared_fin_ts([t for _, t, _ in self.book.strategies])
@@ -597,25 +610,31 @@ class PortfolioConstructionService:
         return out
 
     def rolling_cross_section_path_correlation(self, id_a: str, id_b: str) -> Optional[float]:
+        """Path correlation of stored raw alpha cross-sections (alpha blend only)."""
         if self._alpha_raw_history is None:
             raise TypeError("rolling_cross_section_path_correlation requires an alpha blend book")
         return _rolling_cross_section_path_correlation(self._alpha_raw_history, id_a, id_b)
 
     def last_sub_strategy_raw_scores(self) -> Dict[str, jnp.ndarray]:
+        """Latest raw score vector per sub-strategy from alpha-blend history."""
         if self._alpha_raw_history is None:
             raise TypeError("last_sub_strategy_raw_scores requires an alpha blend book")
         return _last_sub_strategy_raw_scores(self._alpha_raw_history)
 
     def record_strategy_return(self, strategy_id: str, daily_simple_return: float) -> None:
+        """Feed one bar return into :attr:`sharpe` for a strategy id."""
         self.sharpe.record_return(str(strategy_id), daily_simple_return)
 
     def record_portfolio_return(self, daily_simple_return: float) -> None:
+        """Feed one bar return into :attr:`sharpe` under :data:`PORTFOLIO_PERF_KEY`."""
         self.sharpe.record_return(PORTFOLIO_PERF_KEY, daily_simple_return)
 
     def rolling_sharpe(self, strategy_id: str) -> Optional[float]:
+        """Rolling Sharpe for a strategy id."""
         return self.sharpe.rolling_sharpe(str(strategy_id))
 
     def portfolio_rolling_sharpe(self) -> Optional[float]:
+        """Rolling Sharpe for the combined portfolio key."""
         return self.sharpe.rolling_sharpe(PORTFOLIO_PERF_KEY)
 
 
@@ -686,6 +705,7 @@ class PortfolioManager:
         execution_date: pd.Timestamp,
         group_column: Optional[str] = "Sector",
     ) -> PortfolioConstructionResult:
+        """Delegate to :class:`PortfolioConstructionService.construct`."""
         return self._svc.construct(
             capital=capital,
             execution_date=execution_date,
@@ -694,15 +714,19 @@ class PortfolioManager:
         )
 
     def record_strategy_return(self, strategy_id: str, daily_simple_return: float) -> None:
+        """Proxy to the embedded construction service."""
         self._svc.record_strategy_return(strategy_id, daily_simple_return)
 
     def record_portfolio_return(self, daily_simple_return: float) -> None:
+        """Proxy to the embedded construction service."""
         self._svc.record_portfolio_return(daily_simple_return)
 
     def rolling_sharpe(self, strategy_id: str) -> Optional[float]:
+        """Proxy to the embedded construction service."""
         return self._svc.rolling_sharpe(strategy_id)
 
     def portfolio_rolling_sharpe(self) -> Optional[float]:
+        """Proxy to the embedded construction service."""
         return self._svc.portfolio_rolling_sharpe()
 
 
@@ -777,6 +801,7 @@ class AlphaBlendPortfolioManager:
         group_column: Optional[str] = "Sector",
         record_raw_history: bool = True,
     ) -> Dict[str, float]:
+        """Blended USD targets from the alpha construction service."""
         return self._svc.net_targets(
             capital=capital,
             execution_date=execution_date,
@@ -792,6 +817,7 @@ class AlphaBlendPortfolioManager:
         group_column: Optional[str] = "Sector",
         record_raw_history: bool = True,
     ) -> PortfolioConstructionResult:
+        """Delegate to :class:`PortfolioConstructionService.construct` (alpha blend)."""
         return self._svc.construct(
             capital=capital,
             execution_date=execution_date,
@@ -800,15 +826,19 @@ class AlphaBlendPortfolioManager:
         )
 
     def record_strategy_return(self, strategy_id: str, daily_simple_return: float) -> None:
+        """Proxy to the embedded construction service."""
         self._svc.record_strategy_return(strategy_id, daily_simple_return)
 
     def record_portfolio_return(self, daily_simple_return: float) -> None:
+        """Proxy to the embedded construction service."""
         self._svc.record_portfolio_return(daily_simple_return)
 
     def rolling_sharpe(self, strategy_id: str) -> Optional[float]:
+        """Proxy to the embedded construction service."""
         return self._svc.rolling_sharpe(strategy_id)
 
     def portfolio_rolling_sharpe(self) -> Optional[float]:
+        """Proxy to the embedded construction service."""
         return self._svc.portfolio_rolling_sharpe()
 
     def convictions_from_inverse_vol(self) -> Dict[str, float]:

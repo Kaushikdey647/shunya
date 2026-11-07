@@ -9,10 +9,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
+    """SQLAlchemy declarative base for OMS tables."""
     pass
 
 
 class ParentOrderRow(Base):
+    """ORM row for ``oms_parent_orders`` parent lifecycle state."""
     __tablename__ = "oms_parent_orders"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -34,6 +36,7 @@ class ParentOrderRow(Base):
 
 
 class ExecutionFillRow(Base):
+    """ORM row for append-only ``oms_execution_fills``."""
     __tablename__ = "oms_execution_fills"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -1,3 +1,4 @@
+"""Run backtests through the Backtrader engine and serialize results."""
 from __future__ import annotations
 
 import re
@@ -47,6 +48,7 @@ def _backtest_fin_ts_auto_fundamentals(body: BacktestCreate, source_code: str | 
 
 
 def _merge_finstrat(stored: dict[str, Any], override: Optional[FinStratConfig]) -> dict[str, Any]:
+    """Merge stored finstrat dict with optional request override via ``merge_finstrat_runtime_dict``."""
     return merge_finstrat_runtime_dict(stored, override)
 
 
@@ -83,6 +85,7 @@ def _benchmark_block(
     fin_ts_request_dict: dict[str, Any],
     strategy_equity: pd.DataFrame,
 ) -> dict[str, Any]:
+    """Build benchmark correlation and optional buy-and-hold equity curve vs strategy bars."""
     req = FinTsRequest.model_validate({**fin_ts_request_dict, "ticker_list": [bench_ticker]})
     bfts = build_fin_ts(req)
     df = bfts.df
@@ -132,6 +135,7 @@ def run_backtest_job(
     *,
     engine: BacktestEngine | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Resolve alpha, run the engine, apply tune filter, serialize, and attach optional benchmark block."""
     tun = get_effective_tunables()
     body = _backtest_fin_ts_auto_fundamentals(body, source_code)
     algo = resolve_alpha_for_backtest(alpha_import_ref, source_code)
@@ -170,6 +174,7 @@ def run_backtest_from_payload(
     source_code: str | None,
     finstrat_stored: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Validate stored request JSON as ``BacktestCreate`` then delegate to ``run_backtest_job``."""
     try:
         body = BacktestCreate.model_validate(request_dict)
     except ValidationError as exc:

@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class OrderAttempt:
+    """Per-symbol submit outcome (Alpaca order object optional)."""
+
     symbol: str
     client_order_id: str
     side: str
@@ -162,10 +164,12 @@ class AlpacaExecutionAdapter:
         return self._buying_power_buffer
 
     def assert_market_open(self) -> None:
+        """Raise ``RuntimeError`` when Alpaca clock reports the market closed."""
         if not _clock_open(self._client):
             raise RuntimeError("Market is closed; refusing to submit orders (clock guard).")
 
     def buying_power(self) -> float:
+        """Live ``buying_power`` from the Alpaca account."""
         return _fetch_buying_power(self._client)
 
     def validate_asset(self, symbol: str, *, delta_usd: float) -> None:
@@ -190,6 +194,7 @@ class AlpacaExecutionAdapter:
         dry_run: bool,
         correlation_id: str,
     ) -> List[OrderAttempt]:
+        """Submit notional market orders for signed USD deltas (or dry-run stubs)."""
         attempts: List[OrderAttempt] = []
         for sym, d in deltas.items():
             ad = abs(float(d))

@@ -33,6 +33,7 @@ class AlpacaOMSTradeStream:
         oms: Optional[InstitutionalOMS] = None,
         settings: Optional[AlpacaRuntimeSettings] = None,
     ) -> None:
+        """Load Alpaca settings and prepare the trading websocket stream."""
         if settings is not None:
             rt = settings
         elif api_key and secret_key:
@@ -45,13 +46,16 @@ class AlpacaOMSTradeStream:
 
     @property
     def oms(self) -> Optional[InstitutionalOMS]:
+        """Attached OMS that receives trade updates (may be ``None``)."""
         return self._oms
 
     @oms.setter
     def oms(self, value: Optional[InstitutionalOMS]) -> None:
+        """Replace the OMS instance wired to trade updates."""
         self._oms = value
 
     async def _on_trade(self, data: object) -> None:
+        """Forward Alpaca trade payloads to :meth:`InstitutionalOMS.apply_alpaca_trade_update`."""
         if self._oms is None:
             return
         self._oms.apply_alpaca_trade_update(data)
@@ -62,6 +66,7 @@ class AlpacaOMSTradeStream:
         self._task = loop.create_task(self._stream._run_forever(), name="alpaca-oms-trade-stream")  # noqa: SLF001
 
     async def stop(self) -> None:
+        """Stop the websocket and cancel the background stream task."""
         await self._stream.stop_ws()
         if self._task is not None:
             self._task.cancel()

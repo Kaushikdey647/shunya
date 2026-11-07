@@ -39,6 +39,7 @@ def _normalize_symbol_list(raw_symbols: list[str]) -> list[str]:
 
 @router.post("/snapshot", response_model=MarketSnapshotResponse)
 async def post_market_snapshot(body: MarketSnapshotRequest) -> MarketSnapshotResponse:
+    """Normalizes symbols and builds batched OHLCV snapshot rows."""
     symbols = _normalize_symbol_list(body.symbols)
     try:
         rows = await asyncio.to_thread(build_snapshot, symbols)
@@ -52,6 +53,7 @@ async def get_market_movers(
     kind: Annotated[MoversKindLiteral, Query(description="Screener segment")],
     limit: Annotated[int, Query(ge=1, le=250)] = 25,
 ) -> MarketMoversResponse:
+    """Fetches gainers, losers, or active screener rows."""
     try:
         rows = await asyncio.to_thread(fetch_movers, kind, limit)
     except ValueError as exc:
@@ -65,6 +67,7 @@ async def get_market_movers(
 async def get_market_headlines(
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
 ) -> MarketHeadlinesResponse:
+    """Fetches market-wide headlines for the overview."""
     try:
         headlines = await asyncio.to_thread(fetch_market_headlines, limit)
     except MarketProviderError as exc:

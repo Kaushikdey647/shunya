@@ -109,6 +109,7 @@ def _relax_alpaca_rest_tls_verify(client: object) -> None:
 
 
 def build_trading_client(settings: AlpacaRuntimeSettings) -> "TradingClient":
+    """Construct an Alpaca :class:`TradingClient` with optional TLS relax for dev."""
     from alpaca.trading.client import TradingClient
 
     client = TradingClient(settings.api_key_id, settings.secret_key, paper=settings.paper)
@@ -117,6 +118,7 @@ def build_trading_client(settings: AlpacaRuntimeSettings) -> "TradingClient":
 
 
 def build_stock_historical_data_client(settings: AlpacaRuntimeSettings) -> "StockHistoricalDataClient":
+    """Construct an Alpaca stock historical data client with the same TLS policy."""
     from alpaca.data.historical import StockHistoricalDataClient
 
     client = StockHistoricalDataClient(
@@ -129,6 +131,7 @@ def build_stock_historical_data_client(settings: AlpacaRuntimeSettings) -> "Stoc
 
 
 def build_trading_stream(settings: AlpacaRuntimeSettings) -> "TradingStream":
+    """Construct a :class:`TradingStream` with relaxed websocket TLS when configured."""
     from alpaca.trading.stream import TradingStream
 
     ws_params = None

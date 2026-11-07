@@ -1,3 +1,4 @@
+"""Postgres queue and results for ``api_backtest_jobs``."""
 from __future__ import annotations
 
 import json
@@ -15,6 +16,7 @@ _DELETE_BATCH_MAX = 200
 
 
 def _job_row_to_out(row: dict[str, Any]) -> BacktestJobOut:
+    """Normalize job row JSON fields into ``BacktestJobOut``."""
     ic = row.get("index_code")
     if ic is not None and isinstance(ic, str) and not ic.strip():
         ic = None
@@ -46,6 +48,7 @@ def _job_row_to_out(row: dict[str, Any]) -> BacktestJobOut:
 
 
 def insert_job(payload: BacktestCreate) -> BacktestJobOut:
+    """Enqueue a backtest with status ``queued`` and return the enriched job row."""
     import psycopg
 
     raw = payload.model_dump(mode="json")
@@ -77,6 +80,7 @@ def list_jobs(
     alpha_id: Optional[str] = None,
     status: Optional[str] = None,
 ) -> list[BacktestJobOut]:
+    """List jobs with optional ``alpha_id`` and ``status`` filters."""
     import psycopg
 
     where: list[str] = []
@@ -113,6 +117,7 @@ def list_jobs(
 
 
 def get_job(job_id: str) -> Optional[BacktestJobOut]:
+    """Fetch one job joined to alpha name, or ``None`` for bad UUID."""
     import psycopg
 
     try:
@@ -173,6 +178,7 @@ def claim_next_queued_job() -> Optional[tuple[str, dict[str, Any]]]:
 
 
 def mark_job_succeeded(job_id: str, result: dict[str, Any], summary: dict[str, Any]) -> None:
+    """Store ``result_payload`` and ``result_summary`` and clear error fields."""
     import psycopg
 
     append_job_log(job_id, "Finished successfully.")
@@ -191,6 +197,7 @@ def mark_job_succeeded(job_id: str, result: dict[str, Any], summary: dict[str, A
 
 
 def mark_job_failed(job_id: str, message: str, error_code: Optional[str] = None) -> None:
+    """Set status ``failed`` with truncated message and optional ``error_code``."""
     import psycopg
 
     append_job_log(job_id, "FAILED: " + message[:1200])
@@ -231,6 +238,7 @@ def append_job_log(job_id: str, message: str) -> None:
 
 
 def get_job_logs(job_id: str) -> list[dict[str, Any]]:
+    """Return parsed ``execution_log`` entries as ``{ts, message}`` dicts."""
     import psycopg
 
     try:
@@ -263,6 +271,7 @@ def get_job_logs(job_id: str) -> list[dict[str, Any]]:
 
 
 def delete_job(job_id: str) -> bool:
+    """Delete one job row by id when UUID is valid."""
     import psycopg
 
     try:
@@ -307,6 +316,7 @@ def delete_jobs_by_ids(job_ids: Sequence[str]) -> int:
 
 
 def get_result_payload(job_id: str) -> Optional[dict[str, Any]]:
+    """Return ``result_payload`` only when job status is ``succeeded``."""
     import psycopg
 
     try:
@@ -329,6 +339,7 @@ def get_result_payload(job_id: str) -> Optional[dict[str, Any]]:
 
 
 def reconcile_stale_running_jobs() -> None:
+    """Mark every ``running`` job failed with ``BACKTEST_JOB_SERVER_RESTART`` after API restart."""
     import psycopg
 
     with psycopg.connect(resolve_database_url()) as conn:

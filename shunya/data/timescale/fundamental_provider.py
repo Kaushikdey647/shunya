@@ -98,6 +98,7 @@ class TimescaleFundamentalDataProvider:
         quarterly: bool = True,
         bar_spec: Optional[BarSpec] = None,
     ) -> pd.DataFrame:
+        """Read quarterly or annual fundamentals from Postgres wide/EAV tables."""
         try:
             import psycopg
         except ModuleNotFoundError as exc:
@@ -209,6 +210,7 @@ class TimescaleDailyFundamentalDataProvider:
         fields: Optional[Sequence[str]] = None,
         bar_spec: Optional[BarSpec] = None,
     ) -> pd.DataFrame:
+        """Read daily fundamental columns from ``fundamentals_daily`` via psycopg."""
         try:
             import psycopg
         except ModuleNotFoundError as exc:

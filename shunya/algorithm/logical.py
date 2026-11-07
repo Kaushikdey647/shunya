@@ -18,14 +18,17 @@ def if_else(
 
 
 def logical_and(a: jnp.ndarray | np.ndarray, b: jnp.ndarray | np.ndarray) -> jnp.ndarray:
+    """Elementwise logical AND on JAX boolean arrays."""
     return jnp.logical_and(jnp.asarray(a, dtype=bool), jnp.asarray(b, dtype=bool))
 
 
 def logical_or(a: jnp.ndarray | np.ndarray, b: jnp.ndarray | np.ndarray) -> jnp.ndarray:
+    """Elementwise logical OR on JAX boolean arrays."""
     return jnp.logical_or(jnp.asarray(a, dtype=bool), jnp.asarray(b, dtype=bool))
 
 
 def logical_not(a: jnp.ndarray | np.ndarray) -> jnp.ndarray:
+    """Elementwise logical NOT on JAX boolean arrays."""
     return jnp.logical_not(jnp.asarray(a, dtype=bool))
 
 

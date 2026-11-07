@@ -30,6 +30,7 @@ UPSTREAM_CAPABILITIES: tuple[UpstreamCapability, ...] = (
 
 
 def capability_for(upstream_id: str) -> UpstreamCapability | None:
+    """Look up a capability row by ``upstream_id``, or return ``None``."""
     for c in UPSTREAM_CAPABILITIES:
         if c.upstream_id == upstream_id:
             return c

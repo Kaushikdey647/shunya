@@ -10,6 +10,7 @@ from .fints_models import BarSpecModel, FinStratConfig
 
 
 def bar_spec_model_to_bar_spec(m: Optional[BarSpecModel]) -> BarSpec:
+    """Convert a :class:`BarSpecModel` to a runtime :class:`BarSpec`."""
     if m is None:
         return default_bar_spec()
     unit = BarUnit(m.unit)

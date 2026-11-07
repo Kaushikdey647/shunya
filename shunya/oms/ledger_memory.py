@@ -24,6 +24,7 @@ class InMemoryLedger:
     parents: Dict[str, ParentOrder] = field(default_factory=dict)
 
     def working_buy_sell(self) -> tuple[Dict[str, float], Dict[str, float]]:
+        """Sum non-terminal parent working shares into buy and sell maps."""
         buy: DefaultDict[str, float] = defaultdict(float)
         sell: DefaultDict[str, float] = defaultdict(float)
         for p in self.parents.values():
@@ -43,18 +44,22 @@ class InMemoryLedger:
         target_shares: Mapping[str, float],
         universe: Sequence[str],
     ) -> Dict[str, float]:
+        """Compute per-symbol share deltas versus targets using working exposure."""
         wb, ws = self.working_buy_sell()
         return required_delta_shares(target_shares, self.settled_shares, wb, ws, universe)
 
     def register_parent(self, parent: ParentOrder) -> None:
+        """Register a parent or raise on duplicate ``parent_id``."""
         if parent.parent_id in self.parents:
             raise KeyError(f"duplicate parent_id {parent.parent_id}")
         self.parents[parent.parent_id] = parent
 
     def get_parent(self, parent_id: str) -> Optional[ParentOrder]:
+        """Return the in-memory parent order, if present."""
         return self.parents.get(parent_id)
 
     def append_fill(self, fill: ExecutionFill) -> None:
+        """Append a fill idempotently and drive parent FSM fill transitions."""
         if any(f.trade_id == fill.trade_id for f in self.fills):
             return
         self.fills.append(fill)
@@ -68,5 +73,6 @@ class InMemoryLedger:
         parent.apply_fill(int(fill.quantity))
 
     def merge_settled_from_broker(self, positions: Mapping[str, float]) -> None:
+        """Overwrite settled share quantities from a broker positions snapshot."""
         for k, v in positions.items():
             self.settled_shares[str(k)] = float(v)

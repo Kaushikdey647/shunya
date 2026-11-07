@@ -10,10 +10,12 @@ _EPS = 1e-12
 
 
 def _as_f32(x: Any) -> np.ndarray:
+    """Coerce input to ``float32`` NumPy (no JAX)."""
     return np.asarray(x, dtype=np.float32)
 
 
 def winsorize(x: Any, tail: float) -> np.ndarray:
+    """Quantile clip; raises ``ValueError`` on bad ``tail`` or empty input."""
     if tail < 0 or tail >= 0.5:
         raise ValueError(f"tail must be in [0, 0.5), got {tail}")
     arr = _as_f32(x)
@@ -32,6 +34,7 @@ def winsorize(x: Any, tail: float) -> np.ndarray:
 
 
 def neutralize_market(s: Any) -> np.ndarray:
+    """Subtract cross-sectional mean (finite values only)."""
     s = _as_f32(s)
     finite = np.isfinite(s)
     s_f = np.where(finite, s, 0.0)
@@ -41,6 +44,7 @@ def neutralize_market(s: Any) -> np.ndarray:
 
 
 def neutralize_groups(s: Any, group_ids: Any) -> np.ndarray:
+    """Per-group demean; raises ``ValueError`` when shapes mismatch."""
     s_j = _as_f32(s)
     g = np.asarray(group_ids)
     if g.shape != s_j.shape:
@@ -60,13 +64,18 @@ def neutralize_groups(s: Any, group_ids: Any) -> np.ndarray:
 
 
 class NumpyCrossSectionOps:
+    """NumPy :class:`~shunya.ports.cross_section_ops.CrossSectionOps` for tests and CI."""
+
     __slots__ = ()
 
     def winsorize(self, x: Any, tail: float) -> Any:
+        """Module-level :func:`winsorize`."""
         return winsorize(x, tail)
 
     def neutralize_market(self, x: Any) -> Any:
+        """Module-level :func:`neutralize_market`."""
         return neutralize_market(x)
 
     def neutralize_groups(self, x: Any, group_ids: Any) -> Any:
+        """Module-level :func:`neutralize_groups`."""
         return neutralize_groups(x, group_ids)

@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 
 class BarUnit(StrEnum):
+    """Named bar cadence units mapped to provider intervals."""
     SECONDS = "SECONDS"
     MINUTES = "MINUTES"
     HOURS = "HOURS"

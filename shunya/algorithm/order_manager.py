@@ -1,3 +1,5 @@
+"""Stateful target-to-order helper on top of :class:`~shunya.algorithm.orders.ExecutionAdapter`."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -65,14 +67,17 @@ class OrderManager:
         self._last_submitted_targets: Dict[str, float] = {}
 
     def refresh_state(self) -> tuple[Dict[str, float], List[OpenOrderView]]:
+        """Reload positions and open orders from the adapter into caches."""
         self._positions_cache = dict(self._adapter.get_positions())
         self._open_orders_cache = list(self._adapter.list_open_orders())
         return dict(self._positions_cache), list(self._open_orders_cache)
 
     def open_order_symbols(self) -> set[str]:
+        """Symbols with working orders in the last refresh."""
         return {order.symbol for order in self._open_orders_cache}
 
     def compute_deltas(self, targets: Dict[str, float]) -> tuple[Dict[str, float], List[str]]:
+        """USD deltas minus symbols blocked by open orders or retarget threshold."""
         current = {symbol: float(self._positions_cache.get(symbol, 0.0)) for symbol in targets}
         deltas = broker_deltas(targets, current, list(targets))
         skipped: List[str] = []
@@ -96,6 +101,7 @@ class OrderManager:
         correlation_id: str,
         dry_run: bool = False,
     ) -> ManagedOrderBatch:
+        """Refresh state, compute deltas, submit via adapter or ``RiskPolicy`` specs."""
         current, open_orders = self.refresh_state()
         deltas, skipped = self.compute_deltas(targets)
 
@@ -150,5 +156,6 @@ class OrderManager:
         )
 
     def cancel_all_open_orders(self) -> None:
+        """Cancel broker open orders and clear the local open-order cache."""
         self._adapter.cancel_open_orders()
         self._open_orders_cache = []

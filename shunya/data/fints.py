@@ -1,3 +1,4 @@
+"""FinTS panel builder: OHLCV download, alignment, features, and QA diagnostics."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -96,6 +97,7 @@ class PanelAlignReport:
     drop_reasons: Tuple[Tuple[str, str], ...]  # (ticker, reason)
 
     def as_dict(self) -> Dict[str, Union[List[str], Dict[str, str], int, None]]:
+        """Serialize calendar bounds, kept/dropped tickers, and drop reasons for APIs."""
         nb = int(len(self.calendar))
         return {
             "calendar_start": str(self.calendar.min()) if len(self.calendar) else None,
@@ -110,6 +112,8 @@ class PanelAlignReport:
 
 @dataclass(frozen=True)
 class PanelQADiagnostics:
+    """Panel QA counters produced during :meth:`finTs.align_universe` validation."""
+
     duplicate_rows: int
     missing_ticker_dates: int
     stale_days_from_last_date: int
@@ -117,6 +121,7 @@ class PanelQADiagnostics:
     warnings: Tuple[str, ...]
 
     def as_dict(self) -> Dict[str, Union[int, List[str]]]:
+        """Export duplicate/missing/stale/invalid OHLCV counts and warning strings."""
         return {
             "duplicate_rows": self.duplicate_rows,
             "missing_ticker_dates": self.missing_ticker_dates,
@@ -146,6 +151,7 @@ class ContextOhlcvTensorBundle:
     extras: Dict[str, np.ndarray]
 
     def position_of(self, panel_dt: pd.Timestamp) -> int:
+        """Return the bar index for ``panel_dt`` or raise if it is off the trading calendar."""
         cal = self.calendar
         pos = int(cal.searchsorted(panel_dt, side="left"))
         if pos >= len(cal) or cal[pos] != panel_dt:

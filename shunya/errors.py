@@ -71,6 +71,7 @@ class ShunyaError(Exception):
         return self.http_status
 
     def to_detail_body(self) -> dict[str, Any]:
+        """Build an API error body with optional ``fields`` from ``context``."""
         out: dict[str, Any] = {"code": self.code, "message": self.message}
         if self.context:
             out["fields"] = self.context

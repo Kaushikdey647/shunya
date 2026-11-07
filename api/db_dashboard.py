@@ -39,6 +39,7 @@ def _env_max_tickers() -> int | None:
 
 
 def longest_contiguous_run(bits: list[int]) -> int:
+    """Return the longest run of consecutive ``1`` bits in ``bits``."""
     best = cur = 0
     for b in bits:
         if b:
@@ -99,6 +100,7 @@ def resolve_bucket_granularity(
     *,
     max_buckets: int = _MAX_BUCKETS_DEFAULT,
 ) -> Literal["day", "week", "month"]:
+    """Honor explicit bucket size or pick day/week/month so the window stays within ``max_buckets``."""
     if explicit in ("day", "week", "month"):
         return explicit
     for cand in ("day", "week", "month"):

@@ -12,6 +12,7 @@ BACKTEST_TEST_START = "2025-01-01"
 
 
 def standard_backtest_bar_spec() -> BarSpecModel:
+    """Return the fixed daily ``BarSpecModel`` used for HTTP backtests."""
     return BarSpecModel(unit="DAYS", step=1)
 
 

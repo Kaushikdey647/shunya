@@ -49,6 +49,7 @@ class EMSParentRunner:
             await self._execute_slice(i, int(qty))
 
     async def _execute_slice(self, slice_index: int, qty: int) -> None:
+        """Quote, submit a child limit, poll, and cancel leftovers for one slice."""
         remaining = int(qty)
         for attempt, urgency in enumerate(self.urgencies):
             if remaining <= 0:
@@ -89,11 +90,13 @@ class EMSParentRunner:
                     logger.debug("EMS: cancel failed for %s", o, exc_info=True)
 
     def start_background(self) -> asyncio.Task[None]:
+        """Schedule :meth:`run` as a background asyncio task tracked in ``_tasks``."""
         t = asyncio.create_task(self.run(), name=f"ems-parent-{self.parent_id}")
         self._tasks.append(t)
         return t
 
     async def wait_all(self) -> None:
+        """Await all background slice tasks and clear the task list."""
         if self._tasks:
             await asyncio.gather(*self._tasks)
             self._tasks.clear()

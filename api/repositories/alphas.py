@@ -1,3 +1,4 @@
+"""Postgres CRUD for ``api_alphas`` rows."""
 from __future__ import annotations
 
 import json
@@ -12,6 +13,7 @@ from api.schemas.models import AlphaCreate, AlphaOut, AlphaPatch, FinStratConfig
 
 
 def _row_to_out(row: dict[str, Any]) -> AlphaOut:
+    """Parse JSON ``finstrat_config`` and build an ``AlphaOut`` model."""
     fc = row["finstrat_config"]
     if isinstance(fc, str):
         fc = json.loads(fc)
@@ -30,6 +32,7 @@ def _row_to_out(row: dict[str, Any]) -> AlphaOut:
 
 
 def insert_alpha(body: AlphaCreate) -> AlphaOut:
+    """Insert a row into ``api_alphas`` and map duplicate names to ``RuntimeError``."""
     import psycopg
     from psycopg import errors as pg_errors
 
@@ -62,6 +65,7 @@ def insert_alpha(body: AlphaCreate) -> AlphaOut:
 
 
 def list_alphas(limit: int = 100, offset: int = 0) -> list[AlphaOut]:
+    """List alphas newest-first with limit and offset."""
     import psycopg
 
     with psycopg.connect(resolve_database_url()) as conn:
@@ -80,6 +84,7 @@ def list_alphas(limit: int = 100, offset: int = 0) -> list[AlphaOut]:
 
 
 def get_alpha(alpha_id: str) -> Optional[AlphaOut]:
+    """Return ``None`` when ``alpha_id`` is not a valid UUID or row is missing."""
     import psycopg
 
     try:
@@ -100,6 +105,7 @@ def get_alpha(alpha_id: str) -> Optional[AlphaOut]:
 
 
 def update_alpha(alpha_id: str, patch: AlphaPatch) -> Optional[AlphaOut]:
+    """Patch only set fields on ``api_alphas``, or return the current row when empty."""
     import psycopg
 
     try:

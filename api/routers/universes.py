@@ -38,6 +38,7 @@ def _require_uuid(universe_id: str) -> str:
 
 @router.post("", response_model=UniverseOut, status_code=status.HTTP_201_CREATED)
 def create_universe(body: UniverseCreate, background_tasks: BackgroundTasks) -> UniverseOut:
+    """Inserts a universe and schedules universe.created notification."""
     try:
         out = universes_repo.insert_universe(body)
     except RuntimeError as exc:
@@ -64,11 +65,13 @@ def list_universes(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> list[UniverseOut]:
+    """Lists user universes with pagination."""
     return universes_repo.list_universes(limit=limit, offset=offset)
 
 
 @router.get("/{universe_id}", response_model=UniverseOut)
 def get_universe(universe_id: str) -> UniverseOut:
+    """Fetches one universe or UNIVERSE_NOT_FOUND."""
     uid = _require_uuid(universe_id)
     row = universes_repo.get_universe(uid)
     if row is None:
@@ -78,6 +81,7 @@ def get_universe(universe_id: str) -> UniverseOut:
 
 @router.patch("/{universe_id}", response_model=UniverseOut)
 def patch_universe(universe_id: str, body: UniversePatch, background_tasks: BackgroundTasks) -> UniverseOut:
+    """Updates universe fields and schedules universe.updated."""
     uid = _require_uuid(universe_id)
     try:
         row = universes_repo.update_universe(uid, body)
@@ -104,6 +108,7 @@ def patch_universe(universe_id: str, body: UniversePatch, background_tasks: Back
 
 @router.delete("/{universe_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_universe(universe_id: str, background_tasks: BackgroundTasks) -> None:
+    """Deletes a universe and schedules universe.deleted."""
     uid = _require_uuid(universe_id)
     row = universes_repo.get_universe(uid)
     if row is None:
@@ -122,6 +127,7 @@ def delete_universe(universe_id: str, background_tasks: BackgroundTasks) -> None
 
 @router.get("/{universe_id}/tickers", response_model=UniverseTickerListOut)
 def list_universe_tickers(universe_id: str) -> UniverseTickerListOut:
+    """Returns constituent tickers for a universe."""
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -134,6 +140,7 @@ def list_universe_members(
     limit: int = Query(default=200, ge=1, le=5000),
     offset: int = Query(default=0, ge=0),
 ) -> list[UniverseMemberOut]:
+    """Returns paginated members with display metadata."""
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -145,6 +152,7 @@ def list_universe_members(
 def add_universe_members(
     universe_id: str, body: UniverseMembersAddRequest, background_tasks: BackgroundTasks
 ) -> UniverseMembersMutationOut:
+    """Adds members via Postgres; unknown tickers raise UNIVERSE_UNKNOWN_TICKER."""
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -187,6 +195,7 @@ def remove_universe_members(
     tickers: Annotated[list[str], Query(description="Repeat tickers= for each symbol to remove.")],
     background_tasks: BackgroundTasks,
 ) -> UniverseMembersMutationOut:
+    """Removes tickers passed as repeated query params."""
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -210,6 +219,7 @@ def remove_universe_members(
 def replace_universe_members(
     universe_id: str, body: UniverseMembersReplaceRequest, background_tasks: BackgroundTasks
 ) -> UniverseMembersMutationOut:
+    """Replaces full membership and schedules universe.members_replaced."""
     uid = _require_uuid(universe_id)
     if universes_repo.get_universe(uid) is None:
         raise ShunyaError("Universe not found.", code=ErrorCode.UNIVERSE_NOT_FOUND, http_status=404)
@@ -277,6 +287,7 @@ async def get_universe_return_analytics(
 
 @router.get("/{universe_id}/summary", response_model=UniverseSummaryOut)
 def universe_summary(universe_id: str) -> UniverseSummaryOut:
+    """Returns sector/industry breakdown from universes_repo.universe_summary."""
     uid = _require_uuid(universe_id)
     row = universes_repo.universe_summary(uid)
     if row is None:

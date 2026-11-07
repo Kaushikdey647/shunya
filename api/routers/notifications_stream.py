@@ -29,6 +29,7 @@ async def _wait_websocket_disconnect(websocket: WebSocket) -> None:
 
 @router.websocket("/notifications/stream")
 async def notifications_stream_ws(websocket: WebSocket) -> None:
+    """WebSocket fan-out from notification hub with hello schema frame."""
     await websocket.accept()
     hub = await get_notification_hub()
     try:

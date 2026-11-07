@@ -42,6 +42,7 @@ async def _wait_websocket_disconnect(websocket: WebSocket) -> None:
 
 @router.websocket("/{symbol}/stream/alpaca-l1")
 async def instrument_alpaca_l1_ws(websocket: WebSocket, symbol: str) -> None:
+    """Streams Alpaca IEX L1 quotes/trades when US RTH gate allows."""
     await websocket.accept()
 
     if not get_settings().alpaca_enabled:

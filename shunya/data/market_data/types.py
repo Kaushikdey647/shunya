@@ -50,4 +50,5 @@ RouteMode = Literal["auto", "best_effort"] | str
 
 
 def is_upstream_source_id(value: str) -> bool:
+    """Return whether ``value`` is a known stored upstream id."""
     return value in UPSTREAM_IDS

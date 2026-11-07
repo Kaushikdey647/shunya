@@ -85,5 +85,6 @@ def load_ff_factors_daily_from_zip_bytes(data: bytes) -> pd.DataFrame:
 
 
 def clear_ff_factors_cache() -> None:
+    """Clear the in-process Fama–French factor cache."""
     global _cache
     _cache = None

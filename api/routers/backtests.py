@@ -1,3 +1,5 @@
+"""Backtest job enqueue, listing, logs, and result payloads."""
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -24,6 +26,7 @@ router = APIRouter(prefix="/backtests", tags=["backtests"])
 
 @router.post("", response_model=BacktestJobOut, status_code=status.HTTP_201_CREATED)
 def enqueue_backtest(body: BacktestCreate, background_tasks: BackgroundTasks) -> BacktestJobOut:
+    """Resolves universe/index, inserts a queued job, and notifies backtest.queued."""
     if alphas_repo.get_alpha_raw(body.alpha_id) is None:
         raise ShunyaError("Alpha not found.", code=ErrorCode.ALPHA_NOT_FOUND, http_status=404)
     body = normalize_backtest_create(body)
@@ -48,6 +51,7 @@ def list_backtests(
     alpha_id: Optional[str] = None,
     status_filter: Optional[str] = Query(default=None, alias="status"),
 ) -> list[BacktestJobOut]:
+    """Lists jobs; invalid status filter raises INVALID_STATUS_FILTER."""
     if status_filter is not None and status_filter not in ("queued", "running", "succeeded", "failed"):
         raise ShunyaError(
             "Invalid status filter.",
@@ -59,6 +63,7 @@ def list_backtests(
 
 @router.post("/delete-batch", response_model=BacktestJobsDeleteBatchOut)
 def delete_backtests_batch(body: BacktestJobsDeleteBatchRequest, background_tasks: BackgroundTasks) -> BacktestJobsDeleteBatchOut:
+    """Deletes up to 200 UUID jobs; DELETE_BATCH_TOO_LARGE when over cap."""
     try:
         deleted = jobs_repo.delete_jobs_by_ids(body.ids)
     except ValueError as exc:
@@ -83,6 +88,7 @@ def delete_backtests_batch(body: BacktestJobsDeleteBatchRequest, background_task
 
 @router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_backtest(job_id: str, background_tasks: BackgroundTasks) -> None:
+    """Deletes one job or raises BACKTEST_JOB_NOT_FOUND."""
     ok = jobs_repo.delete_job(job_id)
     if not ok:
         raise ShunyaError("Job not found.", code=ErrorCode.BACKTEST_JOB_NOT_FOUND, http_status=404)
@@ -98,6 +104,7 @@ def delete_backtest(job_id: str, background_tasks: BackgroundTasks) -> None:
 
 @router.get("/{job_id}", response_model=BacktestJobOut)
 def get_backtest(job_id: str) -> BacktestJobOut:
+    """Returns job metadata from Postgres."""
     row = jobs_repo.get_job(job_id)
     if row is None:
         raise ShunyaError("Job not found.", code=ErrorCode.BACKTEST_JOB_NOT_FOUND, http_status=404)
@@ -106,6 +113,7 @@ def get_backtest(job_id: str) -> BacktestJobOut:
 
 @router.get("/{job_id}/logs", response_model=list[BacktestLogLineOut])
 def get_backtest_logs(job_id: str) -> list[BacktestLogLineOut]:
+    """Returns log lines when the job exists."""
     if jobs_repo.get_job(job_id) is None:
         raise ShunyaError("Job not found.", code=ErrorCode.BACKTEST_JOB_NOT_FOUND, http_status=404)
     rows = jobs_repo.get_job_logs(job_id)
@@ -114,6 +122,7 @@ def get_backtest_logs(job_id: str) -> list[BacktestLogLineOut]:
 
 @router.get("/{job_id}/result")
 def get_backtest_result(job_id: str) -> dict[str, Any]:
+    """Returns stored result only when job status is succeeded."""
     job = jobs_repo.get_job(job_id)
     if job is None:
         raise ShunyaError("Job not found.", code=ErrorCode.BACKTEST_JOB_NOT_FOUND, http_status=404)

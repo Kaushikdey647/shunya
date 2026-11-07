@@ -1,3 +1,5 @@
+"""Timescale OHLCV dashboard and per-ticker data summary routes."""
+
 from __future__ import annotations
 
 import asyncio
@@ -67,6 +69,7 @@ async def get_data_dashboard(
         description="Maximum heatmap columns after compression.",
     ),
 ) -> DataDashboardResponse:
+    """Builds Timescale coverage dashboard; maps failures to ShunyaError data codes."""
     if interval not in DASHBOARD_INTERVALS:
         raise ShunyaError(
             "invalid interval",
@@ -115,6 +118,7 @@ async def get_data_dashboard(
 
 @router.post("", response_model=DataSummaryResponse)
 async def post_data_summary(body: DataSummaryRequest) -> DataSummaryResponse:
+    """Computes NaN and risk summary for the requested fin-ts window."""
     try:
         return await asyncio.to_thread(compute_data_summary, body)
     except ShunyaError:
