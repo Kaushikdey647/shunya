@@ -157,6 +157,17 @@ class DeployIn(BaseModel):
     ramp_days: int = Field(default=1, ge=1, le=60)
 
 
+def _tradable(tickers: List[str]) -> List[str]:
+    """Subset of ``tickers`` flagged ``is_alpaca_tradable`` in Timescale."""
+    import psycopg
+
+    from api.db import resolve_database_url
+    from shunya.data.timescale.reference_sync import tradable_symbols
+
+    with psycopg.connect(resolve_database_url()) as conn, conn.cursor() as cur:
+        return tradable_symbols(cur, tickers)
+
+
 @router.post("/deploy", status_code=201)
 def bridge_deploy(body: DeployIn) -> Dict[str, Any]:
     """Freeze alpha source, FinStrat config and tickers; optionally attach as a sleeve to ``book_id``."""
@@ -167,6 +178,9 @@ def bridge_deploy(body: DeployIn) -> Dict[str, Any]:
         raise HTTPException(status_code=422, detail="only inline-source alphas can be deployed (no import_ref)")
     if body.tickers:
         tickers = body.tickers
+        bad = sorted(set(tickers) - set(_tradable(tickers)))
+        if bad:
+            raise HTTPException(status_code=422, detail=f"not Alpaca-tradable: {', '.join(bad[:20])}")
     elif body.universe_id:
         tickers = universes_repo.constituent_tickers(body.universe_id)
     else:

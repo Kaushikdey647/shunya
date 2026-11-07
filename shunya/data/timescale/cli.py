@@ -71,7 +71,7 @@ def _tickers_from_symbols_table(*, limit: int | None, offset: int) -> List[str]:
     import psycopg
 
     dsn = get_database_url()
-    parts = ["SELECT ticker FROM symbols ORDER BY ticker"]
+    parts = ["SELECT ticker FROM symbols WHERE is_alpaca_tradable ORDER BY ticker"]
     params: list[int] = []
     if limit is not None:
         parts.append("LIMIT %s")
@@ -84,6 +84,24 @@ def _tickers_from_symbols_table(*, limit: int | None, offset: int) -> List[str]:
         with conn.cursor() as cur:
             cur.execute(sql, params)
             return [str(r[0]) for r in cur.fetchall()]
+
+
+def cmd_sync_reference(args: argparse.Namespace) -> int:
+    """SEC tickers/CIK, Alpaca tradability flag, then SEC submissions (SIC) for missing CIKs."""
+    import psycopg
+
+    from .reference_sync import sync_reference
+
+    with psycopg.connect(get_database_url()) as conn:
+        stats = sync_reference(
+            conn,
+            skip_submissions=args.skip_submissions,
+            skip_alpaca=args.skip_alpaca,
+            refresh=args.refresh,
+            limit=args.limit,
+        )
+    print(json.dumps(stats))
+    return 0
 
 
 def cmd_migrate(_: argparse.Namespace) -> int:
@@ -529,7 +547,7 @@ def build_parser() -> argparse.ArgumentParser:
     sym_grp.add_argument(
         "--symbols-from-db",
         action="store_true",
-        help="Ingest all tickers present in the symbols table (see --db-limit / --db-offset)",
+        help="Ingest all is_alpaca_tradable tickers in the symbols table (see --db-limit / --db-offset)",
     )
     p_ohlcv.add_argument("--start", required=True)
     p_ohlcv.add_argument("--end", required=True)
@@ -600,6 +618,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_c.add_argument("--source", default="yfinance")
     p_c.add_argument("--insecure-curl", action="store_true")
 
+    p_r = sub.add_parser(
+        "sync-reference",
+        help="SEC company_tickers + submissions (SIC) and Alpaca is_alpaca_tradable flag (needs SHUNYA_SEC_USER_AGENT)",
+    )
+    p_r.add_argument("--refresh", action="store_true", help="Re-fetch submissions for every CIK, not only missing ones")
+    p_r.add_argument("--limit", type=int, default=None, help="Max submissions to fetch this run")
+    p_r.add_argument("--skip-submissions", action="store_true")
+    p_r.add_argument("--skip-alpaca", action="store_true", help="Leave is_alpaca_tradable untouched")
+
     return p
 
 
@@ -630,6 +657,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.cmd == "migrate":
         return cmd_migrate(args)
+    if args.cmd == "sync-reference":
+        return cmd_sync_reference(args)
     if args.cmd == "sync-index-memberships":
         return cmd_sync_index_memberships(args)
     if args.cmd == "ingest-ohlcv":

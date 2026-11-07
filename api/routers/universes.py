@@ -167,10 +167,10 @@ def add_universe_members(
                 http_status=400,
                 context={"detail": msg},
             ) from exc
-        if msg.startswith("non_equity_ticker:"):
+        if msg.startswith("non_tradable_ticker:"):
             raise ShunyaError(
-                "Only equity names may be added (latest quote_type must be EQUITY or unknown).",
-                code=ErrorCode.UNIVERSE_MEMBER_NOT_EQUITY,
+                "Only Alpaca-tradable symbols may be added (run shunya-timescale sync-reference).",
+                code=ErrorCode.UNIVERSE_MEMBER_NOT_TRADABLE,
                 http_status=400,
                 context={"detail": msg},
             ) from exc
@@ -234,10 +234,10 @@ def replace_universe_members(
                 http_status=400,
                 context={"detail": msg},
             ) from exc
-        if msg.startswith("non_equity_ticker:"):
+        if msg.startswith("non_tradable_ticker:"):
             raise ShunyaError(
-                "Only equity names may be members.",
-                code=ErrorCode.UNIVERSE_MEMBER_NOT_EQUITY,
+                "Only Alpaca-tradable symbols may be members.",
+                code=ErrorCode.UNIVERSE_MEMBER_NOT_TRADABLE,
                 http_status=400,
                 context={"detail": msg},
             ) from exc

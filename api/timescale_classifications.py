@@ -1,4 +1,4 @@
-"""Load ``symbol_classifications`` from Timescale for finTs without Yahoo."""
+"""Load SEC sector / industry (view ``symbol_reference``) from Timescale for finTs."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from api.db import resolve_database_url
 
 def load_classifications_for_tickers(ticker_list: list[str]) -> Mapping[str, Mapping[str, str]]:
     """
-    Latest ``as_of`` row per symbol (``source='yfinance'`` matches ingest CLI).
+    Sector is the SEC owner org, industry the SIC description (``sync-reference``).
 
     Maps DB lowercase columns to finTs keys ``Sector`` and ``Industry``.
     """
@@ -20,17 +20,11 @@ def load_classifications_for_tickers(ticker_list: list[str]) -> Mapping[str, Map
     out: dict[str, dict[str, str]] = {}
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor() as cur:
-            # FIXME(market-data-router): SQL hardcodes c.source = 'yfinance'; other upstream rows are invisible to finTs.
             cur.execute(
                 """
-                SELECT DISTINCT ON (s.ticker)
-                    s.ticker,
-                    COALESCE(c.sector, '') AS sector,
-                    COALESCE(c.industry, '') AS industry
-                FROM symbols s
-                INNER JOIN symbol_classifications c ON c.symbol_id = s.id AND c.source = 'yfinance'
-                WHERE s.ticker = ANY(%s)
-                ORDER BY s.ticker, c.as_of DESC
+                SELECT ticker, COALESCE(sector, '') AS sector, COALESCE(industry, '') AS industry
+                FROM symbol_reference
+                WHERE ticker = ANY(%s) AND sic IS NOT NULL
                 """,
                 (list(str(t) for t in ticker_list),),
             )

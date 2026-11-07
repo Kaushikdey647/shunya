@@ -42,7 +42,7 @@ def universe_exists(universe_id: str) -> bool:
 
 
 def constituent_tickers(universe_id: str) -> list[str]:
-    """List tickers for universe members via ``api_universe_members``."""
+    """List ``is_alpaca_tradable`` tickers for universe members via ``api_universe_members``."""
     u = _parse_uuid(universe_id)
     if u is None:
         return []
@@ -55,7 +55,7 @@ def constituent_tickers(universe_id: str) -> list[str]:
                 SELECT s.ticker
                 FROM api_universe_members m
                 JOIN symbols s ON s.id = m.symbol_id
-                WHERE m.universe_id = %s
+                WHERE m.universe_id = %s AND s.is_alpaca_tradable
                 ORDER BY s.ticker
                 """,
                 (str(u),),
@@ -221,19 +221,12 @@ def list_members(
             total = int(cr["cnt"]) if cr else 0
             cur.execute(
                 """
-                SELECT s.ticker,
-                       sc.long_name,
-                       sc.sector_disp,
-                       sc.industry_disp
+                SELECT r.ticker,
+                       r.name AS long_name,
+                       r.sector AS sector_disp,
+                       r.industry AS industry_disp
                 FROM api_universe_members m
-                JOIN symbols s ON s.id = m.symbol_id
-                LEFT JOIN LATERAL (
-                    SELECT c.long_name, c.sector_disp, c.industry_disp
-                    FROM symbol_classifications c
-                    WHERE c.symbol_id = s.id
-                    ORDER BY c.as_of DESC
-                    LIMIT 1
-                ) sc ON true
+                JOIN symbol_reference r ON r.symbol_id = m.symbol_id
                 WHERE m.universe_id = %s
                 ORDER BY s.ticker
                 LIMIT %s OFFSET %s
@@ -253,48 +246,23 @@ def list_members(
     return out, total
 
 
-def _latest_quote_types(cur: Any, tickers: list[str]) -> dict[str, Optional[str]]:
-    """Map tickers to latest ``quote_type`` from ``symbol_classifications``."""
+def _symbol_ids_tradable_only(cur: Any, tickers: list[str]) -> dict[str, int]:
+    """Return ticker -> symbol_id for known symbols; raise when one is not ``is_alpaca_tradable``."""
     if not tickers:
         return {}
     cur.execute(
-        """
-        SELECT s.ticker, sc.quote_type
-        FROM symbols s
-        LEFT JOIN LATERAL (
-            SELECT c.quote_type
-            FROM symbol_classifications c
-            WHERE c.symbol_id = s.id
-            ORDER BY c.as_of DESC
-            LIMIT 1
-        ) sc ON true
-        WHERE s.ticker = ANY(%s)
-        """,
+        "SELECT id, ticker, is_alpaca_tradable FROM symbols WHERE ticker = ANY(%s)",
         (tickers,),
     )
-    return {str(r[0]): r[1] for r in cur.fetchall()}
-
-
-def _symbol_ids_equity_only(cur: Any, tickers: list[str]) -> dict[str, int]:
-    """Return ticker -> symbol_id for symbols that exist and pass equity filter."""
-    if not tickers:
-        return {}
-    qt = _latest_quote_types(cur, tickers)
-    cur.execute(
-        "SELECT id, ticker FROM symbols WHERE ticker = ANY(%s)",
-        (tickers,),
-    )
-    id_by_ticker: dict[str, int] = {}
-    for sid, tk in cur.fetchall():
-        id_by_ticker[str(tk)] = int(sid)
+    rows = {str(tk): (int(sid), bool(ok)) for sid, tk, ok in cur.fetchall()}
     out: dict[str, int] = {}
     for t in tickers:
-        if t not in id_by_ticker:
+        if t not in rows:
             continue
-        q = qt.get(t)
-        if q is not None and str(q).strip().upper() not in ("", "EQUITY"):
-            raise ValueError(f"non_equity_ticker:{t}:{q}")
-        out[t] = id_by_ticker[t]
+        sid, ok = rows[t]
+        if not ok:
+            raise ValueError(f"non_tradable_ticker:{t}")
+        out[t] = sid
     return out
 
 
@@ -310,7 +278,7 @@ def add_members(universe_id: str, tickers: list[str]) -> int:
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor() as cur:
             try:
-                mapping = _symbol_ids_equity_only(cur, tickers)
+                mapping = _symbol_ids_tradable_only(cur, tickers)
             except ValueError:
                 conn.rollback()
                 raise
@@ -341,7 +309,7 @@ def add_members_strict(universe_id: str, tickers: list[str]) -> int:
 
     with psycopg.connect(resolve_database_url()) as conn:
         with conn.cursor() as cur:
-            mapping = _symbol_ids_equity_only(cur, tickers)
+            mapping = _symbol_ids_tradable_only(cur, tickers)
         missing = [t for t in tickers if t not in mapping]
         if missing:
             raise ValueError("unknown_tickers:" + ",".join(missing[:20]))
@@ -398,7 +366,7 @@ def replace_members(universe_id: str, tickers: list[str]) -> None:
             if not tickers:
                 conn.commit()
                 return
-            mapping = _symbol_ids_equity_only(cur, tickers)
+            mapping = _symbol_ids_tradable_only(cur, tickers)
             missing = [t for t in tickers if t not in mapping]
             if missing:
                 raise ValueError("unknown_tickers:" + ",".join(missing[:20]))
@@ -439,16 +407,10 @@ def universe_summary(universe_id: str) -> Optional[UniverseSummaryOut]:
 
             cur.execute(
                 """
-                SELECT sc.sector_disp, sc.sector_key, sc.industry_disp, sc.industry_key
+                SELECT r.sector AS sector_disp, r.sector AS sector_key,
+                       r.industry AS industry_disp, r.sic AS industry_key
                 FROM api_universe_members m
-                JOIN symbols s ON s.id = m.symbol_id
-                LEFT JOIN LATERAL (
-                    SELECT c.sector_disp, c.sector_key, c.industry_disp, c.industry_key
-                    FROM symbol_classifications c
-                    WHERE c.symbol_id = s.id
-                    ORDER BY c.as_of DESC
-                    LIMIT 1
-                ) sc ON true
+                JOIN symbol_reference r ON r.symbol_id = m.symbol_id
                 WHERE m.universe_id = %s
                 """,
                 (str(u),),

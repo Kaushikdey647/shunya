@@ -133,3 +133,44 @@ def test_fundamentals_wide_daily_roundtrip(timescale_dsn: str, monkeypatch: pyte
     assert dkey in dout.index
     assert float(dout.loc[dkey, "Market_Cap"]) == pytest.approx(1e9)
     assert float(dout.loc[dkey, "Trailing_PE"]) == pytest.approx(15.0)
+
+
+def test_sec_reference_flag_and_view(timescale_dsn: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Runs inside one transaction and rolls back: the flag pass touches every symbols row."""
+    import psycopg
+
+    monkeypatch.setenv("DATABASE_URL", timescale_dsn)
+    from shunya.data.timescale import reference_sync as rs
+    from shunya.data.timescale.dbutil import apply_migrations
+
+    apply_migrations()
+    with psycopg.connect(timescale_dsn) as conn:
+        try:
+            with conn.cursor() as cur:
+                rs.upsert_sec_tickers(
+                    cur,
+                    [
+                        rs.SecTicker("__SHY_A__", "0009999991", "A CORP"),
+                        rs.SecTicker("__SHY_B__", "0009999992", "B CORP"),
+                    ],
+                )
+                rs.upsert_sec_company(
+                    cur,
+                    rs.parse_submissions(
+                        {"cik": "0009999991", "sic": "3674", "sicDescription": "Semis", "ownerOrg": "04 Manufacturing"}
+                    ),
+                )
+                rs.apply_alpaca_tradable(cur, {"__SHY_A__": "asset-a"})
+                assert rs.tradable_symbols(cur, ["__SHY_A__", "__SHY_B__"]) == ["__SHY_A__"]
+                cur.execute(
+                    "SELECT ticker, sector, industry, is_alpaca_tradable FROM symbol_reference "
+                    "WHERE ticker IN ('__SHY_A__', '__SHY_B__') ORDER BY ticker"
+                )
+                assert cur.fetchall() == [
+                    ("__SHY_A__", "04 Manufacturing", "Semis", True),
+                    ("__SHY_B__", None, None, False),
+                ]
+                pending = rs.ciks_needing_submissions(cur, refresh=False)
+                assert "0009999992" in pending and "0009999991" not in pending
+        finally:
+            conn.rollback()

@@ -33,6 +33,17 @@ Do not commit secrets; use compose defaults locally or your own credentials.
 
    Migration **`016_ohlcv_bars_metadata.sql`** adds optional **`ohlcv_bars.metadata`** JSONB for feed/tier/adjustment flags (see **`docs/market_data_routing.md`**).
 
+   **Reference data (one-time, re-run for new tickers):**
+
+   `SHUNYA_SEC_USER_AGENT="Shunya research you@example.com" shunya-timescale sync-reference`
+
+   - Loads SEC `company_tickers.json` (ticker → 10-digit CIK) into `symbols` / `sec_companies`.
+   - Sets the indexed `symbols.is_alpaca_tradable` from Alpaca `/v2/assets` (active, tradable US equities; needs `APCA_*`).
+   - Fetches `data.sec.gov/submissions/CIK##########.json` only for CIKs not fetched yet. It writes `sic_codes(sic, description, owner_org)` and the company profile; `filings` is ignored. The run is throttled to SEC's 10 req/s.
+   - View `symbol_reference` gives one row per symbol: sector = `owner_org`, industry = SIC description.
+   - Backtests, universes, `ingest-ohlcv --symbols-from-db` and live deploys use tradable symbols only. They never call SEC or Alpaca at run time.
+   - Flags: `--refresh` re-fetches every CIK, `--limit N` caps one run, and `--skip-alpaca` / `--skip-submissions` skip those passes. An interrupted run resumes where it stopped.
+
 3. Ingest OHLCV (Yahoo path, normalized the same way as `finTs` defaults):
 
    `shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 2024-01-01`
