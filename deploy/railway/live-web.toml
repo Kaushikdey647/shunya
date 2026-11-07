@@ -1,0 +1,16 @@
+# Hosted live runner API (status / books / kill). Point the Railway service's
+# "Config-as-code path" at this file. Leaves the root railway.toml (research API) untouched.
+#
+# Service variables: SHUNYA_LIVE_TOKEN, DATABASE_URL (Railway Postgres reference),
+# APCA_API_KEY_ID, APCA_API_SECRET_KEY, SHUNYA_ALPACA_PAPER=1,
+# optional SHUNYA_LIVE_HEARTBEAT_URL (e.g. healthchecks.io ping URL).
+
+[build]
+builder = "RAILPACK"
+buildCommand = "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && uv sync --frozen --extra api --extra timescale --no-dev"
+
+[deploy]
+startCommand = ".venv/bin/uvicorn api.live_main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

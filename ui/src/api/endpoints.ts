@@ -7,6 +7,13 @@ import type {
   AlpacaPortfolioHistoryOut,
   AppRuntimeTunables,
   AppSettingsResponse,
+  LiveDeployBody,
+  LiveKillLevel,
+  LiveKillResult,
+  LiveRun,
+  LiveRunDetail,
+  LiveSleeve,
+  LiveStatus,
   MarketClockResponse,
   AlphaAssistBacktestReviewRequest,
   AlphaAssistBacktestReviewResponse,
@@ -845,4 +852,76 @@ export async function getInstrumentOhlcv(
     `/instruments/${encodeURIComponent(symbol)}/ohlcv?${qs.toString()}`,
     { method: 'GET' },
   )
+}
+
+// --- Live runner (local API proxies to the hosted service; trade-desk token) ---
+
+export async function getLiveStatus(tradeDeskToken: string): Promise<LiveStatus> {
+  return apiFetch<LiveStatus>('/live/status', { method: 'GET', headers: tradeDeskHeaders(tradeDeskToken) })
+}
+
+export async function liveKill(
+  tradeDeskToken: string,
+  body: { level: LiveKillLevel; reason: string },
+): Promise<LiveKillResult> {
+  return apiFetch<LiveKillResult>('/live/kill', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function liveResume(tradeDeskToken: string, reason: string): Promise<{ state: string }> {
+  return apiFetch<{ state: string }>('/live/resume', {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function listLiveRuns(tradeDeskToken: string, bookId?: string): Promise<LiveRun[]> {
+  const q = bookId ? `?book_id=${encodeURIComponent(bookId)}` : ''
+  return apiFetch<LiveRun[]>(`/live/runs${q}`, { method: 'GET', headers: tradeDeskHeaders(tradeDeskToken) })
+}
+
+export async function getLiveRun(tradeDeskToken: string, runId: string): Promise<LiveRunDetail> {
+  return apiFetch<LiveRunDetail>(`/live/runs/${encodeURIComponent(runId)}`, {
+    method: 'GET',
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function createLiveBook(
+  tradeDeskToken: string,
+  body: { name: string; capital_fraction: number; risk_config?: Record<string, unknown> },
+): Promise<{ id: string }> {
+  return apiFetch<{ id: string }>('/live/books', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function patchLiveSleeve(
+  tradeDeskToken: string,
+  bookId: string,
+  sleeveId: string,
+  patch: Partial<Pick<LiveSleeve, 'weight' | 'status' | 'ramp_days'>>,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/live/books/${encodeURIComponent(bookId)}/sleeves/${encodeURIComponent(sleeveId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
+}
+
+export async function liveDeploy(
+  tradeDeskToken: string,
+  body: LiveDeployBody,
+): Promise<{ version_id: string; sleeve_id?: string; n_tickers: number; warnings: string[] }> {
+  return apiFetch<{ version_id: string; sleeve_id?: string; n_tickers: number; warnings: string[] }>('/live/deploy', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: tradeDeskHeaders(tradeDeskToken),
+  })
 }

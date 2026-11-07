@@ -1,3 +1,5 @@
+"""Public algorithm API: FinStrat/FinBT, portfolio construction, risk vet, and execution helpers."""
+
 from . import cross_section
 from . import group_ops
 from . import logical
@@ -59,11 +61,6 @@ from .targets import (
     target_usd_universe,
 )
 
-try:
-    from .kite_execution import KiteExecutionAdapter
-except ImportError:
-    KiteExecutionAdapter = None  # type: ignore[assignment,misc]
-
 __all__ = [
     "AlpacaExecutionAdapter",
     "AlphaContext",
@@ -75,7 +72,6 @@ __all__ = [
     "FinBT",
     "FinStrat",
     "FunNamespace",
-    "KiteExecutionAdapter",
     "ManagedOrderBatch",
     "OpenOrderView",
     "OrderManager",

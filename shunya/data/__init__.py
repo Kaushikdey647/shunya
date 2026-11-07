@@ -1,3 +1,4 @@
+"""Public re-exports for market data providers, FinTS, and Timescale helpers."""
 from .fints import FeatureMode, PanelAlignReport, PanelQADiagnostics, finTs
 from .fundamentals import (
     FUND,
@@ -28,11 +29,6 @@ from .timeframes import (
     trading_time_distance,
 )
 
-try:
-    from .kite_provider import KiteHistoricalMarketDataProvider
-except ImportError:
-    KiteHistoricalMarketDataProvider = None  # type: ignore[assignment,misc]
-
 from .timescale.dbutil import apply_migrations, get_database_url
 from .timescale.fundamental_provider import TimescaleDailyFundamentalDataProvider, TimescaleFundamentalDataProvider
 from .timescale.market_provider import TimescaleMarketDataProvider
@@ -49,7 +45,6 @@ __all__ = [
     "FundamentalDailyDataProvider",
     "FundamentalDataProvider",
     "FundamentalFieldSpec",
-    "KiteHistoricalMarketDataProvider",
     "MarketDataProvider",
     "PanelAlignReport",
     "PanelQADiagnostics",

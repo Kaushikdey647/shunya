@@ -1155,3 +1155,129 @@ export interface InstrumentJsonBlobResponse {
   available: boolean
   data: Record<string, unknown>
 }
+
+/** Hosted live runner (proxied by the local API under ``/live``). */
+export type LiveKillLevel = 'halt' | 'cancel' | 'flatten'
+
+export interface LiveControl {
+  state: 'armed' | 'halted'
+  level: LiveKillLevel | null
+  reason: string | null
+  actor: string | null
+  updated_at: string | null
+}
+
+export interface LivePosition {
+  symbol: string
+  qty: number
+  market_value: number
+  current_price: number
+  avg_entry_price: number
+}
+
+export interface LiveOrder {
+  client_order_id: string
+  alpaca_id: string
+  symbol: string
+  side: string
+  qty: number
+  status: string
+  filled_qty: number
+  filled_avg_price: number | null
+  time_in_force: string
+}
+
+export interface LiveSleeve {
+  id: string
+  version_id: string
+  name: string
+  n_tickers: number
+  weight: number
+  status: 'active' | 'paused' | 'draining' | 'retired'
+  ramp_days: number
+  runs_completed: number
+  positions: Record<string, number>
+  market_value: number
+}
+
+export interface LiveRun {
+  id: string
+  book_id: string
+  session_date: string
+  signal_date: string
+  status: string
+  error: string | null
+  equity: number | null
+  detail: Record<string, unknown>
+  created_at: string | null
+}
+
+export interface LiveBook {
+  id: string
+  name: string
+  status: 'active' | 'inactive'
+  capital_fraction: number
+  risk_config: Record<string, unknown>
+  hwm_equity: number | null
+  last_equity: number | null
+  sleeves: LiveSleeve[]
+  last_run: LiveRun | null
+}
+
+export interface LiveStatus {
+  hosted_reachable: boolean
+  hosted_error?: string
+  broker_error?: string
+  server_time?: string
+  control?: LiveControl
+  heartbeat?: { last_tick_at: string | null; last_result: string | null; age_seconds: number | null }
+  clock?: { timestamp: string; is_open: boolean; next_open: string; next_close: string } | null
+  account?: {
+    equity: number
+    last_equity: number
+    cash: number
+    buying_power: number
+    trading_blocked: boolean
+    status: string
+  } | null
+  positions?: LivePosition[]
+  open_orders?: LiveOrder[]
+  books?: LiveBook[]
+  mismatches?: Record<string, { ledger: number; broker: number }>
+  untracked_positions?: LivePosition[]
+  errors?: string[]
+}
+
+export interface LiveKillResult {
+  route?: 'hosted' | 'direct_alpaca'
+  level: LiveKillLevel
+  flag_set?: boolean
+  orders_cancelled?: number
+  positions_closed?: number
+  hosted_error?: string
+  warning?: string
+  broker_error?: string
+}
+
+export interface LiveRunDetail extends LiveRun {
+  targets: { sleeve_id: string; symbol: string; target_usd: number; target_shares: number; prev_shares: number }[]
+  orders: {
+    client_order_id: string
+    symbol: string
+    side: string
+    qty: number
+    status: string
+    filled_qty: number
+    filled_avg_price: number | null
+    error: string | null
+  }[]
+}
+
+export interface LiveDeployBody {
+  alpha_id: string
+  universe_id?: string
+  lookback_days?: number
+  book_id?: string
+  weight?: number
+  ramp_days?: number
+}

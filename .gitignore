@@ -209,3 +209,4 @@ __marimo__/
 # Web UI (Vite / npm) — see ui/README.md
 ui/node_modules/
 ui/.vite/
+.DS_Store

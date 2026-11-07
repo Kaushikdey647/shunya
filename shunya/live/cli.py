@@ -1,85 +1,98 @@
-"""CLI for one-shot paper cycles (requires Alpaca env keys)."""
+"""``shunya-live``: migrate, cron tick, dry-run, kill / resume, status."""
 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
+import logging
+import os
 import sys
-from importlib import import_module
+from datetime import datetime, timezone
 from typing import Any, Optional
 
-import pandas as pd
 
-from shunya.integration.alpaca_settings import (
-    build_stock_historical_data_client,
-    build_trading_client,
-    load_alpaca_settings_from_env,
-)
-from shunya.live.desk import InstitutionalPaperDesk, new_correlation_id
-from shunya.live.demo import build_demo_target_blend_pcs
+def _broker_and_store() -> tuple[Any, Any]:
+    from shunya.integration.alpaca_settings import build_trading_client, load_alpaca_settings_from_env
+    from shunya.live.broker import AlpacaBroker
+    from shunya.live.control import read_control
+    from shunya.live.store import PostgresLiveStore
+
+    store = PostgresLiveStore()
+    settings = load_alpaca_settings_from_env()
+    if not settings.paper and os.environ.get("SHUNYA_LIVE_ALLOW_REAL_MONEY") != "1":
+        raise SystemExit("Refusing live (real-money) Alpaca keys; set SHUNYA_LIVE_ALLOW_REAL_MONEY=1.")
+    client = build_trading_client(settings)
+    return AlpacaBroker(client, lambda: read_control(store)), store
 
 
-def _load_pcs_factory(spec: str) -> Any:
-    """``module.path:callable`` → callable (no arguments)."""
-    if ":" not in spec:
-        raise ValueError("Expected import spec 'module:attr'")
-    mod_name, attr = spec.split(":", 1)
-    mod = import_module(mod_name)
-    fn = getattr(mod, attr)
-    if not callable(fn):
-        raise TypeError(f"{spec} is not callable")
-    return fn
+def _dump(obj: Any) -> None:
+    json.dump(obj, sys.stdout, indent=2, default=str)
+    sys.stdout.write("\n")
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Shunya paper trading desk (Alpaca)")
+    """Dispatch ``shunya-live`` subcommands."""
+    p = argparse.ArgumentParser(prog="shunya-live", description="Shunya daily live runner (Alpaca)")
     sub = p.add_subparsers(dest="cmd", required=True)
-
-    cyc = sub.add_parser("paper-cycle", help="Run one PCS → risk → OMS → EMS cycle")
-    cyc.add_argument("--capital", type=float, default=10_000.0)
-    cyc.add_argument("--date", type=str, required=True, help="Execution date YYYY-MM-DD")
-    cyc.add_argument("--correlation-id", type=str, default=None)
-    cyc.add_argument(
-        "--pcs-factory",
-        type=str,
-        default=None,
-        help="Import path 'module:callable' returning PortfolioConstructionService (default: built-in demo)",
-    )
-    cyc.add_argument("--demo", action="store_true", help="Use built-in two-ticker demo PCS")
-    cyc.add_argument("--twap-bins", type=int, default=4)
-    cyc.add_argument("--require-market-open", action="store_true")
-
+    sub.add_parser("migrate", help="Apply live_* table migrations")
+    t = sub.add_parser("tick", help="One scheduler firing (run from cron every ~15 min)")
+    t.add_argument("--now", default=None, help="Override current time (ISO 8601, for testing)")
+    d = sub.add_parser("plan", help="Dry-run: compute targets and orders for a book without submitting")
+    d.add_argument("--book", required=True, help="Book id")
+    h = sub.add_parser("halt", help="Engage the kill switch")
+    h.add_argument("--level", choices=("halt", "cancel", "flatten"), default="cancel")
+    h.add_argument("--reason", required=True)
+    r = sub.add_parser("resume", help="Re-arm trading")
+    r.add_argument("--reason", required=True)
+    sub.add_parser("status", help="Kill switch, heartbeat, account, books, ledger drift")
     args = p.parse_args(argv)
-    if args.cmd != "paper-cycle":
-        return 2
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-    settings = load_alpaca_settings_from_env()
-    tc = build_trading_client(settings)
-    dc = build_stock_historical_data_client(settings)
+    if args.cmd == "migrate":
+        from shunya.live.store import apply_live_migrations
 
-    if args.demo or not args.pcs_factory:
-        pcs = build_demo_target_blend_pcs()
-    else:
-        fn = _load_pcs_factory(args.pcs_factory)
-        pcs = fn()
-    desk = InstitutionalPaperDesk(
-        tc,
-        dc,
-        settings,
-        twap_bins=args.twap_bins,
-        require_market_open=args.require_market_open,
-    )
-    cid = args.correlation_id or new_correlation_id()
-    dt = pd.Timestamp(args.date)
+        apply_live_migrations()
+        return 0
 
-    async def _run() -> Any:
-        return await desk.run_with_pcs(pcs, capital=args.capital, execution_date=dt, correlation_id=cid)
+    broker, store = _broker_and_store()
+    if args.cmd == "tick":
+        from shunya.live.runner import tick
 
-    out = asyncio.run(_run())
-    json.dump(out.as_dict(), sys.stdout, indent=2)
-    sys.stdout.write("\n")
-    return 0
+        now = datetime.fromisoformat(args.now) if args.now else datetime.now(timezone.utc)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
+        out = tick(store, broker, now=now)
+        _dump(out)
+        return 0 if out.get("status") in ("ok", "halted") else 1
+    if args.cmd == "plan":
+        from shunya.live.runner import RunnerConfig, plan_book, plan_sessions
+
+        book = store.get_book(args.book)
+        if book is None:
+            print(f"book {args.book} not found", file=sys.stderr)
+            return 2
+        plan = plan_sessions(broker, datetime.now(timezone.utc))
+        bp = plan_book(
+            book, store.list_sleeves(book.id), store.get_sleeve_positions(book.id), broker, plan, cfg=RunnerConfig()
+        )
+        _dump({"signal_date": plan.signal.day, "session_date": plan.next.day, **bp.summary()})
+        return 0
+    if args.cmd == "halt":
+        from shunya.live.control import engage_kill
+
+        _dump(engage_kill(store, broker, level=args.level, reason=args.reason, actor="cli"))
+        return 0
+    if args.cmd == "resume":
+        from shunya.live.control import resume
+
+        resume(store, reason=args.reason, actor="cli")
+        return 0
+    if args.cmd == "status":
+        from shunya.live.status import build_status
+
+        _dump(build_status(store, broker))
+        return 0
+    return 2
 
 
 if __name__ == "__main__":

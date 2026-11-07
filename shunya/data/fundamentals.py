@@ -1,3 +1,4 @@
+"""Fundamental field specs, provider protocols, and FinanceToolkit alignment helpers."""
 from __future__ import annotations
 
 import functools
@@ -160,6 +161,7 @@ def default_fundamental_fields() -> tuple[str, ...]:
 
 
 def validate_daily_fundamental_fields(fields: Sequence[str] | None) -> tuple[str, ...]:
+    """Resolve daily field aliases and raise ``KeyError`` for unknown names."""
     if fields is None:
         return DAILY_FUNDAMENTAL_FIELDS
     allowed = set(DAILY_FUNDAMENTAL_FIELDS)
@@ -213,7 +215,9 @@ class FundamentalDataProvider(Protocol):
         fields: Optional[Sequence[str]] = None,
         quarterly: bool = True,
         bar_spec: Optional[BarSpec] = None,
-    ) -> pd.DataFrame: ...
+    ) -> pd.DataFrame:
+        """Implementations return a ``('Ticker', 'Date')`` period-end fundamentals frame."""
+        ...
 
 
 def _empty_periodic_frame(columns: Sequence[str]) -> pd.DataFrame:
@@ -405,7 +409,9 @@ class FundamentalDailyDataProvider(Protocol):
         *,
         fields: Optional[Sequence[str]] = None,
         bar_spec: Optional[BarSpec] = None,
-    ) -> pd.DataFrame: ...
+    ) -> pd.DataFrame:
+        """Implementations return daily fundamentals indexed by bar dates."""
+        ...
 
 
 class FinanceToolkitFundamentalDataProvider:
@@ -467,6 +473,7 @@ class FinanceToolkitFundamentalDataProvider:
         quarterly: bool = True,
         bar_spec: Optional[BarSpec] = None,
     ) -> pd.DataFrame:
+        """Pull FinanceToolkit statement rows and assemble the requested periodic panel."""
         specs = validate_fundamental_fields(fields)
         if not ticker_list:
             return _empty_periodic_frame([spec.column for spec in specs])

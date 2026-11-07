@@ -19,7 +19,9 @@ if TYPE_CHECKING:
 class BrokerGateway(Protocol):
     """Minimal EMS-facing broker surface (REST; async wrappers)."""
 
-    async def get_latest_quote(self, symbol: str) -> QuoteL1: ...
+    async def get_latest_quote(self, symbol: str) -> QuoteL1:
+        """Fetch the latest L1 quote for ``symbol`` asynchronously."""
+        ...
 
     async def submit_limit_order(
         self,
@@ -30,13 +32,21 @@ class BrokerGateway(Protocol):
         limit_price: float,
         client_order_id: str,
         time_in_force: str = "day",
-    ) -> str: ...
+    ) -> str:
+        """Submit a limit order and return the broker order id."""
+        ...
 
-    async def cancel_order_by_id(self, order_id: str) -> None: ...
+    async def cancel_order_by_id(self, order_id: str) -> None:
+        """Cancel an open order by broker id."""
+        ...
 
-    async def get_open_order_ids_for_client_order_id(self, client_order_id: str) -> list[str]: ...
+    async def get_open_order_ids_for_client_order_id(self, client_order_id: str) -> list[str]:
+        """List open broker order ids matching ``client_order_id``."""
+        ...
 
-    async def get_order_filled_qty(self, order_id: str) -> float: ...
+    async def get_order_filled_qty(self, order_id: str) -> float:
+        """Return filled quantity for a broker order id."""
+        ...
 
 
 class AlpacaBrokerGateway:
@@ -47,10 +57,12 @@ class AlpacaBrokerGateway:
         trading_client: "TradingClient",
         data_client: "StockHistoricalDataClient",
     ) -> None:
+        """Store Alpaca trading and historical data clients for EMS calls."""
         self._trading = trading_client
         self._data = data_client
 
     async def get_latest_quote(self, symbol: str) -> QuoteL1:
+        """Wrap ``get_stock_latest_quote`` in ``asyncio.to_thread``."""
         from alpaca.data.requests import StockLatestQuoteRequest
 
         def _sync() -> QuoteL1:
@@ -75,6 +87,7 @@ class AlpacaBrokerGateway:
         client_order_id: str,
         time_in_force: str = "day",
     ) -> str:
+        """Build a :class:`LimitOrderRequest` and submit it on a worker thread."""
         s = OrderSide.BUY if str(side).upper() == "BUY" else OrderSide.SELL
         tif = TimeInForce.DAY
         if str(time_in_force).lower() == "gtc":
@@ -95,12 +108,14 @@ class AlpacaBrokerGateway:
         return await asyncio.to_thread(_sync)
 
     async def cancel_order_by_id(self, order_id: str) -> None:
+        """Cancel the order via the trading client on a worker thread."""
         def _sync() -> None:
             self._trading.cancel_order_by_id(order_id)
 
         await asyncio.to_thread(_sync)
 
     async def get_open_order_ids_for_client_order_id(self, client_order_id: str) -> list[str]:
+        """Filter open orders by ``client_order_id`` on a worker thread."""
         from alpaca.trading.enums import QueryOrderStatus
         from alpaca.trading.requests import GetOrdersRequest
 
@@ -119,6 +134,7 @@ class AlpacaBrokerGateway:
         return await asyncio.to_thread(_sync)
 
     async def get_order_filled_qty(self, order_id: str) -> float:
+        """Read ``filled_qty`` from ``get_order_by_id`` on a worker thread."""
         def _sync() -> float:
             o = self._trading.get_order_by_id(order_id)
             return float(getattr(o, "filled_qty", 0.0) or 0.0)

@@ -19,7 +19,7 @@ Use the Studio UI control to create a **backtest job** (POST to `/backtests`). T
 
 ## 4. Follow progress
 
-Under **Studio → Backtests** (`/backtests`), open the list and then a job detail page (`/backtests/:jobId`) for status, logs, and (when `succeeded`) charts and metrics.
+Under **Studio → Backtests** (`/backtests`), open the list and then a job detail page (`/backtests/:jobId`) for status, logs, and (when `succeeded`) charts and metrics. The status poll is `GET /backtests/{job_id}` (`result_summary`). Charts load `GET /backtests/{job_id}/result`.
 
 When a job finishes successfully, the detail page shows a **metrics strip**, an **indexed performance** chart versus the run’s benchmark (when configured), and additional **tearsheets** (returns heatmap, turnover, sector exposure, return distribution, rolling Sharpe, target weights over time).
 

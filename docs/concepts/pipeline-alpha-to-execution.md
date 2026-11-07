@@ -27,7 +27,7 @@ flowchart TD
 
 - **`finTs`** builds the panel; **`FinStrat`** maps `algorithm(ctx)` to targets each bar; **`FinBT`** applies broker-like **costs** and produces **`results`**.
 
-When you use the **FastAPI** service, the **worker** runs the same broad idea: persisted alpha + config → simulation job → JSON results for the UI.
+When you use the **FastAPI** service, the in-process worker runs that path through `BacktraderBacktestEngine` → `FinBT`. `GET /backtests/{job_id}` returns status and `result_summary`; `GET /backtests/{job_id}/result` returns the full payload. See [Asynchronous backtest sequence](../documentation/backtest-sequence.md).
 
 ## Live and paper path (desk + OMS + EMS)
 
@@ -60,7 +60,9 @@ flowchart TD
   end
 ```
 
-**`InstitutionalPaperDesk`** wires **PCS → PRE → OMS → EMS** with the Alpaca stream for a **paper** cycle; **`shunya-paper`** exposes a CLI entry point.
+**`InstitutionalPaperDesk`** wires **PCS → PRE → OMS → EMS** with the Alpaca stream for a **paper** cycle (`POST /trade/paper/cycle`); **`shunya-paper`** exposes a CLI entry point.
+
+Manual blotter orders (`POST /trade/orders`) validate the asset and submit one Alpaca order through `PersistingOMS`. That path does not run `PortfolioRiskEngine` or EMS slicing. See [Manual order sequence](../documentation/manual-order-sequence.md).
 
 ## One diagram: both worlds
 

@@ -30,6 +30,7 @@ from api.routers import (
     instrument_l1_stream,
     instrument_stream,
     instruments,
+    live_bridge,
     market,
     notifications_stream,
     oms,
@@ -51,6 +52,7 @@ def _parse_cors_allow_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Reconcile stale jobs, optionally start Alpaca trade desk and OMS, then run market clock and backtest worker tasks."""
     stop = asyncio.Event()
     try:
         jobs_repo.reconcile_stale_running_jobs()
@@ -108,6 +110,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    """Assemble routers, optional CORS, exception handlers, and health routes on a FastAPI app."""
     app = FastAPI(title="Shunya HTTP API", version="0.1.0", lifespan=lifespan)
 
     cors_origins = _parse_cors_allow_origins()
@@ -132,6 +135,7 @@ def create_app() -> FastAPI:
     app.include_router(instrument_l1_stream.router)
     app.include_router(notifications_stream.router)
     app.include_router(trade_desk.router)
+    app.include_router(live_bridge.router)
     app.include_router(oms.router)
 
     register_exception_handlers(app)
@@ -160,6 +164,7 @@ app = create_app()
 
 
 def run() -> None:
+    """Start uvicorn on ``api.main:app`` using ``SHUNYA_API_HOST`` and ``SHUNYA_API_PORT``."""
     import uvicorn
 
     host = os.environ.get("SHUNYA_API_HOST", "127.0.0.1")

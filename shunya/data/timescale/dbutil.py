@@ -10,6 +10,7 @@ _DEFAULT_MIGRATIONS = Path(__file__).resolve().parent / "migrations"
 
 
 def get_database_url() -> str:
+    """Read ``DATABASE_URL`` or ``SHUNYA_DATABASE_URL`` or raise ``ValueError``."""
     url = os.environ.get("DATABASE_URL") or os.environ.get("SHUNYA_DATABASE_URL")
     if not url:
         raise ValueError(
@@ -19,18 +20,21 @@ def get_database_url() -> str:
 
 
 def migrations_dir() -> Path:
+    """Resolve the migrations directory from env or the packaged default."""
     return Path(os.environ.get("SHUNYA_MIGRATIONS_DIR", str(_DEFAULT_MIGRATIONS)))
 
 
-def migration_files() -> list[Path]:
-    d = migrations_dir()
+def migration_files(directory: Path | None = None) -> list[Path]:
+    """List sorted ``*.sql`` migration files under ``directory`` (default :func:`migrations_dir`)."""
+    d = directory or migrations_dir()
     if not d.is_dir():
         raise FileNotFoundError(f"Migrations directory not found: {d}")
     return sorted(p for p in d.glob("*.sql") if p.is_file())
 
 
-def iter_migration_sql() -> Iterator[tuple[str, str]]:
-    for path in migration_files():
+def iter_migration_sql(directory: Path | None = None) -> Iterator[tuple[str, str]]:
+    """Yield ``(filename, sql_text)`` pairs for each migration file."""
+    for path in migration_files(directory):
         yield path.name, path.read_text(encoding="utf-8")
 
 
@@ -43,13 +47,13 @@ def _require_psycopg():
         ) from exc
 
 
-def apply_migrations(dsn: str | None = None) -> None:
-    """Run all ``*.sql`` files in migrations dir in lexicographic order."""
+def apply_migrations(dsn: str | None = None, directory: Path | None = None) -> None:
+    """Run all ``*.sql`` files in ``directory`` (default migrations dir) in lexicographic order."""
     _require_psycopg()
     import psycopg
 
     url = dsn or get_database_url()
-    for name, sql in iter_migration_sql():
+    for name, sql in iter_migration_sql(directory):
         with psycopg.connect(url, autocommit=True) as conn:
             conn.execute(sql)
         # noqa: print for CLI feedback

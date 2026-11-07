@@ -1,6 +1,6 @@
 # UI design tokens (typography, layout, charts)
 
-This complements the Mantine theme in [`ui/src/mantine/theme.ts`](../../ui/src/mantine/theme.ts) and legacy chart tokens in [`ui/src/theme.css`](../../ui/src/theme.css) (kept in sync with Mantine color scheme via `LegacyThemeSync`).
+This complements the Mantine theme in [`ui/src/mantine/theme.ts`](https://github.com/Kaushikdey647/shunya/blob/main/ui/src/mantine/theme.ts) and legacy chart tokens in [`ui/src/theme.css`](https://github.com/Kaushikdey647/shunya/blob/main/ui/src/theme.css) (kept in sync with Mantine color scheme via `LegacyThemeSync`).
 
 ## Persona: quantitative research workstation
 
@@ -20,14 +20,14 @@ Desk **dark mode** aligns with **GitHub / VS Code–style** surfaces for legibil
 - **Primary text:** `#E6EDF3` (legacy `--text` in `theme.css`)
 - **Secondary / labels:** `#8B949E` class (`--text-muted`)
 
-Mantine [`cssVariablesResolver`](../../ui/src/mantine/cssVariablesResolver.ts) and `other.darkPageBg` / `other.darkPanelBg` / `other.darkBorder` mirror these. **Paper** defaults lean **borderless** with a slight background lift; use **`withBorder`** only when a frame is intentional.
+Mantine [`cssVariablesResolver`](https://github.com/Kaushikdey647/shunya/blob/main/ui/src/mantine/cssVariablesResolver.ts) and `other.darkPageBg` / `other.darkPanelBg` / `other.darkBorder` mirror these. **Paper** defaults lean **borderless** with a slight background lift; use **`withBorder`** only when a frame is intentional.
 
 **Global radius:** **`6px`** (`defaultRadius`, Card, shared chrome).
 
 ## Sans vs monospace
 
 - **Body / UI chrome:** system sans stack from Mantine `fontFamily`.
-- **Code and market data:** **`SHUNYA_FONT_MONO`** in [`ui/src/theme/typography.ts`](../../ui/src/theme/typography.ts) — **`JetBrains Mono`**, **`SF Mono`**, **`Roboto Mono`**, then **`ui-monospace`**, **`monospace`**. Optional **JetBrains Mono** is loaded from Google Fonts in [`ui/index.html`](../../ui/index.html) for consistent digit width on Linux.
+- **Code and market data:** **`SHUNYA_FONT_MONO`** in [`ui/src/theme/typography.ts`](https://github.com/Kaushikdey647/shunya/blob/main/ui/src/theme/typography.ts) — **`JetBrains Mono`**, **`SF Mono`**, **`Roboto Mono`**, then **`ui-monospace`**, **`monospace`**. Optional **JetBrains Mono** is loaded from Google Fonts in [`ui/index.html`](https://github.com/Kaushikdey647/shunya/blob/main/ui/index.html) for consistent digit width on Linux.
 - **CSS:** **`--font-mono`** in `theme.css` must stay aligned with `SHUNYA_FONT_MONO` for non-Mantine surfaces.
 - **Monaco** (`AlphaSourceEditor`) and **`shunyaCanvasFont(px)`** (landing canvas) use the same stack in TS because canvas `ctx.font` cannot read CSS variables reliably.
 
@@ -35,7 +35,7 @@ Mantine [`cssVariablesResolver`](../../ui/src/mantine/cssVariablesResolver.ts) a
 
 - **Numeric columns:** `Table.Th` / `Table.Td` with numbers — **`ta="right"`**, **`ff="monospace"`**, **`style={{ fontVariantNumeric: 'tabular-nums' }}`** so decimals and magnitudes align when scanning matrices, backtests, and ledgers.
 - **Tickers, alpha ids, UUIDs:** monospace, typically **left**-aligned in the first column(s).
-- **Large financial magnitudes:** [`ui/src/lib/formatCompact.ts`](../../ui/src/lib/formatCompact.ts) — **`formatUsdCompact`**, **`formatShareCount`**, **`formatInstrumentFinancialValue`**, **`formatCompactNumber`**.
+- **Large financial magnitudes:** [`ui/src/lib/formatCompact.ts`](https://github.com/Kaushikdey647/shunya/blob/main/ui/src/lib/formatCompact.ts) — **`formatUsdCompact`**, **`formatShareCount`**, **`formatInstrumentFinancialValue`**, **`formatCompactNumber`**.
 
 ## Charts (discrete vs continuous)
 
@@ -50,7 +50,7 @@ Mantine [`cssVariablesResolver`](../../ui/src/mantine/cssVariablesResolver.ts) a
 
 ## Breakpoints
 
-Defaults match Mantine / [`ui/postcss.config.cjs`](../../ui/postcss.config.cjs) (`sm` = **48em**, `md` = **62em**, …). Shared media-query strings:
+Defaults match Mantine / [`ui/postcss.config.cjs`](https://github.com/Kaushikdey647/shunya/blob/main/ui/postcss.config.cjs) (`sm` = **48em**, `md` = **62em**, …). Shared media-query strings:
 
 | Export            | Use case                                      |
 |-------------------|-----------------------------------------------|
@@ -61,7 +61,7 @@ Landing layout CSS uses **`max-width: 62em`** for stacked columns (aligned with 
 
 ## Page layout
 
-Desk routes should use **`PageScaffold`** ([`ui/src/components/PageScaffold.tsx`](../../ui/src/components/PageScaffold.tsx)) — `Container` + vertical **`Stack`** with consistent horizontal padding — unless a full-bleed **`size="fluid"`** layout is intentional (e.g. some trade views).
+Desk routes should use **`PageScaffold`** ([`ui/src/components/PageScaffold.tsx`](https://github.com/Kaushikdey647/shunya/blob/main/ui/src/components/PageScaffold.tsx)) — `Container` + vertical **`Stack`** with consistent horizontal padding — unless a full-bleed **`size="fluid"`** layout is intentional (e.g. some trade views).
 
 ## Errors in the shell
 

@@ -1,6 +1,6 @@
 # Python package (`shunya`)
 
-Generated from live docstrings. The canonical public export list is `shunya.__all__` in the repository.
+Generated from live docstrings. The canonical public export list is `shunya.__all__`. Domain pages are listed in the [reference index](index.md).
 
 ::: shunya
     options:

@@ -110,9 +110,9 @@ The module docstring is explicit about why this shape was chosen: calling the as
 
 | Column | Purpose |
 |---|---|
-| `order_type` | `"market"` / `"limit"` as submitted, for display and audit. |
-| `limit_price` | The limit price, when applicable. |
-| `time_in_force` | e.g. `"day"`, as submitted to Alpaca. |
+| `order_type` | `"MARKET"` / `"LIMIT"` as submitted by `OmsOrderPlaceRequest`. |
+| `limit_price` | The limit price, when `order_type` is `"LIMIT"`. |
+| `time_in_force` | `"DAY"` or `"GTC"`, as submitted to Alpaca. |
 | `broker_order_id` (indexed) | Alpaca's own order id; used to look up/cancel/reconcile against the broker. |
 | `updated_at` | Last snapshot write time. |
 | `origin` | Provenance tag; currently always `"manual"` for orders placed via `api/routers/oms.py` — reserved for distinguishing sources if more are added later. |
@@ -127,5 +127,6 @@ The module docstring is explicit about why this shape was chosen: calling the as
 
 ## Further reading
 
+- [Manual order sequence](manual-order-sequence.md) — blotter submit through fill.
 - [OMS, EMS, and order routing](../concepts/oms-ems-and-order-routing.md) — finance and architecture view.
 - [Risk management and avoiding losses](../concepts/risk-management-and-avoiding-losses.md) — what is and isn't checked before an order goes out.

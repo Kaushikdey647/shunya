@@ -31,6 +31,8 @@ class OrderVariety(Enum):
 
 
 class OrderSide(Enum):
+    """Buy or sell side for :class:`OrderSpec`."""
+
     BUY = "BUY"
     SELL = "SELL"
 
@@ -245,14 +247,26 @@ class ExecutionAdapter(Protocol):
         *,
         dry_run: bool,
         correlation_id: str,
-    ) -> List[OrderAttempt]: ...
+    ) -> List[OrderAttempt]:
+        """Submit built specs; returns per-order :class:`~shunya.algorithm.execution.OrderAttempt`."""
+        ...
 
-    def get_positions(self) -> Dict[str, float]: ...
+    def get_positions(self) -> Dict[str, float]:
+        """Symbol → signed USD position (broker convention)."""
+        ...
 
-    def is_market_open(self) -> bool: ...
+    def is_market_open(self) -> bool:
+        """Whether the broker session accepts new orders."""
+        ...
 
-    def buying_power(self) -> float: ...
+    def buying_power(self) -> float:
+        """Available buying power in account currency."""
+        ...
 
-    def cancel_open_orders(self) -> None: ...
+    def cancel_open_orders(self) -> None:
+        """Cancel all working orders at the broker."""
+        ...
 
-    def list_open_orders(self) -> List[OpenOrderView]: ...
+    def list_open_orders(self) -> List[OpenOrderView]:
+        """Snapshot of in-flight orders."""
+        ...

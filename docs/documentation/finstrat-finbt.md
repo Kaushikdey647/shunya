@@ -65,5 +65,6 @@ results = bt.results(show=False)
 
 - [Operators](operators.md) — `cross_section`, `logical`, `time_series`, `group_ops` used inside `algorithm`.
 - [finTs and providers](fints-providers.md) — panel construction and calendars.
-- [Python API reference](../reference/library.md).
+- [Python API reference](../reference/library.md) and [algorithms](../reference/algorithm.md).
+- [Asynchronous backtest sequence](backtest-sequence.md) — HTTP job path through `BacktraderBacktestEngine`.
 - [Alphas, metrics, evaluation](../concepts/alphas-metrics-and-evaluation.md) — finance view of signals and backtest metrics.

@@ -15,7 +15,7 @@ import ExecutionHubPage from './pages/ExecutionHubPage'
 import ExecutionTracerPage from './pages/ExecutionTracerPage'
 import InstrumentDetailPage from './pages/InstrumentDetailPage'
 import LandingPage from './pages/LandingPage'
-import LiveCockpitPage from './pages/LiveCockpitPage'
+import LivePage from './pages/LivePage'
 import PortfoliosListPage from './pages/PortfoliosListPage'
 import PortfolioWorkspacePage from './pages/PortfolioWorkspacePage'
 import RiskCommandCenterPage from './pages/RiskCommandCenterPage'
@@ -57,7 +57,7 @@ export default function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="portfolios" element={<PortfoliosListPage />} />
         <Route path="portfolios/:id" element={<PortfolioWorkspacePage />} />
-        <Route path="live" element={<LiveCockpitPage />} />
+        <Route path="live" element={<LivePage />} />
         <Route path="execution/:parentId" element={<ExecutionTracerPage />} />
         <Route path="execution" element={<ExecutionHubPage />} />
         <Route path="risk" element={<RiskCommandCenterPage />} />

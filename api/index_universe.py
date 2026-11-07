@@ -9,10 +9,11 @@ from psycopg.rows import dict_row
 
 from api.db import resolve_database_url
 from api.index_catalog import RAW_INDEX_TICKER_BY_CODE, known_index_codes
-from shunya.data.market_data.constants import STORED_OHLCV_DEFAULT_UPSTREAM_ID
+from shunya.data.market_data.constants import stored_daily_ohlcv_source
 
 
 def index_exists(index_code: str) -> bool:
+    """Return whether ``equity_indexes`` contains the normalized index code."""
     import psycopg
 
     code = index_code.strip().upper()
@@ -26,6 +27,7 @@ def index_exists(index_code: str) -> bool:
 
 
 def constituent_tickers(index_code: str) -> list[str]:
+    """List member tickers from ``symbol_index_membership`` ordered by ticker."""
     code = index_code.strip().upper()
     import psycopg
 
@@ -83,9 +85,13 @@ def ohlcv_bar_counts_in_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
+    source: str | None = None,
 ) -> dict[str, int]:
-    """Return ``ticker -> bar count`` for ``[start_date, end_date)`` (``0`` if symbol or bars missing)."""
+    """Return ``ticker -> bar count`` for ``[start_date, end_date)`` (``0`` if symbol or bars missing).
+
+    ``source`` defaults to :func:`~shunya.data.market_data.constants.stored_daily_ohlcv_source`.
+    """
+    source = source or stored_daily_ohlcv_source()
     if not tickers:
         return {}
     import psycopg
@@ -131,7 +137,7 @@ def tickers_with_ohlcv_in_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
+    source: str | None = None,
 ) -> list[str]:
     """Constituents that have at least one OHLCV bar in the window (stable sort)."""
     counts = ohlcv_bar_counts_in_window(
@@ -146,7 +152,7 @@ def validate_ohlcv_window(
     start_date: str,
     end_date: str,
     interval: str,
-    source: str = STORED_OHLCV_DEFAULT_UPSTREAM_ID,
+    source: str | None = None,
 ) -> None:
     """
     Ensure each ticker has at least one bar in [start, end).
@@ -155,6 +161,7 @@ def validate_ohlcv_window(
     """
     if not tickers:
         raise ValueError("empty ticker list for OHLCV validation")
+    source = source or stored_daily_ohlcv_source()
 
     rows = ohlcv_bar_counts_in_window(
         tickers, start_date=start_date, end_date=end_date, interval=interval, source=source

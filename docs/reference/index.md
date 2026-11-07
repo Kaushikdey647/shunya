@@ -1,20 +1,29 @@
 # Reference
 
-## Python package (`shunya`)
+Generated pages use [mkdocstrings](https://mkdocstrings.github.io/) and Google-style docstrings. OpenAPI from a running server remains the catalog of every path, query, and body field.
 
-The installable PyPI package **`shunya-py`** ships the **`shunya`** and **`api`** namespaces. Auto-generated API pages are built from **docstrings** with [mkdocstrings](https://mkdocstrings.github.io/).
+## Python
 
-- **[Python package (`shunya`)](library.md)** — generated from `import shunya` (same symbols as [`__init__.py` `__all__`](https://github.com/Kaushikdey647/shunya/blob/main/shunya/__init__.py) at the package root).
+| Page | What it covers |
+|------|----------------|
+| [Package root](library.md) | `shunya.__all__` |
+| [Algorithms and backtesting](algorithm.md) | `FinStrat`, `FinBT`, portfolio construction, risk, operators |
+| [Data access](data.md) | `finTs`, providers, calendars, fundamentals |
+| [Market data contracts](market-data.md) | Route types and `resolve_market_route` |
+| [Execution](execution.md) | OMS, EMS, paper desk |
+| [Shared contracts](contracts.md) | Schemas, `ErrorCode`, market clock |
+| [Ports and adapters](ports-adapters.md) | Backtest and cross-section ports, Backtrader / NumPy / JAX adapters |
 
-Submodules under `shunya.*` are not given separate top-level pages in this first revision; expand types on the library page or jump to source on GitHub from the docstring links where enabled.
+Narrative for those types is under [Documentation](../documentation/system-overview.md) and [Concepts](../concepts/index.md).
 
-For narrative explanations of major types (`finTs`, FinStrat, PCS, OMS/EMS), see **[Concepts (finance)](../concepts/index.md)**. For **APIs, types, and configuration**, see **[Documentation](../documentation/system-overview.md)**.
+## HTTP
 
-## HTTP API (`api`)
+| Page | What it covers |
+|------|----------------|
+| [Overview](http-api-package.md) | Route groups, health, auth, environment |
+| [`api.main`](api-library.md) | App factory and lifespan |
+| [Settings and errors](http-settings-errors.md) | `SHUNYA_API_*` settings object and error re-exports |
+| [Models](http-models.md) | Selected request and response models |
+| [Beyond OpenAPI](http-beyond-openapi.md) | Job readback, notification codes, WebSocket frames |
 
-The **`api`** package is **included in the `shunya-py` wheel** alongside **`shunya`**. Install optional extras **`api`** and usually **`timescale`** so FastAPI, uvicorn, and database clients are available at runtime.
-
-- **[HTTP API (overview)](http-api-package.md)** — architecture, health routes, route-group table, universe return analytics, authentication, compact environment table, OpenAPI URLs, **`curl`** export, and **`api/`** source layout.
-- **[HTTP API (`api.main`)](api-library.md)** — generated docstrings for **`create_app`**, **`app`**, **`run`**, and related symbols in **`api.main`**.
-
-For per-endpoint request/response models and query parameters, use **Swagger** (`/docs`) or **`openapi.json`** from a running server. Deep semantics (backtest window, migrations, full env table): **[`api/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md)**.
+Per-endpoint schemas: `/docs` or `/openapi.json` on a running API. Bootstrap and the full environment table: [`api/README.md`](https://github.com/Kaushikdey647/shunya/blob/main/api/README.md).

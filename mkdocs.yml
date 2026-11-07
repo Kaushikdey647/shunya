@@ -9,6 +9,7 @@ strict: true
 
 exclude_docs: |
   ssrn*.pdf
+  internal/**
 
 theme:
   name: material
@@ -93,10 +94,12 @@ nav:
       - "Risk management and avoiding losses": concepts/risk-management-and-avoiding-losses.md
   - Documentation:
       - "System overview": documentation/system-overview.md
+      - "Manual order sequence": documentation/manual-order-sequence.md
+      - "Asynchronous backtest sequence": documentation/backtest-sequence.md
       - "Data layer: finTs and providers": documentation/fints-providers.md
       - "Signals: FinStrat and FinBT": documentation/finstrat-finbt.md
       - Portfolio construction and risk: documentation/portfolio-risk.md
-      - "Execution: OMS, EMS, live desk": documentation/oms-ems.md
+      - "Daily live trading": documentation/live-trading.md
       - Operators and cross-section: documentation/operators.md
   - How-to guides:
       - "Local dev: API, worker, and UI": how-to/local-dev-api-ui.md
@@ -123,5 +126,14 @@ nav:
   - Reference:
       - reference/index.md
       - "Python package (shunya)": reference/library.md
+      - "Algorithms and backtesting": reference/algorithm.md
+      - "Data access": reference/data.md
+      - "Market data contracts": reference/market-data.md
+      - Execution: reference/execution.md
+      - "Shared contracts": reference/contracts.md
+      - "Ports and adapters": reference/ports-adapters.md
       - "HTTP API (overview)": reference/http-api-package.md
       - "HTTP API (api.main)": reference/api-library.md
+      - "HTTP settings and errors": reference/http-settings-errors.md
+      - "HTTP models": reference/http-models.md
+      - "HTTP behavior beyond OpenAPI": reference/http-beyond-openapi.md

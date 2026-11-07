@@ -1,0 +1,12 @@
+# Cron trigger for the live runner: one `shunya-live tick` every 15 minutes (UTC is fine:
+# the runner derives every window from Alpaca's calendar, so DST / holidays / half-days need
+# no schedule changes). Same variables as live-web.toml; the process exits after each tick.
+
+[build]
+builder = "RAILPACK"
+buildCommand = "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && uv sync --frozen --extra api --extra timescale --no-dev"
+
+[deploy]
+startCommand = ".venv/bin/shunya-live tick"
+cronSchedule = "*/15 * * * *"
+restartPolicyType = "NEVER"
