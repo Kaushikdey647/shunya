@@ -5,7 +5,7 @@ These rules are binding for all work in this repo. They override older docs/TODO
 ## Agenda (Alpaca-only migration)
 
 1. **Broker:** trading goes through Alpaca only (`alpaca-py`). No Kite or other brokers.
-2. **Data:** the only market data source is Alpaca **IEX** bars. No yfinance, Tiingo, Alpha Vantage or Kite data.
+2. **Data:** the only market data source is Alpaca. Daily history uses the **SIP** feed (all exchanges: official closes, consolidated volume, history since 2016). Daily bars are fetched after the close, so they are past the free plan's 15-minute delay. IEX is a fallback only. No yfinance, Tiingo, Alpha Vantage or Kite data.
    Remove the yfinance bypasses: curl_cffi impersonation, `verify=False` sessions added for Yahoo, rate-limit sleeps, the repair logic, and the Yahoo backfill retries.
    `SHUNYA_TLS_VERIFY` stays only where Alpaca itself needs it behind corporate TLS inspection.
 3. **Execution:** a scheduled cron job (Railway) aggregates the signals of every deployed alpha and trades them in one of two modes:
@@ -14,12 +14,17 @@ These rules are binding for all work in this repo. They override older docs/TODO
    - Each alpha declares its mode. Its backtest uses the dataset that matches that mode, so backtest and live see the same data shape.
    - Algorithms run on a **daily timeframe at minimum**. There is no realtime trading: no WebSocket/SSE streaming, OMS/EMS child-order slicing, trade desk or intraday bar specs. Alpaca is accessed over REST only.
    - The scheduled job is the daily cron runner (`shunya-live tick`).
-4. **Symbol master:** comes from SEC `company_tickers.json`, with a boolean `symbols.is_alpaca_tradable` (indexed) set from Alpaca `/v2/assets`.
-   - Non-tradable entities are shown in ticker info only.
-   - Every trading or Alpaca-related path filters on the flag: universes, algorithm inputs, ingest, viewing and indexing historical bars, and the runner.
+4. **Symbol master:** comes from SEC `company_tickers.json` plus Alpaca `/v2/assets` (active and inactive). Two indexed flags:
+   - `is_alpaca_tradable`: tradable at Alpaca today. Trading paths filter on it: the live runner, deploys, live universes.
+   - `has_alpaca_data`: Alpaca serves bars for the symbol. Entities without data are skipped everywhere except ticker info.
+   - Delisted symbols with data (not tradable) stay usable for backtests within their coverage window. Never filter historical data by current tradability, because that causes survivorship bias.
    - Classification comes from `data.sec.gov/submissions/CIK{10-digit}.json`: `sic`, `sicDescription` and `ownerOrg` go into the `sic_codes` table. `filings` is ignored.
    - Reference data is loaded by a one-time job, re-runnable for new tickers. Backtests and order cycles read it from the DB only and never call external APIs per run or iteration.
-5. **Storage and compute:** the Timescale schema, ingest, finTs and the JAX/AlphaContext tensors are designed around Alpaca bars (vwap, trade_count, IEX gaps, corporate actions), not around Yahoo.
+5. **Storage and compute:** the Timescale schema, ingest, finTs and the JAX/AlphaContext tensors are designed around Alpaca bars (vwap, trade_count, gaps, corporate actions), not around Yahoo.
+6. **Scenario backtests:** alphas are evaluated on a suite of historical scenarios (testcases), not only one full-period run.
+   - Each scenario is an event window of ±5 months, limited to the Alpaca era (2016 onward), so there is no 2008.
+   - Each scenario has point-in-time liquidity tiers: top 100, 200, 500 and 1000. An alpha declares its tier and gets one result per scenario.
+   - Feasibility (data coverage and warm-up) is computed before the scenarios run.
 
 ## Workflow
 
