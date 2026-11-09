@@ -44,6 +44,18 @@ Do not commit secrets; use compose defaults locally or your own credentials.
    - Backtests, universes, `ingest-ohlcv --symbols-from-db` and live deploys use tradable symbols only. They never call SEC or Alpaca at run time.
    - Flags: `--refresh` re-fetches every CIK, `--limit N` caps one run, and `--skip-alpaca` / `--skip-submissions` skip those passes. An interrupted run resumes where it stopped.
 
+   **Alpaca bar storage** (migration `018_alpaca_bars.sql`; filled by the Alpaca ingest):
+
+   - `alpaca_bars_daily`: **raw** (unadjusted) daily bars per `(symbol_id, session_date, feed)` with `vwap` and `trade_count`. It is a hypertable with 1-year chunks.
+   - `alpaca_corporate_actions`: every Alpaca action type, with per-event `price_factor` / `volume_factor` computed at ingest from the raw prior close.
+     - Splits: `1/r` and `r`.
+     - Stock dividends: `r = 1 + rate`.
+     - Cash dividends: `1 − rate/prev_close`.
+     - Spin-offs are not adjusted yet.
+   - Adjusted series are built at read time by `shunya.data.adjustments.adjust_bars` (modes `raw` / `split` / `all`). A bar is scaled by the product of the factors of later actions, so the latest close is never scaled and stored history never goes stale.
+   - `market_sessions`: Alpaca calendar. `symbol_data_coverage`: first/last session, bar count and calendar gaps per symbol and feed.
+   - `SELECT refresh_symbol_data_coverage('sip')` recomputes coverage and sets `symbols.has_alpaca_data`.
+
 3. Ingest OHLCV (Yahoo path, normalized the same way as `finTs` defaults):
 
    `shunya-timescale ingest-ohlcv --symbols "AAPL MSFT" --start 2020-01-01 --end 2024-01-01`

@@ -174,3 +174,44 @@ def test_sec_reference_flag_and_view(timescale_dsn: str, monkeypatch: pytest.Mon
                 assert "0009999992" in pending and "0009999991" not in pending
         finally:
             conn.rollback()
+
+
+def test_alpaca_bars_coverage_refresh(timescale_dsn: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Coverage counts calendar gaps and sets has_alpaca_data; rolled back."""
+    import psycopg
+
+    monkeypatch.setenv("DATABASE_URL", timescale_dsn)
+    from shunya.data.timescale.dbutil import apply_migrations
+
+    apply_migrations()
+    with psycopg.connect(timescale_dsn) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("INSERT INTO symbols (ticker) VALUES ('__SHY_COV__') RETURNING id")
+                sid = cur.fetchone()[0]
+                cur.execute("INSERT INTO symbols (ticker) VALUES ('__SHY_NODATA__') RETURNING id")
+                sid_none = cur.fetchone()[0]
+                for d in ("2099-01-05", "2099-01-06", "2099-01-07"):
+                    cur.execute(
+                        "INSERT INTO market_sessions VALUES (%s, %s::date + time '14:30', %s::date + time '21:00') "
+                        "ON CONFLICT DO NOTHING",
+                        (d, d, d),
+                    )
+                for d in ("2099-01-05", "2099-01-07"):  # 01-06 missing
+                    cur.execute(
+                        "INSERT INTO alpaca_bars_daily (symbol_id, session_date, feed, open, high, low, close, volume, vwap, trade_count) "
+                        "VALUES (%s, %s, 'sip', 1, 1, 1, 1, 100, 1, 5)",
+                        (sid, d),
+                    )
+                cur.execute("SELECT refresh_symbol_data_coverage('sip', %s)", ([sid, sid_none],))
+                assert cur.fetchone()[0] == 1
+                cur.execute(
+                    "SELECT first_session::text, last_session::text, n_sessions, missing_sessions "
+                    "FROM symbol_data_coverage WHERE symbol_id = %s AND feed = 'sip'",
+                    (sid,),
+                )
+                assert cur.fetchone() == ("2099-01-05", "2099-01-07", 2, 1)
+                cur.execute("SELECT id, has_alpaca_data FROM symbols WHERE id = ANY(%s) ORDER BY id", ([sid, sid_none],))
+                assert dict(cur.fetchall()) == {sid: True, sid_none: False}
+        finally:
+            conn.rollback()
